@@ -21,8 +21,8 @@ export function registerIpcHandlers(): void {
     return GitService.listWorktrees(repoPath)
   })
 
-  ipcMain.handle(IPC.GIT_CREATE_WORKTREE, async (_e, repoPath: string, name: string, branch: string, newBranch: boolean) => {
-    return GitService.createWorktree(repoPath, name, branch, newBranch)
+  ipcMain.handle(IPC.GIT_CREATE_WORKTREE, async (_e, repoPath: string, name: string, branch: string, newBranch: boolean, force?: boolean) => {
+    return GitService.createWorktree(repoPath, name, branch, newBranch, force)
   })
 
   ipcMain.handle(IPC.GIT_REMOVE_WORKTREE, async (_e, repoPath: string, worktreePath: string) => {

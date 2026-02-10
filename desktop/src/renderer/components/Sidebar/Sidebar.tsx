@@ -67,67 +67,84 @@ export function Sidebar() {
     setManualExpanded((prev) => new Set(prev).add(id))
   }, [addProject])
 
-  const handleCreateWorkspace = useCallback(async (project: Project, name: string, branch: string, newBranch: boolean) => {
+  const finishCreateWorkspace = useCallback(async (project: Project, name: string, branch: string, worktreePath: string) => {
+    const wsId = crypto.randomUUID()
+    addWorkspace({
+      id: wsId,
+      name,
+      branch,
+      worktreePath,
+      projectId: project.id,
+    })
+
+    const commands = project.startupCommands ?? []
+
+    // Pre-trust worktree in Claude Code if any command uses claude
+    if (commands.some((c) => c.command.trim().startsWith('claude'))) {
+      await window.api.claude.trustPath(worktreePath).catch(() => {})
+    }
+
+    if (commands.length === 0) {
+      // Default: one blank terminal
+      const ptyId = await window.api.pty.create(worktreePath, undefined, { AGENT_ORCH_WS_ID: wsId })
+      addTab({
+        id: crypto.randomUUID(),
+        workspaceId: wsId,
+        type: 'terminal',
+        title: 'Terminal',
+        ptyId,
+      })
+    } else {
+      let firstTabId: string | null = null
+      for (const cmd of commands) {
+        const ptyId = await window.api.pty.create(worktreePath, undefined, { AGENT_ORCH_WS_ID: wsId })
+        const tabId = crypto.randomUUID()
+        if (!firstTabId) firstTabId = tabId
+        addTab({
+          id: tabId,
+          workspaceId: wsId,
+          type: 'terminal',
+          title: cmd.name || cmd.command,
+          ptyId,
+        })
+        // Delay to let shell initialize before writing command
+        setTimeout(() => {
+          window.api.pty.write(ptyId, cmd.command + '\n')
+        }, 500)
+      }
+      // Activate the first terminal tab
+      if (firstTabId) useAppStore.getState().setActiveTab(firstTabId)
+    }
+  }, [addWorkspace, addTab])
+
+  const handleCreateWorkspace = useCallback(async (project: Project, name: string, branch: string, newBranch: boolean, force = false) => {
     try {
       const worktreePath = await window.api.git.createWorktree(
         project.repoPath,
         name,
         branch,
-        newBranch
+        newBranch,
+        force
       )
-
-      const wsId = crypto.randomUUID()
-      addWorkspace({
-        id: wsId,
-        name,
-        branch,
-        worktreePath,
-        projectId: project.id,
-      })
-
-      const commands = project.startupCommands ?? []
-
-      // Pre-trust worktree in Claude Code if any command uses claude
-      if (commands.some((c) => c.command.trim().startsWith('claude'))) {
-        await window.api.claude.trustPath(worktreePath).catch(() => {})
-      }
-
-      if (commands.length === 0) {
-        // Default: one blank terminal
-        const ptyId = await window.api.pty.create(worktreePath, undefined, { AGENT_ORCH_WS_ID: wsId })
-        addTab({
-          id: crypto.randomUUID(),
-          workspaceId: wsId,
-          type: 'terminal',
-          title: 'Terminal',
-          ptyId,
-        })
-      } else {
-        let firstTabId: string | null = null
-        for (const cmd of commands) {
-          const ptyId = await window.api.pty.create(worktreePath, undefined, { AGENT_ORCH_WS_ID: wsId })
-          const tabId = crypto.randomUUID()
-          if (!firstTabId) firstTabId = tabId
-          addTab({
-            id: tabId,
-            workspaceId: wsId,
-            type: 'terminal',
-            title: cmd.name || cmd.command,
-            ptyId,
-          })
-          // Delay to let shell initialize before writing command
-          setTimeout(() => {
-            window.api.pty.write(ptyId, cmd.command + '\n')
-          }, 500)
-        }
-        // Activate the first terminal tab
-        if (firstTabId) useAppStore.getState().setActiveTab(firstTabId)
-      }
+      await finishCreateWorkspace(project, name, branch, worktreePath)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create workspace'
+      if (msg === 'WORKTREE_PATH_EXISTS') {
+        showConfirmDialog({
+          title: 'Worktree already exists',
+          message: `A leftover directory for workspace "${name}" already exists on disk. Replace it?`,
+          confirmLabel: 'Replace',
+          destructive: true,
+          onConfirm: () => {
+            dismissConfirmDialog()
+            handleCreateWorkspace(project, name, branch, newBranch, true)
+          },
+        })
+        return
+      }
       addToast({ id: crypto.randomUUID(), message: msg, type: 'error' })
     }
-  }, [addWorkspace, addTab, addToast])
+  }, [finishCreateWorkspace, addToast, showConfirmDialog, dismissConfirmDialog])
 
   const handleSelectWorkspace = useCallback((wsId: string) => {
     setActiveWorkspace(wsId)

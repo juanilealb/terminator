@@ -5,8 +5,8 @@ const api = {
   git: {
     listWorktrees: (repoPath: string) =>
       ipcRenderer.invoke(IPC.GIT_LIST_WORKTREES, repoPath),
-    createWorktree: (repoPath: string, name: string, branch: string, newBranch: boolean) =>
-      ipcRenderer.invoke(IPC.GIT_CREATE_WORKTREE, repoPath, name, branch, newBranch),
+    createWorktree: (repoPath: string, name: string, branch: string, newBranch: boolean, force?: boolean) =>
+      ipcRenderer.invoke(IPC.GIT_CREATE_WORKTREE, repoPath, name, branch, newBranch, force),
     removeWorktree: (repoPath: string, worktreePath: string) =>
       ipcRenderer.invoke(IPC.GIT_REMOVE_WORKTREE, repoPath, worktreePath),
     getStatus: (worktreePath: string) =>

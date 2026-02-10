@@ -1,4 +1,6 @@
 import { execFile } from 'child_process'
+import { existsSync } from 'fs'
+import { rm } from 'fs/promises'
 import { promisify } from 'util'
 import { basename, dirname, join, resolve } from 'path'
 
@@ -45,8 +47,11 @@ function friendlyGitError(err: unknown, fallback: string): string {
     return ref ? `Branch "${ref}" not found` : 'Branch not found'
   }
 
-  // "fatal: 'path' already exists"
-  if (stderr.includes('already exists')) return 'Worktree path already exists on disk'
+  // "fatal: a branch named 'X' already exists"
+  if (stderr.includes('a branch named')) return 'BRANCH_ALREADY_EXISTS'
+
+  // "fatal: '/path' already exists"
+  if (stderr.includes('already exists')) return 'WORKTREE_PATH_EXISTS'
 
   // "fatal: not a git repository"
   if (stderr.includes('not a git repository')) return 'Not a git repository'
@@ -86,11 +91,22 @@ export class GitService {
     repoPath: string,
     name: string,
     branch: string,
-    newBranch: boolean
+    newBranch: boolean,
+    force = false
   ): Promise<string> {
     const parentDir = dirname(repoPath)
     const repoName = basename(repoPath)
     const worktreePath = resolve(parentDir, `${repoName}-ws-${name}`)
+
+    // Clean up stale worktree refs
+    await git(['worktree', 'prune'], repoPath).catch(() => {})
+
+    if (existsSync(worktreePath)) {
+      if (!force) {
+        throw new Error('WORKTREE_PATH_EXISTS')
+      }
+      await rm(worktreePath, { recursive: true, force: true })
+    }
 
     const args = ['worktree', 'add']
     if (newBranch) {
@@ -104,7 +120,17 @@ export class GitService {
     try {
       await git(args, repoPath)
     } catch (err) {
-      throw new Error(friendlyGitError(err, 'Failed to create worktree'))
+      const msg = friendlyGitError(err, 'Failed to create worktree')
+      // Branch already exists from a previous worktree — retry without -b
+      if (msg === 'BRANCH_ALREADY_EXISTS' && newBranch) {
+        try {
+          await git(['worktree', 'add', worktreePath, branch], repoPath)
+          return worktreePath
+        } catch (retryErr) {
+          throw new Error(friendlyGitError(retryErr, 'Failed to create worktree'))
+        }
+      }
+      throw new Error(msg)
     }
     return worktreePath
   }
