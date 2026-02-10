@@ -59,7 +59,6 @@ export function Sidebar() {
     const name = dirPath.split('/').pop() || dirPath
     const id = crypto.randomUUID()
     addProject({ id, name, repoPath: dirPath })
-    setManualExpanded((prev) => new Set(prev).add(id))
   }, [addProject])
 
   const finishCreateWorkspace = useCallback(async (project: Project, name: string, branch: string, worktreePath: string) => {
@@ -154,17 +153,8 @@ export function Sidebar() {
   }, [finishCreateWorkspace, addToast, showConfirmDialog, dismissConfirmDialog])
 
   const handleSelectWorkspace = useCallback((wsId: string) => {
-    const ws = workspaces.find((w) => w.id === wsId)
-    if (ws) {
-      setManualExpanded((prev) => {
-        if (prev.has(ws.projectId)) return prev
-        const next = new Set(prev)
-        next.add(ws.projectId)
-        return next
-      })
-    }
     setActiveWorkspace(wsId)
-  }, [setActiveWorkspace, workspaces])
+  }, [setActiveWorkspace])
 
   const handleDeleteWorkspace = useCallback((e: React.MouseEvent, ws: { id: string; name: string }) => {
     e.stopPropagation()
@@ -213,7 +203,7 @@ export function Sidebar() {
         )}
 
         {projects.map((project) => {
-          const isExpanded = expandedProjects.has(project.id)
+          const isExpanded = isProjectExpanded(project.id)
           const projectWorkspaces = workspaces.filter(
             (w) => w.projectId === project.id
           )

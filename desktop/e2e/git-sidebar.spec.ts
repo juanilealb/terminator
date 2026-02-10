@@ -139,9 +139,7 @@ test.describe('Git & Sidebar functionality', () => {
       const projectHeader = window.locator('[class*="projectHeader"]', { hasText: 'sidebar-project' }).first()
       await expect(projectHeader).toBeVisible()
 
-      // Click to expand the project
-      await projectHeader.click()
-      await window.waitForTimeout(300)
+      // Projects are expanded by default — no click needed
 
       // Workspace should be visible (sidebar shows branch name)
       const workspaceItem = window.locator('[class*="workspaceItem"]', { hasText: 'ws-branch' })
@@ -315,10 +313,7 @@ test.describe('Git & Sidebar functionality', () => {
 
       await window.waitForTimeout(500)
 
-      // Expand project
-      const projectHeader = window.locator('[class*="projectHeader"]', { hasText: 'multi-project' }).first()
-      await projectHeader.click()
-      await window.waitForTimeout(300)
+      // Projects are expanded by default — no click needed
 
       // Both workspaces should be visible (sidebar shows branch names)
       const wsAlpha = window.locator('[class*="workspaceItem"]', { hasText: 'branch-alpha' })
