@@ -23,6 +23,22 @@ export function useShortcuts() {
         return
       }
 
+      // Shift+Enter handling when terminal is focused
+      if (e.key === 'Enter' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey
+        && (e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
+        // Shift+Enter: ghostty-web sends \r for both Enter and Shift+Enter.
+        // Write the kitty keyboard protocol sequence so CLIs (e.g. Claude Code) can
+        // distinguish Shift+Enter (new line) from Enter (submit).
+        e.preventDefault()
+        e.stopPropagation()
+        const s = useAppStore.getState()
+        const tab = s.tabs.find((t) => t.id === s.activeTabId)
+        if (tab?.type === 'terminal') {
+          window.api.pty.write(tab.ptyId, '\x1b[13;2u')
+        }
+        return
+      }
+
       const meta = e.metaKey || e.ctrlKey
       const shift = e.shiftKey
       const alt = e.altKey

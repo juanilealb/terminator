@@ -50,6 +50,8 @@ Single Zustand store (`app-store.ts`) with this shape:
 
 **Shift+Tab workaround**: ghostty-web sends `\t` for both Tab and Shift+Tab. The shortcuts hook intercepts Shift+Tab and writes `\x1b[Z` directly to PTY.
 
+**Shift+Enter workaround**: ghostty-web sends `\r` for both Enter and Shift+Enter. The shortcuts hook intercepts Shift+Enter and writes `\x1b[13;2u` (kitty keyboard protocol) directly to PTY so CLIs like Claude Code can distinguish new-line from submit.
+
 **Monaco in Allotment**: Pane children need `height: 100%` (not flex) and `position: absolute; inset: 0` within a `position: relative` parent to size correctly.
 
 ## Testing
