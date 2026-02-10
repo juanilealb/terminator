@@ -124,6 +124,7 @@ export interface AppState {
   closeAllWorkspaceTabs: () => void
   focusOrCreateTerminal: () => Promise<void>
   openWorkspaceDialog: (projectId: string | null) => void
+  renameWorkspace: (id: string, name: string) => void
   deleteWorkspace: (workspaceId: string) => Promise<void>
   updateProject: (id: string, partial: Partial<Omit<Project, 'id'>>) => void
   deleteProject: (projectId: string) => Promise<void>

@@ -66,6 +66,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }),
 
+  renameWorkspace: (id, name) =>
+    set((s) => ({
+      workspaces: s.workspaces.map((w) => w.id === id ? { ...w, name } : w),
+    })),
+
   setActiveWorkspace: (id) =>
     set((s) => {
       const wsTabs = s.tabs.filter((t) => t.workspaceId === id)

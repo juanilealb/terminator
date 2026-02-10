@@ -211,6 +211,19 @@
   white-space: nowrap;
 }
 
+.workspaceNameInput {
+  all: unset;
+  width: 100%;
+  font-size: inherit;
+  font-family: var(--font-mono);
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  margin: -1px -2px;
+  outline: 1px solid var(--accent-blue);
+}
+
 .workspaceMeta {
   font-size: var(--text-xs);
   color: var(--text-tertiary);

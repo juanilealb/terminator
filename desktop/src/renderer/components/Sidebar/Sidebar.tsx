@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useAppStore } from '../../store/app-store'
 import type { Project } from '../../store/types'
 import { WorkspaceDialog } from './WorkspaceDialog'
@@ -28,28 +28,23 @@ export function Sidebar() {
     toggleSettings,
     toggleAutomations,
     unreadWorkspaceIds,
+    renameWorkspace,
   } = useAppStore()
 
-  const [manualExpanded, setManualExpanded] = useState<Set<string>>(new Set())
+  const [manualCollapsed, setManualCollapsed] = useState<Set<string>>(new Set())
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null)
+  const editRef = useRef<string>('')
   const dialogProject = workspaceDialogProjectId
     ? projects.find((p) => p.id === workspaceDialogProjectId) ?? null
     : null
 
-  // Auto-expand the project containing the active workspace
-  const activeProjectId = useMemo(() => {
-    if (!activeWorkspaceId) return null
-    return workspaces.find((w) => w.id === activeWorkspaceId)?.projectId ?? null
-  }, [activeWorkspaceId, workspaces])
-
-  const expandedProjects = useMemo(() => {
-    const set = new Set(manualExpanded)
-    if (activeProjectId) set.add(activeProjectId)
-    return set
-  }, [manualExpanded, activeProjectId])
+  const isProjectExpanded = useCallback((id: string) => {
+    return !manualCollapsed.has(id)
+  }, [manualCollapsed])
 
   const toggleProject = useCallback((id: string) => {
-    setManualExpanded((prev) => {
+    setManualCollapsed((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -159,8 +154,17 @@ export function Sidebar() {
   }, [finishCreateWorkspace, addToast, showConfirmDialog, dismissConfirmDialog])
 
   const handleSelectWorkspace = useCallback((wsId: string) => {
+    const ws = workspaces.find((w) => w.id === wsId)
+    if (ws) {
+      setManualExpanded((prev) => {
+        if (prev.has(ws.projectId)) return prev
+        const next = new Set(prev)
+        next.add(ws.projectId)
+        return next
+      })
+    }
     setActiveWorkspace(wsId)
-  }, [setActiveWorkspace])
+  }, [setActiveWorkspace, workspaces])
 
   const handleDeleteWorkspace = useCallback((e: React.MouseEvent, ws: { id: string; name: string }) => {
     e.stopPropagation()
@@ -244,31 +248,67 @@ export function Sidebar() {
 
               {isExpanded && (
                 <div className={styles.workspaceList}>
-                  {projectWorkspaces.map((ws) => (
-                    <div
-                      key={ws.id}
-                      className={`${styles.workspaceItem} ${
-                        ws.id === activeWorkspaceId ? styles.active : ''
-                      } ${unreadWorkspaceIds.has(ws.id) ? styles.unread : ''}`}
-                      onClick={() => handleSelectWorkspace(ws.id)}
-                    >
-                      <span className={styles.workspaceIcon}>{ws.automationId ? '⏱' : '⌥'}</span>
-                      <div className={styles.workspaceNameCol}>
-                        <span className={styles.workspaceName}>{ws.automationId ? ws.name : ws.branch}</span>
-                        {ws.automationId && ws.branch && (
-                          <span className={styles.workspaceMeta}>{ws.branch}</span>
-                        )}
+                  {projectWorkspaces.map((ws) => {
+                    const isEditing = editingWorkspaceId === ws.id
+                    const isAutoName = /^ws-[a-z0-9]+$/.test(ws.name)
+                    const displayName = isAutoName ? ws.branch : ws.name
+                    const showMeta = !isAutoName && ws.branch && ws.branch !== ws.name
+
+                    return (
+                      <div
+                        key={ws.id}
+                        className={`${styles.workspaceItem} ${
+                          ws.id === activeWorkspaceId ? styles.active : ''
+                        } ${unreadWorkspaceIds.has(ws.id) ? styles.unread : ''}`}
+                        onClick={() => !isEditing && handleSelectWorkspace(ws.id)}
+                        onDoubleClick={() => {
+                          editRef.current = displayName
+                          setEditingWorkspaceId(ws.id)
+                        }}
+                      >
+                        <span className={styles.workspaceIcon}>{ws.automationId ? '⏱' : '⌥'}</span>
+                        <div className={styles.workspaceNameCol}>
+                          {isEditing ? (
+                            <input
+                              className={styles.workspaceNameInput}
+                              defaultValue={displayName}
+                              autoFocus
+                              ref={(el) => { if (el) { el.select() } }}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur()
+                                } else if (e.key === 'Escape') {
+                                  editRef.current = ''
+                                  setEditingWorkspaceId(null)
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const val = e.currentTarget.value.trim()
+                                if (val && val !== ws.name) {
+                                  renameWorkspace(ws.id, val)
+                                }
+                                setEditingWorkspaceId(null)
+                              }}
+                            />
+                          ) : (
+                            <span className={styles.workspaceName}>{displayName}</span>
+                          )}
+                          {showMeta && (
+                            <span className={styles.workspaceMeta}>{ws.branch}</span>
+                          )}
+                        </div>
+                        <Tooltip label="Delete workspace">
+                          <button
+                            className={styles.deleteBtn}
+                            onClick={(e) => handleDeleteWorkspace(e, ws)}
+                          >
+                            ✕
+                          </button>
+                        </Tooltip>
                       </div>
-                      <Tooltip label="Delete workspace">
-                        <button
-                          className={styles.deleteBtn}
-                          onClick={(e) => handleDeleteWorkspace(e, ws)}
-                        >
-                          ✕
-                        </button>
-                      </Tooltip>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   <Tooltip label="New workspace" shortcut="⌘N">
                     <button
