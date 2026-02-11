@@ -129,11 +129,11 @@ export class GitService {
     await git(['worktree', 'prune'], repoPath).catch(() => {})
 
     // Fetch remote refs so worktree branches from latest state
-    await git(['fetch', '--prune'], repoPath).catch(() => {})
+    await git(['fetch', '--prune', 'origin'], repoPath)
 
     // Auto-detect base branch when creating a new branch without explicit base
     if (newBranch && !baseBranch) {
-      baseBranch = await GitService.getDefaultBranch(repoPath).catch(() => undefined)
+      baseBranch = await GitService.getDefaultBranch(repoPath)
     }
 
     if (existsSync(worktreePath)) {
@@ -163,6 +163,12 @@ export class GitService {
       if (msg === 'BRANCH_CHECKED_OUT' && !force) throw new Error(msg)
       throw new Error(msg)
     }
+
+    // Fast-forward existing branches to match upstream
+    if (!newBranch || branchExists) {
+      await git(['pull', '--ff-only'], worktreePath).catch(() => {})
+    }
+
     return worktreePath
   }
 
