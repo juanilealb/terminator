@@ -1,5 +1,5 @@
 diff --git a/dist/ghostty-web.js b/dist/ghostty-web.js
-index a4ca427b95288e70c782ce303013cd644893dcec..9d5808dd5b20bf93ffe6bdbac228e218ae84413a 100644
+index a4ca427b95288e70c782ce303013cd644893dcec..384b128ee6e3a01e7cb2e4e8fe9af4f8ae3d6a0c 100644
 --- a/dist/ghostty-web.js
 +++ b/dist/ghostty-web.js
 @@ -1945,16 +1945,35 @@ const L = class Y {
@@ -54,3 +54,12 @@ index a4ca427b95288e70c782ce303013cd644893dcec..9d5808dd5b20bf93ffe6bdbac228e218
      };
      if (!E(g[A]))
        return null;
+@@ -2387,7 +2406,7 @@ class IA {
+    */
+   writeInternal(A, B) {
+     var g;
+-    this.wasmTerm.write(A), this.processTerminalResponses(), typeof A == "string" && A.includes("\x07") ? this.bellEmitter.fire() : A instanceof Uint8Array && A.includes(7) && this.bellEmitter.fire(), (g = this.linkDetector) == null || g.invalidateCache(), this.viewportY !== 0 && this.scrollToBottom(), typeof A == "string" && A.includes("\x1B]") && this.checkForTitleChange(A), B && requestAnimationFrame(B);
++    this.wasmTerm.write(A), this.processTerminalResponses(), typeof A == "string" && A.includes("\x07") ? this.bellEmitter.fire() : A instanceof Uint8Array && A.includes(7) && this.bellEmitter.fire(), (g = this.linkDetector) == null || g.invalidateCache(), typeof A == "string" && A.includes("\x1B]") && this.checkForTitleChange(A), B && requestAnimationFrame(B);
+   }
+   /**
+    * Write data with newline
