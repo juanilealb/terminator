@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import type { Tab } from '../../store/types'
 import { Tooltip } from '../Tooltip/Tooltip'
@@ -13,7 +14,7 @@ const TAB_ICONS: Record<Tab['type'], { icon: string; className: string }> = {
 function getTabTitle(tab: Tab): string {
   if (tab.type === 'terminal') return tab.title
   if (tab.type === 'diff') return 'Changes'
-  const name = tab.filePath.split('/').pop() || tab.filePath
+  const name = basenameSafe(toPosixPath(tab.filePath)) || tab.filePath
   return name
 }
 

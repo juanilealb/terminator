@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './RightPanel.module.css'
@@ -260,9 +261,9 @@ function FileRow({
   onDiscard?: () => void
   onOpenDiff: (path: string) => void
 }) {
-  const parts = file.path.split('/')
-  const fileName = parts.pop()
-  const dir = parts.length > 0 ? parts.join('/') + '/' : ''
+  const displayPath = toPosixPath(file.path)
+  const fileName = basenameSafe(displayPath)
+  const dir = displayPath.slice(0, Math.max(0, displayPath.length - fileName.length))
 
   return (
     <div className={styles.changedFile}>
@@ -271,7 +272,7 @@ function FileRow({
       </span>
       <span
         className={styles.changePath}
-        onClick={() => onOpenDiff(file.path)}
+        onClick={() => onOpenDiff(toPosixPath(file.path))}
       >
         {dir && <span className={styles.changeDir}>{dir}</span>}
         {fileName}

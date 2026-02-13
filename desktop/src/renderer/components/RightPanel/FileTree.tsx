@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Tree, NodeRendererProps, NodeApi } from 'react-arborist'
+import { basenameSafe } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import styles from './RightPanel.module.css'
 
@@ -17,8 +18,7 @@ interface Props {
 }
 
 function basename(p: string) {
-  const i = p.lastIndexOf('/')
-  return i >= 0 ? p.slice(i + 1) : p
+  return basenameSafe(p)
 }
 
 /** Recursively open or close all descendants of a node */

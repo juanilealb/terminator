@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import styles from './QuickOpen.module.css'
 
@@ -21,15 +22,25 @@ interface Props {
 
 function flattenTree(nodes: FileNode[], basePath: string): FileEntry[] {
   const result: FileEntry[] = []
+  const basePosix = toPosixPath(basePath).replace(/\/+$/g, '')
+
+  const getRelativePath = (nodePath: string): string => {
+    const normalizedPath = toPosixPath(nodePath)
+    if (!basePosix) return normalizedPath
+    if (normalizedPath === basePosix) return ''
+    const prefix = `${basePosix}/`
+    return normalizedPath.startsWith(prefix)
+      ? normalizedPath.slice(prefix.length)
+      : normalizedPath
+  }
+
   function walk(list: FileNode[]) {
     for (const node of list) {
       if (node.type === 'file') {
         result.push({
           name: node.name,
           path: node.path,
-          relativePath: node.path.startsWith(basePath)
-            ? node.path.slice(basePath.length + 1)
-            : node.path,
+          relativePath: getRelativePath(node.path),
         })
       }
       if (node.children) walk(node.children)
@@ -55,11 +66,10 @@ function fuzzyMatch(query: string, target: string): number[] | null {
 }
 
 function HighlightedPath({ text, indices }: { text: string; indices: number[] }) {
+  const normalizedText = toPosixPath(text)
   const set = new Set(indices)
-  // Split into dir + filename
-  const lastSlash = text.lastIndexOf('/')
-  const dir = lastSlash >= 0 ? text.slice(0, lastSlash + 1) : ''
-  const name = lastSlash >= 0 ? text.slice(lastSlash + 1) : text
+  const name = basenameSafe(normalizedText)
+  const dir = normalizedText.slice(0, Math.max(0, normalizedText.length - name.length))
 
   const renderChars = (str: string, offset: number) =>
     str.split('').map((ch, i) => {
@@ -104,7 +114,8 @@ export function QuickOpen({ worktreePath }: Props) {
       const indices = fuzzyMatch(query, entry.relativePath)
       if (indices) {
         // Score: prefer matches at start of filename, shorter paths, tighter clusters
-        const nameStart = entry.relativePath.lastIndexOf('/') + 1
+        const fileName = basenameSafe(entry.relativePath)
+        const nameStart = Math.max(0, entry.relativePath.length - fileName.length)
         const nameMatchCount = indices.filter((i) => i >= nameStart).length
         const score = -nameMatchCount * 10 + indices.length + entry.relativePath.length
         results.push({ entry, indices, score })

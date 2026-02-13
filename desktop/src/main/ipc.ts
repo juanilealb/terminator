@@ -6,7 +6,7 @@ import { tmpdir } from 'os'
 import { watch, type FSWatcher } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
-import { toPosixPath } from '../shared/platform'
+import { toPosixPath } from '@shared/platform'
 import { PtyManager } from './pty-manager'
 import { GitService } from './git-service'
 import { GithubService } from './github-service'
@@ -22,6 +22,8 @@ const automationScheduler = new AutomationScheduler(ptyManager)
 const fsWatchers = new Map<string, { watcher: FSWatcher; timer: ReturnType<typeof setTimeout> | null }>()
 
 export function registerIpcHandlers(): void {
+  const normalizeGitPath = (filePath: string): string => toPosixPath(filePath)
+
   // ── Git handlers ──
   ipcMain.handle(IPC.GIT_LIST_WORKTREES, async (_e, repoPath: string) => {
     return GitService.listWorktrees(repoPath)
@@ -47,11 +49,13 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.GIT_GET_STATUS, async (_e, worktreePath: string) => {
-    return GitService.getStatus(worktreePath)
+    const statuses = await GitService.getStatus(worktreePath)
+    return statuses.map((s) => ({ ...s, path: normalizeGitPath(s.path) }))
   })
 
   ipcMain.handle(IPC.GIT_GET_DIFF, async (_e, worktreePath: string, staged: boolean) => {
-    return GitService.getDiff(worktreePath, staged)
+    const diffs = await GitService.getDiff(worktreePath, staged)
+    return diffs.map((d) => ({ ...d, path: normalizeGitPath(d.path) }))
   })
 
   ipcMain.handle(IPC.GIT_GET_FILE_DIFF, async (_e, worktreePath: string, filePath: string) => {
@@ -132,22 +136,23 @@ export function registerIpcHandlers(): void {
       GitService.getTopLevel(dirPath).catch(() => dirPath),
     ])
 
-    // git status --porcelain paths are relative to repo root, but
-    // git ls-files paths (used for the tree) are relative to cwd (dirPath).
-    // Compute prefix to convert between them.
-    const prefix = relative(topLevel, dirPath) // e.g. 'desktop' or ''
+    // git status --porcelain paths are relative to repo root, but git ls-files
+    // paths (used for tree nodes) are cwd-relative. Convert both to POSIX.
+    const prefixRaw = toPosixPath(relative(topLevel, dirPath))
+    const prefix = prefixRaw === '.' ? '' : prefixRaw.replace(/^\.\/+/, '')
 
     // Build map: dirPath-relative path → git status
     const statusMap = new Map<string, string>()
     for (const s of statuses) {
-      let p = s.path
+      let p = normalizeGitPath(s.path)
       // Handle renamed files: "old -> new" — use the new path
       if (p.includes(' -> ')) {
-        p = p.split(' -> ')[1]
+        p = p.split(' -> ')[1] ?? p
       }
       // Strip repo-root prefix to get dirPath-relative path
-      if (prefix && p.startsWith(prefix + '/')) {
-        p = p.slice(prefix.length + 1)
+      if (prefix) {
+        if (p === prefix) p = ''
+        else if (p.startsWith(`${prefix}/`)) p = p.slice(prefix.length + 1)
       }
       statusMap.set(p, s.status)
     }
@@ -156,10 +161,7 @@ export function registerIpcHandlers(): void {
     function annotate(nodes: Awaited<ReturnType<typeof FileService.getTree>>): boolean {
       let hasStatus = false
       for (const node of nodes) {
-        // Compute relative path from dirPath
-        const rel = node.path.startsWith(dirPath)
-          ? node.path.slice(dirPath.length + 1)
-          : node.path
+        const rel = toPosixPath(relative(dirPath, node.path))
 
         if (node.type === 'file') {
           const st = statusMap.get(rel)

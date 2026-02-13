@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { basenameSafe, toPosixPath } from "@shared/platform";
 import { useAppStore } from "../../store/app-store";
 import type { Project } from "../../store/types";
 import type { CreateWorktreeProgressEvent } from "../../../shared/workspace-creation";
@@ -237,7 +238,7 @@ export function Sidebar() {
     const dirPath = await window.api.app.selectDirectory();
     if (!dirPath) return;
 
-    const name = dirPath.split("/").pop() || dirPath;
+    const name = basenameSafe(toPosixPath(dirPath)) || dirPath;
     const id = crypto.randomUUID();
     addProject({ id, name, repoPath: dirPath });
   }, [addProject]);

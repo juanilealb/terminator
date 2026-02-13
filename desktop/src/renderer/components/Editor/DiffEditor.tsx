@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, memo } from 'react'
 import { PatchDiff } from '@pierre/diffs/react'
+import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import styles from './Editor.module.css'
 
@@ -28,6 +29,23 @@ const STATUS_LABELS: Record<string, string> = {
   untracked: 'U',
 }
 
+function isAbsolutePathSafe(filePath: string): boolean {
+  const normalized = toPosixPath(filePath)
+  return normalized.startsWith('/') || normalized.startsWith('//') || /^[A-Za-z]:\//.test(normalized)
+}
+
+function joinWorktreePath(worktreePath: string, filePath: string): string {
+  if (isAbsolutePathSafe(filePath)) return filePath
+
+  const useBackslash = worktreePath.includes('\\')
+  const separator = useBackslash ? '\\' : '/'
+  const root = worktreePath.replace(/[\\/]+$/g, '')
+  const relPosix = toPosixPath(filePath).replace(/^\/+/g, '')
+  const rel = useBackslash ? relPosix.replace(/\//g, '\\') : relPosix
+  if (!root) return `${separator}${rel}`
+  return `${root}${separator}${rel}`
+}
+
 // ── Per-file diff section ──
 
 interface DiffFileSectionProps {
@@ -43,13 +61,11 @@ const DiffFileSection = memo(function DiffFileSection({
   worktreePath,
   onOpenFile,
 }: DiffFileSectionProps) {
-  const parts = data.filePath.split('/')
-  const fileName = parts.pop()
-  const dir = parts.length > 0 ? parts.join('/') + '/' : ''
+  const displayPath = toPosixPath(data.filePath)
+  const fileName = basenameSafe(displayPath)
+  const dir = displayPath.slice(0, Math.max(0, displayPath.length - fileName.length))
 
-  const fullPath = data.filePath.startsWith('/')
-    ? data.filePath
-    : `${worktreePath}/${data.filePath}`
+  const fullPath = joinWorktreePath(worktreePath, data.filePath)
 
   return (
     <div className={styles.diffFileSection} id={`diff-${data.filePath}`}>
@@ -104,7 +120,7 @@ function FileStrip({
           className={`${styles.fileStripItem} ${f.filePath === activeFile ? styles.active : ''}`}
           onClick={() => scrollTo(f.filePath)}
         >
-          {f.filePath.split('/').pop()}
+          {basenameSafe(toPosixPath(f.filePath))}
         </button>
       ))}
     </div>
@@ -131,9 +147,7 @@ export function DiffViewer({ worktreePath, active }: Props) {
 
           // For added/untracked files, git diff returns empty — build synthetic patch
           if (!patch && (file.status === 'added' || file.status === 'untracked')) {
-            const fullPath = file.path.startsWith('/')
-              ? file.path
-              : `${worktreePath}/${file.path}`
+            const fullPath = joinWorktreePath(worktreePath, file.path)
             const content = await window.api.fs.readFile(fullPath)
             const lines = content.split('\n')
             patch = [
@@ -149,7 +163,7 @@ export function DiffViewer({ worktreePath, active }: Props) {
             patch = `--- a/${file.path}\n+++ /dev/null\n@@ -1,0 +0,0 @@\n`
           }
 
-          return { filePath: file.path, patch: patch || '', status: file.status }
+          return { filePath: toPosixPath(file.path), patch: patch || '', status: file.status }
         }),
       )
       setFiles(results)
