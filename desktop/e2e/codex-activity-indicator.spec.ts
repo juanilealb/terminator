@@ -2,9 +2,11 @@ import { test, expect, _electron as electron, ElectronApplication, Page } from '
 import { resolve, join } from 'path'
 import { mkdirSync, rmSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
-const FAKE_CODEX_BIN = '/tmp/codex'
+const FAKE_CODEX_BIN = join(tmpdir(), process.platform === 'win32' ? 'codex.cmd' : 'codex')
+const TEST_SHELL = process.platform === 'win32' ? 'pwsh.exe' : 'bash'
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })
@@ -31,7 +33,7 @@ function createTestRepo(name: string): string {
 }
 
 async function setupWorkspace(window: Page, repoPath: string) {
-  return await window.evaluate(async (repo: string) => {
+  return await window.evaluate(async ({ repo, shell }: { repo: string; shell: string }) => {
     const store = (window as any).__store.getState()
     store.hydrateState({ projects: [], workspaces: [] })
 
@@ -48,7 +50,7 @@ async function setupWorkspace(window: Page, repoPath: string) {
       projectId,
     })
 
-    const ptyId = await (window as any).api.pty.create(worktreePath, '/bin/bash', { AGENT_ORCH_WS_ID: workspaceId })
+    const ptyId = await (window as any).api.pty.create(worktreePath, shell, { AGENT_ORCH_WS_ID: workspaceId })
     store.addTab({
       id: crypto.randomUUID(),
       workspaceId,
@@ -58,11 +60,11 @@ async function setupWorkspace(window: Page, repoPath: string) {
     })
 
     return { workspaceId, ptyId }
-  }, repoPath)
+  }, { repo: repoPath, shell: TEST_SHELL })
 }
 
 async function setupTwoWorkspaces(window: Page, repoPath: string) {
-  return await window.evaluate(async (repo: string) => {
+  return await window.evaluate(async ({ repo, shell }: { repo: string; shell: string }) => {
     const store = (window as any).__store.getState()
     store.hydrateState({ projects: [], workspaces: [] })
 
@@ -78,7 +80,7 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
       worktreePath: worktreePath1,
       projectId,
     })
-    const ptyId1 = await (window as any).api.pty.create(worktreePath1, '/bin/bash', { AGENT_ORCH_WS_ID: workspaceId1 })
+    const ptyId1 = await (window as any).api.pty.create(worktreePath1, shell, { AGENT_ORCH_WS_ID: workspaceId1 })
     store.addTab({
       id: crypto.randomUUID(),
       workspaceId: workspaceId1,
@@ -96,7 +98,7 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
       worktreePath: worktreePath2,
       projectId,
     })
-    const ptyId2 = await (window as any).api.pty.create(worktreePath2, '/bin/bash', { AGENT_ORCH_WS_ID: workspaceId2 })
+    const ptyId2 = await (window as any).api.pty.create(worktreePath2, shell, { AGENT_ORCH_WS_ID: workspaceId2 })
     store.addTab({
       id: crypto.randomUUID(),
       workspaceId: workspaceId2,
@@ -109,7 +111,7 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
     store.setActiveWorkspace(workspaceId2)
 
     return { workspaceId1, workspaceId2, ptyId1, ptyId2 }
-  }, repoPath)
+  }, { repo: repoPath, shell: TEST_SHELL })
 }
 
 test.describe('Codex activity indicator', () => {
@@ -232,12 +234,12 @@ test.describe('Codex activity indicator', () => {
       const { workspaceId, ptyId: primaryPtyId } = await setupWorkspace(window, repoPath)
       await window.waitForTimeout(800)
 
-      const secondaryPtyId = await window.evaluate(async (wsId: string) => {
+      const secondaryPtyId = await window.evaluate(async ({ wsId, shell }: { wsId: string; shell: string }) => {
         const state = (window as any).__store.getState()
         const workspace = state.workspaces.find((w: { id: string; worktreePath: string }) => w.id === wsId)
         if (!workspace) throw new Error('workspace not found')
 
-        const ptyId = await (window as any).api.pty.create(workspace.worktreePath, '/bin/bash', { AGENT_ORCH_WS_ID: wsId })
+        const ptyId = await (window as any).api.pty.create(workspace.worktreePath, shell, { AGENT_ORCH_WS_ID: wsId })
         state.addTab({
           id: crypto.randomUUID(),
           workspaceId: wsId,
@@ -246,7 +248,7 @@ test.describe('Codex activity indicator', () => {
           ptyId,
         })
         return ptyId
-      }, workspaceId)
+      }, { wsId: workspaceId, shell: TEST_SHELL })
 
       // Simulate Claude UserPromptSubmit hook writing its activity marker.
       await window.evaluate(({ ptyId: id, wsId }) => {

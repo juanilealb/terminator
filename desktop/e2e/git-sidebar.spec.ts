@@ -168,7 +168,7 @@ test.describe('Git & Sidebar functionality', () => {
         return await (window as any).api.git.createWorktree(repo, 'status-ws', 'status-branch', true)
       }, repoPath)
 
-      // Write a change to the worktree (resolve symlinks for macOS /tmp -> /private/tmp)
+      // Resolve symlinks before writing into the worktree.
       const realWt = realpathSync(worktreePath as string)
       writeFileSync(join(realWt, 'README.md'), '# Modified!\n')
 

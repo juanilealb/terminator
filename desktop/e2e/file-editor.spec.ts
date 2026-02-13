@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, readdirSync
 import { execSync } from 'child_process'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
+const MOD = process.platform === 'win32' ? 'Control' : 'Meta'
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })
@@ -132,7 +133,7 @@ test.describe('File tree & editor integration', () => {
     }
   })
 
-  test('editing file and saving with Cmd+S writes to disk', async () => {
+  test('editing file and saving with Ctrl/Cmd+S writes to disk', async () => {
     const repoPath = createTestRepo('save-1')
     const { app, window } = await launchApp()
 
@@ -159,15 +160,15 @@ test.describe('File tree & editor integration', () => {
       await monacoEditor.click()
 
       // Select all and type new content
-      await window.keyboard.press('Meta+a')
+      await window.keyboard.press(`${MOD}+a`)
       await window.keyboard.type('# Updated Content\n')
       await window.waitForTimeout(500)
 
-      // Save with Cmd+S
-      await window.keyboard.press('Meta+s')
+      // Save with Ctrl/Cmd+S
+      await window.keyboard.press(`${MOD}+s`)
       await window.waitForTimeout(1000)
 
-      // Verify file on disk was updated (resolve symlinks for macOS)
+      // Resolve symlinks before reading from disk.
       const realWt = realpathSync(worktreePath)
       const content = readFileSync(join(realWt, 'README.md'), 'utf-8')
       expect(content).toContain('Updated Content')
@@ -191,7 +192,7 @@ test.describe('Changed files & diff viewer', () => {
       const worktreePath = await setupWorkspace(window, repoPath, 'changes')
       await window.waitForTimeout(1000)
 
-      // Modify a file in the worktree (resolve symlinks for macOS /tmp -> /private/tmp)
+      // Resolve symlinks before writing to the worktree.
       const realWtPath = realpathSync(worktreePath)
       writeFileSync(join(realWtPath, 'README.md'), '# Modified Content\nNew line\n')
 
@@ -222,7 +223,7 @@ test.describe('Changed files & diff viewer', () => {
       const worktreePath = await setupWorkspace(window, repoPath, 'diff')
       await window.waitForTimeout(1000)
 
-      // Modify a file (resolve symlinks for macOS /tmp -> /private/tmp)
+      // Resolve symlinks before writing to the worktree.
       const realWtPath = realpathSync(worktreePath)
       writeFileSync(join(realWtPath, 'README.md'), '# Completely Different\nNew content here\n')
 

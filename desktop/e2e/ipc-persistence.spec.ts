@@ -140,7 +140,7 @@ test.describe('IPC handlers & state persistence', () => {
         return await (window as any).api.app.addProjectPath(repo)
       }, repoPath)
 
-      // macOS: /tmp resolves to /private/tmp
+      // Some environments resolve temp paths through symlinks.
       expect((validatedPath as string).replace('/private', '')).toBe(repoPath.replace('/private', ''))
 
       // Step 2: Add project to store using the validated path
@@ -171,7 +171,7 @@ test.describe('IPC handlers & state persistence', () => {
 
       const found = worktrees.find((wt: any) => wt.branch === 'flow-branch')
       expect(found).toBeTruthy()
-      // On macOS /tmp resolves to /private/tmp, so compare with toContain
+      // Compare suffix to avoid temp-dir path normalization differences.
       expect(found.path).toContain('-ws-flow-ws')
 
       // Step 6: Verify project appears in sidebar

@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
+const MOD = process.platform === 'win32' ? 'Control' : 'Meta'
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })
@@ -50,7 +51,7 @@ async function setupWorkspaceWithTerminal(window: Page, repoPath: string) {
 }
 
 test.describe('Keyboard shortcuts', () => {
-  test('Cmd+T creates new terminal tab', async () => {
+  test('Ctrl/Cmd+T creates new terminal tab', async () => {
     const repoPath = createTestRepo('shortcut-t')
     const { app, window } = await launchApp()
 
@@ -61,8 +62,8 @@ test.describe('Keyboard shortcuts', () => {
       const tabsBefore = await window.locator('[class*="tabTitle"]').count()
       expect(tabsBefore).toBe(1)
 
-      // Press Cmd+T
-      await window.keyboard.press('Meta+t')
+      // Press Ctrl/Cmd+T
+      await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
 
       const tabsAfter = await window.locator('[class*="tabTitle"]').count()
@@ -72,7 +73,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Cmd+1/Cmd+2 switches between tabs', async () => {
+  test('Ctrl/Cmd+1 and Ctrl/Cmd+2 switch between tabs', async () => {
     const repoPath = createTestRepo('shortcut-num')
     const { app, window } = await launchApp()
 
@@ -80,8 +81,8 @@ test.describe('Keyboard shortcuts', () => {
       await setupWorkspaceWithTerminal(window, repoPath)
       await window.waitForTimeout(2000)
 
-      // Create a second terminal via Cmd+T
-      await window.keyboard.press('Meta+t')
+      // Create a second terminal via Ctrl/Cmd+T
+      await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
 
       // Should now have 2 tabs, with tab 2 active
@@ -96,8 +97,8 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(activeTitle2).toBe('Terminal 2')
 
-      // Press Cmd+1 — switch to first tab
-      await window.keyboard.press('Meta+1')
+      // Press Ctrl/Cmd+1 — switch to first tab
+      await window.keyboard.press(`${MOD}+1`)
       await window.waitForTimeout(500)
 
       const activeTitle1 = await window.evaluate(() => {
@@ -107,8 +108,8 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(activeTitle1).toBe('Terminal 1')
 
-      // Press Cmd+2 — switch back to second tab
-      await window.keyboard.press('Meta+2')
+      // Press Ctrl/Cmd+2 — switch back to second tab
+      await window.keyboard.press(`${MOD}+2`)
       await window.waitForTimeout(500)
 
       const activeTitleBack = await window.evaluate(() => {
@@ -122,7 +123,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Cmd+W closes active tab', async () => {
+  test('Ctrl/Cmd+W closes active tab', async () => {
     const repoPath = createTestRepo('shortcut-w')
     const { app, window } = await launchApp()
 
@@ -131,12 +132,12 @@ test.describe('Keyboard shortcuts', () => {
       await window.waitForTimeout(2000)
 
       // Create second tab
-      await window.keyboard.press('Meta+t')
+      await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
       expect(await window.locator('[class*="tabTitle"]').count()).toBe(2)
 
-      // Press Cmd+W — close active tab
-      await window.keyboard.press('Meta+w')
+      // Press Ctrl/Cmd+W — close active tab
+      await window.keyboard.press(`${MOD}+w`)
       await window.waitForTimeout(1000)
 
       expect(await window.locator('[class*="tabTitle"]').count()).toBe(1)
@@ -145,7 +146,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Cmd+B toggles sidebar', async () => {
+  test('Ctrl/Cmd+B toggles sidebar', async () => {
     const { app, window } = await launchApp()
 
     try {
@@ -153,14 +154,14 @@ test.describe('Keyboard shortcuts', () => {
       const sidebar = window.locator('[class*="sidebar"]').first()
       await expect(sidebar).toBeVisible()
 
-      // Press Cmd+B — hide sidebar
-      await window.keyboard.press('Meta+b')
+      // Press Ctrl/Cmd+B — hide sidebar
+      await window.keyboard.press(`${MOD}+b`)
       await window.waitForTimeout(500)
 
       await expect(sidebar).not.toBeVisible()
 
-      // Press Cmd+B again — show sidebar
-      await window.keyboard.press('Meta+b')
+      // Press Ctrl/Cmd+B again — show sidebar
+      await window.keyboard.press(`${MOD}+b`)
       await window.waitForTimeout(500)
 
       await expect(sidebar).toBeVisible()
@@ -169,7 +170,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Cmd+Shift+[ and Cmd+Shift+] cycle tabs', async () => {
+  test('Ctrl/Cmd+Shift+[ and Ctrl/Cmd+Shift+] cycle tabs', async () => {
     const repoPath = createTestRepo('shortcut-brackets')
     const { app, window } = await launchApp()
 
@@ -178,7 +179,7 @@ test.describe('Keyboard shortcuts', () => {
       await window.waitForTimeout(2000)
 
       // Create second tab
-      await window.keyboard.press('Meta+t')
+      await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
 
       // Active should be Terminal 2
@@ -188,8 +189,8 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(active).toBe('Terminal 2')
 
-      // Cmd+Shift+[ — previous tab
-      await window.keyboard.press('Meta+Shift+[')
+      // Ctrl/Cmd+Shift+[ — previous tab
+      await window.keyboard.press(`${MOD}+Shift+[`)
       await window.waitForTimeout(500)
 
       active = await window.evaluate(() => {
@@ -198,8 +199,8 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(active).toBe('Terminal 1')
 
-      // Cmd+Shift+] — next tab
-      await window.keyboard.press('Meta+Shift+]')
+      // Ctrl/Cmd+Shift+] — next tab
+      await window.keyboard.press(`${MOD}+Shift+]`)
       await window.waitForTimeout(500)
 
       active = await window.evaluate(() => {
@@ -212,7 +213,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Cmd+J focuses terminal or creates one', async () => {
+  test('Ctrl/Cmd+J focuses terminal or creates one', async () => {
     const repoPath = createTestRepo('shortcut-j')
     const { app, window } = await launchApp()
 
@@ -236,8 +237,8 @@ test.describe('Keyboard shortcuts', () => {
       // No tabs
       expect(await window.locator('[class*="tabTitle"]').count()).toBe(0)
 
-      // Press Cmd+J — should create a terminal
-      await window.keyboard.press('Meta+j')
+      // Press Ctrl/Cmd+J — should create a terminal
+      await window.keyboard.press(`${MOD}+j`)
       await window.waitForTimeout(2000)
 
       expect(await window.locator('[class*="tabTitle"]').count()).toBe(1)
