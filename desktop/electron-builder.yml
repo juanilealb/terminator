@@ -1,5 +1,5 @@
-appId: com.constellagent.app
-productName: Constellagent
+appId: com.terminator.app
+productName: Terminator
 directories:
   buildResources: build
 files:
@@ -23,3 +23,4 @@ extraResources:
     filter:
       - '*.js'
 npmRebuild: true
+

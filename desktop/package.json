@@ -1,48 +1,50 @@
 {
-  "name": "constellagent",
-  "productName": "Constellagent",
-  "version": "1.0.0",
-  "description": "Windows app for running multiple AI agents in parallel",
-  "main": "./out/main/index.js",
-  "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
-    "preview": "electron-vite preview",
-    "test": "bunx playwright test --project=electron",
-    "rebuild": "bunx electron-rebuild",
-    "dist": "bun run dist:win",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "postinstall": "bunx electron-rebuild"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@monaco-editor/react": "^4.7.0",
-    "@pierre/diffs": "^1.0.10",
-    "allotment": "^1.20.5",
-    "electron-vite": "^5.0.0",
-    "ghostty-web": "^0.4.0",
-    "monaco-editor": "^0.55.1",
-    "node-cron": "^4.2.1",
-    "node-pty": "^1.1.0",
-    "react": "^19.2.4",
-    "react-arborist": "^3.4.3",
-    "react-dom": "^19.2.4",
-    "zustand": "^5.0.11"
-  },
-  "patchedDependencies": {
-    "ghostty-web@0.4.0": "patches/ghostty-web@0.4.0.patch",
-    "node-pty@1.1.0": "patches/node-pty@1.1.0.patch"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "@types/node-cron": "^3.0.11",
-    "@types/react": "^19.2.13",
-    "@types/react-dom": "^19.2.3",
-    "electron": "^40.2.1",
-    "electron-builder": "^26.7.0",
-    "playwright": "^1.58.2",
-    "typescript": "^5.9.3"
-  }
+    "name":  "terminator",
+    "productName":  "Terminator",
+    "version":  "1.0.0",
+    "description":  "Windows app for running multiple AI terminals in parallel",
+    "main":  "./out/main/index.js",
+    "scripts":  {
+                    "dev":  "electron-vite dev",
+                    "build":  "electron-vite build",
+                    "preview":  "electron-vite preview",
+                    "test":  "bunx playwright test --project=electron",
+                    "rebuild":  "bunx electron-rebuild",
+                    "dist":  "bun run dist:win",
+                    "dist:win":  "electron-vite build \u0026\u0026 electron-builder --win",
+                    "postinstall":  "bunx electron-rebuild"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "dependencies":  {
+                         "@monaco-editor/react":  "^4.7.0",
+                         "@pierre/diffs":  "^1.0.10",
+                         "allotment":  "^1.20.5",
+                         "electron-vite":  "^5.0.0",
+                         "ghostty-web":  "^0.4.0",
+                         "monaco-editor":  "^0.55.1",
+                         "node-cron":  "^4.2.1",
+                         "node-pty":  "^1.1.0",
+                         "react":  "^19.2.4",
+                         "react-arborist":  "^3.4.3",
+                         "react-dom":  "^19.2.4",
+                         "zustand":  "^5.0.11"
+                     },
+    "patchedDependencies":  {
+                                "ghostty-web@0.4.0":  "patches/ghostty-web@0.4.0.patch",
+                                "node-pty@1.1.0":  "patches/node-pty@1.1.0.patch"
+                            },
+    "devDependencies":  {
+                            "@playwright/test":  "^1.58.2",
+                            "@types/node-cron":  "^3.0.11",
+                            "@types/react":  "^19.2.13",
+                            "@types/react-dom":  "^19.2.3",
+                            "electron":  "^40.2.1",
+                            "electron-builder":  "^26.7.0",
+                            "playwright":  "^1.58.2",
+                            "typescript":  "^5.9.3"
+                        }
 }
