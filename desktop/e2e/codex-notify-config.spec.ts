@@ -50,6 +50,7 @@ test.describe('Codex notify config', () => {
       expect(notifyIndex).toBeGreaterThanOrEqual(0)
       expect(projectsIndex).toBeGreaterThanOrEqual(0)
       expect(notifyIndex).toBeLessThan(projectsIndex)
+      expect(installed.includes('notify = ["node",')).toBe(true)
 
       const uninstallResult = await window.evaluate(async () => {
         const result = await (window as any).api.codex.uninstallNotify()
@@ -60,7 +61,7 @@ test.describe('Codex notify config', () => {
       expect(uninstallResult.check.installed).toBe(false)
 
       const removed = readFileSync(configPath, 'utf-8')
-      expect(removed.includes('codex-hooks/notify.sh')).toBe(false)
+      expect(removed.includes('codex-hooks/notify.js')).toBe(false)
       expect(removed.includes('[projects."/tmp/my-repo"]')).toBe(true)
     } finally {
       await app.close()

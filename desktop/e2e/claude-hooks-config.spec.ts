@@ -30,7 +30,7 @@ function ourHookCommands(settings: Record<string, unknown>): string[] {
     for (const rule of hooks[event] ?? []) {
       for (const hook of rule.hooks ?? []) {
         const cmd = hook.command
-        if (cmd && (cmd.includes('claude-hooks/notify.sh') || cmd.includes('claude-hooks/activity.sh'))) {
+        if (cmd && (cmd.includes('claude-hooks/notify.js') || cmd.includes('claude-hooks/activity.js'))) {
           cmds.push(cmd)
         }
       }
@@ -40,7 +40,7 @@ function ourHookCommands(settings: Record<string, unknown>): string[] {
 }
 
 test.describe('Claude hooks config', () => {
-  test('installs shell-quoted hook commands and uninstalls cleanly', async () => {
+  test('installs node hook commands and uninstalls cleanly', async () => {
     const homeDir = mkdtempSync(join(tmpdir(), 'constellagent claude-home-'))
     const claudeDir = join(homeDir, '.claude')
     const settingsPath = join(claudeDir, 'settings.json')
@@ -71,8 +71,7 @@ test.describe('Claude hooks config', () => {
       const commands = ourHookCommands(installed)
       expect(commands.length).toBe(3)
       for (const cmd of commands) {
-        expect(cmd.startsWith("'")).toBe(true)
-        expect(cmd.endsWith("'")).toBe(true)
+        expect(cmd.includes('node')).toBe(true)
       }
 
       const uninstallResult = await window.evaluate(async () => {

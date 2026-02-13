@@ -6,6 +6,7 @@ import { tmpdir } from 'os'
 import { watch, type FSWatcher } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
+import { toPosixPath } from '../shared/platform'
 import { PtyManager } from './pty-manager'
 import { GitService } from './git-service'
 import { GithubService } from './github-service'
@@ -280,16 +281,37 @@ export function registerIpcHandlers(): void {
     return join(__dirname, '..', '..', 'codex-hooks', name)
   }
 
-  // Stable identifiers to match our hook entries regardless of full path
-  const HOOK_IDENTIFIERS = ['claude-hooks/notify.sh', 'claude-hooks/activity.sh']
+  // Stable identifiers to match our hook entries regardless of full path.
+  // Keep legacy .sh IDs so uninstall also removes pre-portability installs.
+  const CLAUDE_HOOK_IDENTIFIERS = [
+    'claude-hooks/notify.js',
+    'claude-hooks/activity.js',
+    'claude-hooks/notify.sh',
+    'claude-hooks/activity.sh',
+  ]
 
-  function shellQuoteArg(value: string): string {
-    // Claude executes hook commands via /bin/sh; paths can contain spaces.
-    return `'${value.replace(/'/g, `'\"'\"'`)}'`
+  function normalizeHookText(value: string): string {
+    return toPosixPath(value).replace(/\/+/g, '/')
+  }
+
+  function commandHasIdentifier(command: string | undefined, identifiers: readonly string[]): boolean {
+    if (!command) return false
+    const normalized = normalizeHookText(command)
+    return identifiers.some((id) => normalized.includes(id))
+  }
+
+  function buildNodeHookCommand(scriptPath: string): string {
+    if (process.platform === 'win32') {
+      const escapedPath = scriptPath.replace(/"/g, '""')
+      return `node "${escapedPath}"`
+    }
+
+    const escapedPath = scriptPath.replace(/(["\\$`])/g, '\\$1')
+    return `node "${escapedPath}"`
   }
 
   function isOurHook(rule: { hooks?: Array<{ command?: string }> }): boolean {
-    return !!rule.hooks?.some((h) => HOOK_IDENTIFIERS.some((id) => h.command?.includes(id)))
+    return !!rule.hooks?.some((h) => commandHasIdentifier(h.command, CLAUDE_HOOK_IDENTIFIERS))
   }
 
   ipcMain.handle(IPC.CLAUDE_CHECK_HOOKS, async () => {
@@ -305,8 +327,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.CLAUDE_INSTALL_HOOKS, async () => {
     const settings = await loadClaudeSettings()
-    const notifyPath = getHookScriptPath('notify.sh')
-    const activityPath = getHookScriptPath('activity.sh')
+    const notifyPath = getHookScriptPath('notify.js')
+    const activityPath = getHookScriptPath('activity.js')
 
     const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>
 
@@ -314,7 +336,7 @@ export function registerIpcHandlers(): void {
     function ensureHook(event: string, scriptPath: string, matcher = '') {
       const rules = (hooks[event] ?? []) as Array<Record<string, unknown>>
       const filtered = rules.filter((rule) => !isOurHook(rule as { hooks?: Array<{ command?: string }> }))
-      filtered.push({ matcher, hooks: [{ type: 'command', command: shellQuoteArg(scriptPath) }] })
+      filtered.push({ matcher, hooks: [{ type: 'command', command: buildNodeHookCommand(scriptPath) }] })
       hooks[event] = filtered
     }
 
@@ -348,7 +370,11 @@ export function registerIpcHandlers(): void {
   })
 
   // ── Codex notify hook ──
-  const CODEX_NOTIFY_IDENTIFIER = 'codex-hooks/notify.sh'
+  const CODEX_NOTIFY_IDENTIFIERS = [
+    'codex-hooks/notify.js',
+    // Legacy shell hook
+    'codex-hooks/notify.sh',
+  ]
   const TABLE_HEADER_RE = /^\s*\[[^\n]+\]\s*$/m
   const NOTIFY_ASSIGNMENT_RE = /^\s*notify\s*=/
 
@@ -366,8 +392,13 @@ export function registerIpcHandlers(): void {
     return firstTableIndex === -1 ? configText : configText.slice(0, firstTableIndex)
   }
 
+  function textHasAnyCodexNotifyIdentifier(text: string): boolean {
+    const normalized = normalizeHookText(text)
+    return CODEX_NOTIFY_IDENTIFIERS.some((id) => normalized.includes(id))
+  }
+
   function hasOurCodexNotify(configText: string): boolean {
-    return topLevelSection(configText).includes(CODEX_NOTIFY_IDENTIFIER)
+    return textHasAnyCodexNotifyIdentifier(topLevelSection(configText))
   }
 
   function stripNotifyAssignments(configText: string, shouldStrip: (assignment: string) => boolean = () => true): string {
@@ -430,8 +461,8 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.CODEX_INSTALL_NOTIFY, async () => {
-    const notifyPath = getCodexHookScriptPath('notify.sh')
-    const notifyLine = `notify = ["${tomlEscape(notifyPath)}"]`
+    const notifyPath = getCodexHookScriptPath('notify.js')
+    const notifyLine = `notify = ["node", "${tomlEscape(notifyPath)}"]`
     let config = await loadCodexConfigText()
 
     // `notify` must be at true top-level in TOML. Appending at EOF can accidentally
@@ -445,9 +476,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.CODEX_UNINSTALL_NOTIFY, async () => {
     let config = await loadCodexConfigText()
-    if (!config.includes(CODEX_NOTIFY_IDENTIFIER)) return { success: true }
+    if (!textHasAnyCodexNotifyIdentifier(config)) return { success: true }
 
-    config = stripNotifyAssignments(config, (assignment) => assignment.includes(CODEX_NOTIFY_IDENTIFIER))
+    config = stripNotifyAssignments(config, (assignment) => textHasAnyCodexNotifyIdentifier(assignment))
     config = config.replace(/\n{3,}/g, '\n\n').trimEnd()
     if (config) config += '\n'
 
