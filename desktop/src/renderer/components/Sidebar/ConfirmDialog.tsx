@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useId } from 'react'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './ConfirmDialog.module.css'
 
 interface Props {
@@ -11,6 +12,11 @@ interface Props {
 }
 
 export function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel, destructive = false }: Props) {
+  const dialogRef = useFocusTrap<HTMLDivElement>()
+  const titleId = useId()
+  const messageId = useId()
+  const showShiftHint = confirmLabel.toLowerCase() === 'delete'
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onCancel()
     if (e.key === 'Enter') onConfirm()
@@ -23,10 +29,21 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfi
 
   return (
     <div className={styles.overlay} onClick={onCancel}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.title}>{title}</div>
-        <div className={styles.message}>{message}</div>
-        <div className={styles.tip}>Tip: Hold ⇧ Shift while deleting to skip this dialog</div>
+      <div
+        ref={dialogRef}
+        className={styles.dialog}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        tabIndex={-1}
+      >
+        <div id={titleId} className={styles.title}>{title}</div>
+        <div id={messageId} className={styles.message}>{message}</div>
+        {showShiftHint && (
+          <div className={styles.tip}>Tip: Hold ⇧ Shift while deleting to skip this dialog</div>
+        )}
         <div className={styles.actions}>
           <button className={styles.cancelBtn} onClick={onCancel}>Cancel</button>
           <button

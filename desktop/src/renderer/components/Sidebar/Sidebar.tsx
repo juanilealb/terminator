@@ -471,6 +471,7 @@ export function Sidebar() {
                 <span className={styles.projectName}>{project.name}</span>
                 <Tooltip label="Project settings">
                   <button
+                    aria-label={`Project settings for ${project.name}`}
                     className={styles.settingsBtn}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -482,6 +483,7 @@ export function Sidebar() {
                 </Tooltip>
                 <Tooltip label="Delete project">
                   <button
+                    aria-label={`Delete project ${project.name}`}
                     className={styles.deleteBtn}
                     onClick={(e) => handleDeleteProject(e, project)}
                   >
@@ -557,6 +559,7 @@ export function Sidebar() {
                         </div>
                         <Tooltip label="Delete workspace">
                           <button
+                            aria-label={`Delete workspace ${displayName}`}
                             className={styles.deleteBtn}
                             onClick={(e) => handleDeleteWorkspace(e, ws)}
                           >

@@ -284,7 +284,7 @@ export function SettingsPanel() {
               label="Back"
               shortcut={formatShortcut(SHORTCUT_MAP.settings.mac, SHORTCUT_MAP.settings.win)}
             >
-              <button className={styles.backBtn} onClick={toggleSettings}>‹</button>
+              <button aria-label="Back to workspace" className={styles.backBtn} onClick={toggleSettings}>‹</button>
             </Tooltip>
             <h2 className={styles.title}>Settings</h2>
           </div>
@@ -347,7 +347,7 @@ export function SettingsPanel() {
               description="Path to shell executable (leave empty for system default)"
               value={settings.defaultShell}
               onChange={(v) => update('defaultShell', v)}
-              placeholder="pwsh.exe"
+              placeholder="e.g., pwsh.exe, powershell.exe, cmd.exe"
             />
 
             <SelectRow

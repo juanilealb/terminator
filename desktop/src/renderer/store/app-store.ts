@@ -181,13 +181,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!s.activeTabId) return
     const tab = s.tabs.find((t) => t.id === s.activeTabId)
     if (!tab) return
+    const closeTab = () => {
+      const latest = get()
+      const latestTab = latest.tabs.find((t) => t.id === tab.id)
+      if (!latestTab) return
+      if (latestTab.type === 'terminal') {
+        window.api.pty.destroy(latestTab.ptyId)
+      }
+      latest.removeTab(latestTab.id)
+    }
+
     if (tab.type === 'file' && tab.unsaved && s.settings.confirmOnClose) {
-      if (!window.confirm('This file has unsaved changes. Close anyway?')) return
+      get().showConfirmDialog({
+        title: 'Unsaved changes',
+        message: 'This file has unsaved changes. Close anyway?',
+        confirmLabel: 'Close',
+        destructive: true,
+        onConfirm: () => {
+          closeTab()
+          get().dismissConfirmDialog()
+        },
+      })
+      return
     }
-    if (tab.type === 'terminal') {
-      window.api.pty.destroy(tab.ptyId)
-    }
-    get().removeTab(tab.id)
+
+    closeTab()
   },
 
   setTabUnsaved: (tabId, unsaved) =>
@@ -258,17 +276,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeAllWorkspaceTabs: () => {
     const s = get()
     if (!s.activeWorkspaceId) return
+    const closeTabs = () => {
+      const latest = get()
+      const wsId = latest.activeWorkspaceId
+      if (!wsId) return
+      const wsTabs = latest.tabs.filter((t) => t.workspaceId === wsId)
+      wsTabs.forEach((t) => {
+        if (t.type === 'terminal') window.api.pty.destroy(t.ptyId)
+      })
+      set((state) => ({
+        tabs: state.tabs.filter((t) => t.workspaceId !== wsId),
+        activeTabId: null,
+      }))
+    }
+
     const wsTabs = s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId)
     const hasUnsaved = wsTabs.some((t) => t.type === 'file' && t.unsaved)
-    if (hasUnsaved && !window.confirm('Close all tabs? Some have unsaved changes.')) return
-    wsTabs.forEach((t) => {
-      if (t.type === 'terminal') window.api.pty.destroy(t.ptyId)
-    })
-    const wsId = s.activeWorkspaceId
-    set((state) => ({
-      tabs: state.tabs.filter((t) => t.workspaceId !== wsId),
-      activeTabId: null,
-    }))
+    if (hasUnsaved && s.settings.confirmOnClose) {
+      get().showConfirmDialog({
+        title: 'Unsaved changes',
+        message: 'Close all tabs? Some have unsaved changes.',
+        confirmLabel: 'Close all',
+        destructive: true,
+        onConfirm: () => {
+          closeTabs()
+          get().dismissConfirmDialog()
+        },
+      })
+      return
+    }
+
+    closeTabs()
   },
 
   focusOrCreateTerminal: async () => {

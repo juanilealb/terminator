@@ -20,7 +20,17 @@ function getTabTitle(tab: Tab): string {
 }
 
 export function TabBar() {
-  const { activeTabId, setActiveTab, removeTab, activeWorkspaceTabs, createTerminalForActiveWorkspace, lastSavedTabId, settings } = useAppStore()
+  const {
+    activeTabId,
+    setActiveTab,
+    removeTab,
+    activeWorkspaceTabs,
+    createTerminalForActiveWorkspace,
+    lastSavedTabId,
+    settings,
+    showConfirmDialog,
+    dismissConfirmDialog,
+  } = useAppStore()
   const tabs = activeWorkspaceTabs()
   const confirmOnClose = settings.confirmOnClose
 
@@ -30,16 +40,30 @@ export function TabBar() {
       const tab = tabs.find((t) => t.id === tabId)
       if (!tab) return
 
-      if (tab.type === 'file' && tab.unsaved && confirmOnClose) {
-        if (!window.confirm(`"${getTabTitle(tab)}" has unsaved changes. Close anyway?`)) return
+      const closeTab = () => {
+        if (tab.type === 'terminal') {
+          window.api.pty.destroy(tab.ptyId)
+        }
+        removeTab(tabId)
       }
 
-      if (tab.type === 'terminal') {
-        window.api.pty.destroy(tab.ptyId)
+      if (tab.type === 'file' && tab.unsaved && confirmOnClose) {
+        showConfirmDialog({
+          title: 'Unsaved changes',
+          message: `"${getTabTitle(tab)}" has unsaved changes. Close anyway?`,
+          confirmLabel: 'Close',
+          destructive: true,
+          onConfirm: () => {
+            closeTab()
+            dismissConfirmDialog()
+          },
+        })
+        return
       }
-      removeTab(tabId)
+
+      closeTab()
     },
-    [tabs, removeTab, confirmOnClose]
+    [tabs, removeTab, confirmOnClose, showConfirmDialog, dismissConfirmDialog]
   )
 
   return (
@@ -66,6 +90,7 @@ export function TabBar() {
                   shortcut={formatShortcut(SHORTCUT_MAP.closeTab.mac, SHORTCUT_MAP.closeTab.win)}
                 >
                   <button
+                    aria-label={`Close ${getTabTitle(tab)}`}
                     className={styles.closeButton}
                     onClick={(e) => handleClose(e, tab.id)}
                   >
@@ -82,7 +107,11 @@ export function TabBar() {
         label="New terminal"
         shortcut={formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}
       >
-        <button className={styles.newTabButton} onClick={createTerminalForActiveWorkspace}>
+        <button
+          aria-label="New terminal tab"
+          className={styles.newTabButton}
+          onClick={createTerminalForActiveWorkspace}
+        >
           +
         </button>
       </Tooltip>

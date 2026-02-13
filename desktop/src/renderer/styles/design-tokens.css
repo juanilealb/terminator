@@ -69,8 +69,8 @@
   /* ═══════════════════════════════════════════════════════
      TYPOGRAPHY
      ═══════════════════════════════════════════════════════ */
-  --font-mono: 'SF Mono', 'Menlo', 'Cascadia Code', 'JetBrains Mono', monospace;
-  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace;
+  --font-ui: 'Segoe UI', 'Segoe UI Variable', system-ui, sans-serif;
 
   --text-xs: 10px;
   --text-sm: 11px;

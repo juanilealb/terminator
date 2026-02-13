@@ -12,9 +12,9 @@
   -webkit-app-region: drag;
 }
 
-/* Scrollbar hidden but functional */
+/* Keep horizontal scrollbar visible so overflow is discoverable */
 .tabBar::-webkit-scrollbar {
-  height: 0;
+  height: 6px;
 }
 
 .tabList {

@@ -83,10 +83,13 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
         // Clear any leftover DOM from a previous terminal instance
         termDiv.innerHTML = ''
+        const monoFont =
+          getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim()
+          || "'Cascadia Code', 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace"
 
         const term = new ghostty.Terminal({
           fontSize: useAppStore.getState().settings.terminalFontSize,
-          fontFamily: "'SF Mono', Menlo, 'Cascadia Code', monospace",
+          fontFamily: monoFont,
           cursorBlink: true,
           cursorStyle: 'bar',
           scrollback: 10000,

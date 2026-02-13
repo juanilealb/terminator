@@ -94,7 +94,7 @@ export function FileEditor({ tabId, filePath, active }: Props) {
     prevActiveRef.current = active
   }, [active, unsaved, settings.autoSaveOnBlur, handleSave])
 
-  // Cmd+S handler
+  // Ctrl+S / Cmd+S save handler
   const handleEditorMount = useCallback((editor: any) => {
     editorRef.current = editor
     editor.addCommand(
@@ -132,7 +132,7 @@ export function FileEditor({ tabId, filePath, active }: Props) {
         onChange={handleChange}
         onMount={handleEditorMount}
         options={{
-          fontFamily: "'SF Mono', Menlo, 'Cascadia Code', monospace",
+          fontFamily: 'var(--font-mono)',
           fontSize: settings.editorFontSize,
           lineHeight: 20,
           minimap: { enabled: false },

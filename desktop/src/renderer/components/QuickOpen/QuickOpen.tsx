@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './QuickOpen.module.css'
 
 interface FileEntry {
@@ -95,6 +96,7 @@ function HighlightedPath({ text, indices }: { text: string; indices: number[] })
 }
 
 export function QuickOpen({ worktreePath }: Props) {
+  const panelRef = useFocusTrap<HTMLDivElement>()
   const [query, setQuery] = useState('')
   const [files, setFiles] = useState<FileEntry[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -171,7 +173,15 @@ export function QuickOpen({ worktreePath }: Props) {
 
   return (
     <div className={styles.overlay} onClick={closeQuickOpen}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Quick open file"
+        tabIndex={-1}
+      >
         <div className={styles.inputWrap}>
           <input
             ref={inputRef}

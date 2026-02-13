@@ -179,6 +179,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
             <span className={styles.sectionActions}>
               <Tooltip label="Unstage All">
                 <button
+                  aria-label="Unstage all files"
                   className={styles.sectionAction}
                   disabled={busy}
                   onClick={() => unstageFiles(staged.map((f) => f.path))}
@@ -211,6 +212,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
             <span className={styles.sectionActions}>
               <Tooltip label="Discard All">
                 <button
+                  aria-label="Discard all unstaged changes"
                   className={styles.sectionAction}
                   disabled={busy}
                   onClick={() => {
@@ -224,6 +226,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
               </Tooltip>
               <Tooltip label="Stage All">
                 <button
+                  aria-label="Stage all files"
                   className={styles.sectionAction}
                   disabled={busy}
                   onClick={() => stageFiles(unstaged.map((f) => f.path))}
@@ -288,6 +291,7 @@ function FileRow({
         {onDiscard && (
           <Tooltip label="Discard Changes">
             <button
+              aria-label={`Discard changes in ${displayPath}`}
               className={styles.fileActionBtn}
               disabled={busy}
               onClick={onDiscard}
@@ -298,6 +302,7 @@ function FileRow({
         )}
         <Tooltip label={actionTitle}>
           <button
+            aria-label={`${actionTitle} ${displayPath}`}
             className={styles.fileActionBtn}
             disabled={busy}
             onClick={onAction}

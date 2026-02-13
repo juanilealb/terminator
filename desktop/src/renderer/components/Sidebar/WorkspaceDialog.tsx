@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useId } from 'react'
 import type { Project } from '../../store/types'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './WorkspaceDialog.module.css'
 
 /** Live-sanitize a string into a valid git branch name as the user types */
@@ -28,6 +29,8 @@ export function WorkspaceDialog({
   createProgressMessage = '',
   showSlowCreateMessage = false,
 }: Props) {
+  const dialogRef = useFocusTrap<HTMLDivElement>()
+  const titleId = useId()
   const [name, setName] = useState(`ws-${Date.now().toString(36)}`)
   const [branches, setBranches] = useState<string[]>([])
   const [selectedBranch, setSelectedBranch] = useState('')
@@ -94,8 +97,17 @@ export function WorkspaceDialog({
 
   return (
     <div className={styles.overlay} onClick={() => { if (!isCreating) onCancel() }}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
-        <div className={styles.title}>New Workspace</div>
+      <div
+        ref={dialogRef}
+        className={styles.dialog}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
+        <div id={titleId} className={styles.title}>New Workspace</div>
 
         <label className={styles.label}>Name</label>
         <input

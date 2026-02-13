@@ -60,8 +60,8 @@ body {
    ═══════════════════════════════════════════════════════ */
 
 :focus-visible {
-  outline: 1px solid var(--accent-blue);
-  outline-offset: -1px;
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 

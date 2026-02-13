@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useId } from 'react'
 import type { Project, StartupCommand } from '../../store/types'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './ProjectSettingsDialog.module.css'
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
+  const dialogRef = useFocusTrap<HTMLDivElement>()
+  const titleId = useId()
   const [commands, setCommands] = useState<StartupCommand[]>(
     project.startupCommands?.length ? [...project.startupCommands] : []
   )
@@ -42,8 +45,17 @@ export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
 
   return (
     <div className={styles.overlay} onClick={onCancel}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
-        <div className={styles.title}>{project.name}</div>
+      <div
+        ref={dialogRef}
+        className={styles.dialog}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
+        <div id={titleId} className={styles.title}>{project.name}</div>
 
         <label className={styles.label}>Startup Commands</label>
         <div className={styles.hint}>
@@ -67,6 +79,7 @@ export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
                 autoFocus={i === commands.length - 1}
               />
               <button
+                aria-label={`Remove startup command ${i + 1}`}
                 className={styles.removeBtn}
                 onClick={() => handleRemove(i)}
                 title="Remove"
