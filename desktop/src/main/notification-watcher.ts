@@ -2,9 +2,10 @@ import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { BrowserWindow } from 'electron'
 import { IPC } from '../shared/ipc-channels'
+import { getTempDir } from '../shared/platform'
 
-const NOTIFY_DIR = '/tmp/constellagent-notify'
-const ACTIVITY_DIR = '/tmp/constellagent-activity'
+const NOTIFY_DIR = join(getTempDir(), 'constellagent-notify')
+const ACTIVITY_DIR = join(getTempDir(), 'constellagent-activity')
 const POLL_INTERVAL = 500
 const CLAUDE_MARKER_SUFFIX = '.claude'
 const CODEX_MARKER_SEGMENT = '.codex.'

@@ -4,6 +4,7 @@ import { IPC } from '../shared/ipc-channels'
 import { PtyManager } from './pty-manager'
 import { GitService } from './git-service'
 import { trustPathForClaude } from './claude-config'
+import { resolveDefaultShell } from '../shared/platform'
 
 export interface AutomationConfig {
   id: string
@@ -88,7 +89,7 @@ export class AutomationScheduler {
 
     // Spawn a shell with initialWrite — writes the claude command as soon as
     // the shell emits its first output (ready), no manual timeout needed.
-    const shell = process.env.SHELL || '/bin/zsh'
+    const shell = resolveDefaultShell()
     const escapedPrompt = config.prompt.replace(/'/g, "'\\''")
     const ptyId = this.ptyManager.create(
       worktreePath,

@@ -1,8 +1,10 @@
 import * as pty from 'node-pty'
 import { execFileSync } from 'child_process'
 import { mkdirSync, unlinkSync, writeFileSync } from 'fs'
+import { join } from 'path'
 import { WebContents } from 'electron'
 import { IPC } from '../shared/ipc-channels'
+import { basenameSafe, getTempDir, isWindows, resolveDefaultShell, toPosixPath } from '../shared/platform'
 
 interface PtyInstance {
   process: pty.IPty
@@ -35,29 +37,89 @@ function parseProcessTable(output: string): ProcessEntry[] {
   return entries
 }
 
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    if (char === '"') {
+      const next = line[i + 1]
+      if (inQuotes && next === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (char === ',' && !inQuotes) {
+      fields.push(current)
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  fields.push(current)
+  return fields.map((field) => field.trim())
+}
+
+function parseTasklistOutput(output: string): ProcessEntry[] {
+  const entries: ProcessEntry[] = []
+  for (const rawLine of output.split('\n')) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('INFO:')) continue
+    const columns = parseCsvLine(line)
+    const pid = Number(columns[1])
+    if (!columns[0] || Number.isNaN(pid)) continue
+    entries.push({
+      pid,
+      ppid: 0,
+      command: columns[0],
+    })
+  }
+  return entries
+}
+
 function isLikelyCodexCommand(command: string): boolean {
   const tokens = command.trim().split(/\s+/)
   if (tokens.length === 0) return false
 
-  const first = tokens[0].toLowerCase()
-  const second = (tokens[1] ?? '').toLowerCase()
+  const stripQuotes = (token: string): string => token.replace(/^['"]|['"]$/g, '')
+  const basenameNoLauncherExt = (token: string): string =>
+    basenameSafe(token.toLowerCase()).replace(/\.(exe|cmd|bat|ps1)$/, '')
+
+  const firstRaw = stripQuotes(tokens[0] ?? '')
+  const secondRaw = stripQuotes(tokens[1] ?? '')
+  const first = firstRaw.toLowerCase()
+  const second = secondRaw.toLowerCase()
 
   const isCodexPathToken = (token: string): boolean => {
     if (!token) return false
-    const clean = token.replace(/^['"]|['"]$/g, '')
-    const basename = clean.split('/').pop() ?? clean
-    return basename === 'codex' || basename === 'codex.js' || basename.startsWith('codex-')
+    const basename = basenameSafe(token.toLowerCase())
+    const withoutExt = basename.replace(/\.(exe|cmd|bat|ps1)$/, '')
+    return withoutExt === 'codex' || basename === 'codex.js' || basename.startsWith('codex-')
   }
 
   if (isCodexPathToken(first)) return true
 
-  const nodeOrBun = first === 'node' || first.endsWith('/node') || first === 'bun' || first.endsWith('/bun')
+  const firstBin = basenameNoLauncherExt(firstRaw)
+  const nodeOrBun = firstBin === 'node' || firstBin === 'bun'
   if (nodeOrBun && isCodexPathToken(second)) return true
 
-  return first.includes('/codex/') && first.endsWith('/codex')
+  const firstPosix = toPosixPath(first)
+  return firstPosix.includes('/codex/') && (
+    firstPosix.endsWith('/codex') ||
+    firstPosix.endsWith('/codex.exe') ||
+    firstPosix.endsWith('/codex.cmd')
+  )
 }
 
-const ACTIVITY_DIR = '/tmp/constellagent-activity'
+const ACTIVITY_DIR = join(getTempDir(), 'constellagent-activity')
 const CODEX_MARKER_SEGMENT = '.codex.'
 
 export class PtyManager {
@@ -73,7 +135,7 @@ export class PtyManager {
       file = command[0]
       args = command.slice(1)
     } else {
-      file = (shell && shell.trim()) || process.env.SHELL || '/bin/zsh'
+      file = (shell && shell.trim()) || resolveDefaultShell()
       args = []
     }
 
@@ -166,13 +228,22 @@ export class PtyManager {
   private isCodexRunningUnder(rootPid: number): boolean {
     let processTable = ''
     try {
-      processTable = execFileSync('ps', ['-axo', 'pid=,ppid=,args='], { encoding: 'utf-8' })
+      processTable = isWindows
+        ? execFileSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf-8' })
+        : execFileSync('ps', ['-axo', 'pid=,ppid=,args='], { encoding: 'utf-8' })
     } catch {
       return false
     }
 
-    const entries = parseProcessTable(processTable)
+    const entries = isWindows ? parseTasklistOutput(processTable) : parseProcessTable(processTable)
     if (entries.length === 0) return false
+
+    if (isWindows) {
+      // tasklist doesn't expose PPIDs, so treat Codex process presence as
+      // best-effort activity once this PTY PID is known alive.
+      const rootExists = entries.some((entry) => entry.pid === rootPid)
+      return rootExists && entries.some((entry) => isLikelyCodexCommand(entry.command))
+    }
 
     const childrenByParent = new Map<number, ProcessEntry[]>()
     for (const entry of entries) {
@@ -202,7 +273,7 @@ export class PtyManager {
   }
 
   private codexMarkerPath(workspaceId: string, ptyPid: number): string {
-    return `${ACTIVITY_DIR}/${workspaceId}${CODEX_MARKER_SEGMENT}${ptyPid}`
+    return join(ACTIVITY_DIR, `${workspaceId}${CODEX_MARKER_SEGMENT}${ptyPid}`)
   }
 
   private markCodexWorkspaceActive(workspaceId: string, ptyPid: number): void {
@@ -228,6 +299,16 @@ export class PtyManager {
     const instance = this.ptys.get(ptyId)
     if (!instance) return false
     instance.webContents = webContents
+
+    if (isWindows) {
+      // Windows has no SIGWINCH. Nudge width to force a terminal redraw.
+      try {
+        instance.process.resize(instance.cols + 1, instance.rows)
+        instance.process.resize(instance.cols, instance.rows)
+      } catch {}
+      return true
+    }
+
     // Send SIGWINCH directly so TUI apps (Claude Code) redraw their screen.
     // Can't use resize() with same dimensions — kernel skips the signal on no-op.
     try { process.kill(instance.process.pid, 'SIGWINCH') } catch {}

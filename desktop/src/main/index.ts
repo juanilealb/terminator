@@ -1,19 +1,18 @@
-import { app, BrowserWindow, Menu, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell, type BrowserWindowConstructorOptions } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { NotificationWatcher } from './notification-watcher'
+import { isMac, isWindows } from '../shared/platform'
 
 let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
 
 function createWindow(): void {
-  mainWindow = new BrowserWindow({
+  const windowOptions: BrowserWindowConstructorOptions = {
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 12 },
     backgroundColor: '#13141b',
     show: false,
     webPreferences: {
@@ -22,7 +21,16 @@ function createWindow(): void {
       contextIsolation: true,
       sandbox: false, // needed for node-pty IPC
     },
-  })
+  }
+
+  if (isMac) {
+    windowOptions.titleBarStyle = 'hiddenInset'
+    windowOptions.trafficLightPosition = { x: 12, y: 12 }
+  } else if (isWindows) {
+    windowOptions.frame = true
+  }
+
+  mainWindow = new BrowserWindow(windowOptions)
 
   // Show window when ready to avoid white flash (skip in tests)
   if (!process.env.CI_TEST) {
