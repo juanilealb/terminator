@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { basenameSafe, toPosixPath } from '@shared/platform'
+import { basenameSafe, formatShortcut, toPosixPath } from '@shared/platform'
+import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './RightPanel.module.css'
@@ -152,7 +153,13 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        <Tooltip label="Commit staged changes" shortcut="⌘↵">
+        <Tooltip
+          label="Commit staged changes"
+          shortcut={formatShortcut(
+            SHORTCUT_MAP.commitStagedChanges.mac,
+            SHORTCUT_MAP.commitStagedChanges.win
+          )}
+        >
           <button
             className={styles.commitButton}
             disabled={busy || !commitMsg.trim() || staged.length === 0}

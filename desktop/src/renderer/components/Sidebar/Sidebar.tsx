@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { basenameSafe, toPosixPath } from "@shared/platform";
+import { basenameSafe, formatShortcut, toPosixPath } from "@shared/platform";
+import { SHORTCUT_MAP } from "@shared/shortcuts";
 import { useAppStore } from "../../store/app-store";
 import type { Project } from "../../store/types";
 import type { CreateWorktreeProgressEvent } from "../../../shared/workspace-creation";
@@ -513,7 +514,7 @@ export function Sidebar() {
                         }}
                       >
                         <span className={styles.workspaceIcon}>
-                          {ws.automationId ? "⏱" : "⌥"}
+                          {ws.automationId ? "⏱" : "◦"}
                         </span>
                         <div className={styles.workspaceNameCol}>
                           {isEditing ? (
@@ -566,7 +567,10 @@ export function Sidebar() {
                     );
                   })}
 
-                  <Tooltip label="New workspace" shortcut="⌘N">
+                  <Tooltip
+                    label="New workspace"
+                    shortcut={formatShortcut(SHORTCUT_MAP.newWorkspace.mac, SHORTCUT_MAP.newWorkspace.win)}
+                  >
                     <button
                       className={styles.actionButton}
                       onClick={() => openWorkspaceDialog(project.id)}
@@ -596,7 +600,10 @@ export function Sidebar() {
             <span>Automations</span>
           </button>
         </Tooltip>
-        <Tooltip label="Settings" shortcut="⌘,">
+        <Tooltip
+          label="Settings"
+          shortcut={formatShortcut(SHORTCUT_MAP.settings.mac, SHORTCUT_MAP.settings.win)}
+        >
           <button className={styles.actionButton} onClick={toggleSettings}>
             <span className={styles.actionIcon}>⚙</span>
             <span>Settings</span>

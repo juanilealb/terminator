@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isMac, isWindows } from '@shared/platform'
 import { useAppStore } from '../store/app-store'
 
 export function useShortcuts() {
@@ -38,8 +39,11 @@ export function useShortcuts() {
       }
 
       // Cmd+Left/Right/Backspace: macOS line-editing conventions.
-      // Only Cmd (not Ctrl) — Ctrl+arrow is word movement handled by ghostty.
-      if (e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+      if (isMac
+        && e.metaKey
+        && !e.ctrlKey
+        && !e.shiftKey
+        && !e.altKey
         && (e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
         const s = useAppStore.getState()
         const tab = s.tabs.find((t) => t.id === s.activeTabId)
@@ -60,6 +64,45 @@ export function useShortcuts() {
             e.preventDefault()
             e.stopPropagation()
             window.api.pty.write(tab.ptyId, '\x15') // Ctrl+U — kill to beginning of line
+            return
+          }
+        }
+      }
+
+      // Windows terminal line-editing conventions.
+      if (isWindows
+        && (e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
+        const s = useAppStore.getState()
+        const tab = s.tabs.find((t) => t.id === s.activeTabId)
+        if (tab?.type === 'terminal') {
+          if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'ArrowLeft') {
+            e.preventDefault()
+            e.stopPropagation()
+            window.api.pty.write(tab.ptyId, '\x1bb') // Alt+B — previous word
+            return
+          }
+          if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'ArrowRight') {
+            e.preventDefault()
+            e.stopPropagation()
+            window.api.pty.write(tab.ptyId, '\x1bf') // Alt+F — next word
+            return
+          }
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'Home') {
+            e.preventDefault()
+            e.stopPropagation()
+            window.api.pty.write(tab.ptyId, '\x01') // Ctrl+A — beginning of line
+            return
+          }
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'End') {
+            e.preventDefault()
+            e.stopPropagation()
+            window.api.pty.write(tab.ptyId, '\x05') // Ctrl+E — end of line
+            return
+          }
+          if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'Backspace') {
+            e.preventDefault()
+            e.stopPropagation()
+            window.api.pty.write(tab.ptyId, '\x17') // Ctrl+W — delete previous word
             return
           }
         }

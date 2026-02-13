@@ -1,12 +1,13 @@
 import { useCallback } from 'react'
-import { basenameSafe, toPosixPath } from '@shared/platform'
+import { basenameSafe, formatShortcut, toPosixPath } from '@shared/platform'
+import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import type { Tab } from '../../store/types'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './TabBar.module.css'
 
 const TAB_ICONS: Record<Tab['type'], { icon: string; className: string }> = {
-  terminal: { icon: '⌘', className: styles.terminal },
+  terminal: { icon: '>_', className: styles.terminal },
   file: { icon: '◇', className: styles.file },
   diff: { icon: '±', className: styles.diff },
 }
@@ -59,7 +60,10 @@ export function TabBar() {
               {tab.type === 'file' && tab.unsaved ? (
                 <span className={styles.unsavedDot} />
               ) : (
-                <Tooltip label="Close tab" shortcut="⌘W">
+                <Tooltip
+                  label="Close tab"
+                  shortcut={formatShortcut(SHORTCUT_MAP.closeTab.mac, SHORTCUT_MAP.closeTab.win)}
+                >
                   <button
                     className={styles.closeButton}
                     onClick={(e) => handleClose(e, tab.id)}
@@ -73,7 +77,10 @@ export function TabBar() {
         })}
       </div>
 
-      <Tooltip label="New terminal" shortcut="⌘T">
+      <Tooltip
+        label="New terminal"
+        shortcut={formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}
+      >
         <button className={styles.newTabButton} onClick={createTerminalForActiveWorkspace}>
           +
         </button>

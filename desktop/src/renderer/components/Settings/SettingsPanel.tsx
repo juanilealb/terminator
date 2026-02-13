@@ -1,29 +1,31 @@
 import { useEffect, useState } from 'react'
+import { formatShortcut, isWindows } from '@shared/platform'
+import { SHORTCUT_MAP, type ShortcutBinding } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import type { Settings } from '../../store/types'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './SettingsPanel.module.css'
 
-const SHORTCUTS = [
-  { action: 'Quick open file', keys: '⌘P' },
-  { action: 'New terminal', keys: '⌘T' },
-  { action: 'Close tab', keys: '⌘W' },
-  { action: 'Close all tabs', keys: '⇧⌘W' },
-  { action: 'Next tab', keys: '⇧⌘]' },
-  { action: 'Previous tab', keys: '⇧⌘[' },
-  { action: 'Tab 1–9', keys: '⌘1 – ⌘9' },
-  { action: 'Next workspace', keys: '⇧⌘↓' },
-  { action: 'Previous workspace', keys: '⇧⌘↑' },
-  { action: 'New workspace', keys: '⌘N' },
-  { action: 'Toggle sidebar', keys: '⌘B' },
-  { action: 'Toggle right panel', keys: '⌥⌘B' },
-  { action: 'Files panel', keys: '⇧⌘E' },
-  { action: 'Changes panel', keys: '⇧⌘G' },
-  { action: 'Focus terminal', keys: '⌘J' },
-  { action: 'Increase font size', keys: '⌘+' },
-  { action: 'Decrease font size', keys: '⌘−' },
-  { action: 'Reset font size', keys: '⌘0' },
-  { action: 'Settings', keys: '⌘,' },
+const SHORTCUTS: Array<{ action: string; binding: ShortcutBinding }> = [
+  { action: 'Quick open file', binding: SHORTCUT_MAP.quickOpenFile },
+  { action: 'New terminal', binding: SHORTCUT_MAP.newTerminal },
+  { action: 'Close tab', binding: SHORTCUT_MAP.closeTab },
+  { action: 'Close all tabs', binding: SHORTCUT_MAP.closeAllTabs },
+  { action: 'Next tab', binding: SHORTCUT_MAP.nextTab },
+  { action: 'Previous tab', binding: SHORTCUT_MAP.previousTab },
+  { action: 'Tab 1–9', binding: SHORTCUT_MAP.tabOneToNine },
+  { action: 'Next workspace', binding: SHORTCUT_MAP.nextWorkspace },
+  { action: 'Previous workspace', binding: SHORTCUT_MAP.previousWorkspace },
+  { action: 'New workspace', binding: SHORTCUT_MAP.newWorkspace },
+  { action: 'Toggle sidebar', binding: SHORTCUT_MAP.toggleSidebar },
+  { action: 'Toggle right panel', binding: SHORTCUT_MAP.toggleRightPanel },
+  { action: 'Files panel', binding: SHORTCUT_MAP.filesPanel },
+  { action: 'Changes panel', binding: SHORTCUT_MAP.changesPanel },
+  { action: 'Focus terminal', binding: SHORTCUT_MAP.focusTerminal },
+  { action: 'Increase font size', binding: SHORTCUT_MAP.increaseFontSize },
+  { action: 'Decrease font size', binding: SHORTCUT_MAP.decreaseFontSize },
+  { action: 'Reset font size', binding: SHORTCUT_MAP.resetFontSize },
+  { action: 'Settings', binding: SHORTCUT_MAP.settings },
 ]
 
 function ToggleRow({ label, description, value, onChange }: {
@@ -278,7 +280,10 @@ export function SettingsPanel() {
       <div className={styles.header}>
         <div className={styles.headerInner}>
           <div className={styles.headerLeft}>
-            <Tooltip label="Back" shortcut="⌘,">
+            <Tooltip
+              label="Back"
+              shortcut={formatShortcut(SHORTCUT_MAP.settings.mac, SHORTCUT_MAP.settings.win)}
+            >
               <button className={styles.backBtn} onClick={toggleSettings}>‹</button>
             </Tooltip>
             <h2 className={styles.title}>Settings</h2>
@@ -288,92 +293,92 @@ export function SettingsPanel() {
 
       <div className={styles.content}>
         <div className={styles.inner}>
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Appearance</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Appearance</div>
 
-          <NumberRow
-            label="Terminal font size"
-            description="Font size in pixels for terminal tabs"
-            value={settings.terminalFontSize}
-            onChange={(v) => update('terminalFontSize', v)}
-          />
+            <NumberRow
+              label="Terminal font size"
+              description="Font size in pixels for terminal tabs"
+              value={settings.terminalFontSize}
+              onChange={(v) => update('terminalFontSize', v)}
+            />
 
-          <NumberRow
-            label="Editor font size"
-            description="Font size in pixels for file and diff editors"
-            value={settings.editorFontSize}
-            onChange={(v) => update('editorFontSize', v)}
-          />
-        </div>
+            <NumberRow
+              label="Editor font size"
+              description="Font size in pixels for file and diff editors"
+              value={settings.editorFontSize}
+              onChange={(v) => update('editorFontSize', v)}
+            />
+          </div>
 
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>General</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>General</div>
 
-          <ToggleRow
-            label="Confirm on close"
-            description="Show confirmation when closing tabs with unsaved changes"
-            value={settings.confirmOnClose}
-            onChange={(v) => update('confirmOnClose', v)}
-          />
+            <ToggleRow
+              label="Confirm on close"
+              description="Show confirmation when closing tabs with unsaved changes"
+              value={settings.confirmOnClose}
+              onChange={(v) => update('confirmOnClose', v)}
+            />
 
-          <ToggleRow
-            label="Auto-save on blur"
-            description="Automatically save files when switching away from a tab"
-            value={settings.autoSaveOnBlur}
-            onChange={(v) => update('autoSaveOnBlur', v)}
-          />
+            <ToggleRow
+              label="Auto-save on blur"
+              description="Automatically save files when switching away from a tab"
+              value={settings.autoSaveOnBlur}
+              onChange={(v) => update('autoSaveOnBlur', v)}
+            />
 
-          <ToggleRow
-            label="Restore workspace"
-            description="Restore the last active workspace when the app starts"
-            value={settings.restoreWorkspace}
-            onChange={(v) => update('restoreWorkspace', v)}
-          />
+            <ToggleRow
+              label="Restore workspace"
+              description="Restore the last active workspace when the app starts"
+              value={settings.restoreWorkspace}
+              onChange={(v) => update('restoreWorkspace', v)}
+            />
 
-          <ToggleRow
-            label="Inline diffs"
-            description="Show diffs inline instead of side-by-side"
-            value={settings.diffInline}
-            onChange={(v) => update('diffInline', v)}
-          />
+            <ToggleRow
+              label="Inline diffs"
+              description="Show diffs inline instead of side-by-side"
+              value={settings.diffInline}
+              onChange={(v) => update('diffInline', v)}
+            />
 
-          <TextRow
-            label="Default shell"
-            description="Path to shell executable (leave empty for system default)"
-            value={settings.defaultShell}
-            onChange={(v) => update('defaultShell', v)}
-            placeholder="/bin/zsh"
-          />
+            <TextRow
+              label="Default shell"
+              description="Path to shell executable (leave empty for system default)"
+              value={settings.defaultShell}
+              onChange={(v) => update('defaultShell', v)}
+              placeholder={isWindows ? 'pwsh.exe' : '/bin/zsh'}
+            />
 
-          <SelectRow
-            label="PR link provider"
-            description="Where to open pull request links"
-            value={settings.prLinkProvider}
-            onChange={(v) => update('prLinkProvider', v as Settings['prLinkProvider'])}
-            options={[
-              { value: 'github', label: 'GitHub' },
-              { value: 'graphite', label: 'Graphite' },
-              { value: 'devinreview', label: 'Devin Review' },
-            ]}
-          />
-        </div>
+            <SelectRow
+              label="PR link provider"
+              description="Where to open pull request links"
+              value={settings.prLinkProvider}
+              onChange={(v) => update('prLinkProvider', v as Settings['prLinkProvider'])}
+              options={[
+                { value: 'github', label: 'GitHub' },
+                { value: 'graphite', label: 'Graphite' },
+                { value: 'devinreview', label: 'Devin Review' },
+              ]}
+            />
+          </div>
 
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Agent Integrations</div>
-          <ClaudeHooksSection />
-          <CodexNotifySection />
-        </div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Agent Integrations</div>
+            <ClaudeHooksSection />
+            <CodexNotifySection />
+          </div>
 
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Keyboard Shortcuts</div>
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Keyboard Shortcuts</div>
 
-          {SHORTCUTS.map((s) => (
-            <div key={s.action} className={styles.shortcutRow}>
-              <span className={styles.shortcutAction}>{s.action}</span>
-              <kbd className={styles.kbd}>{s.keys}</kbd>
-            </div>
-          ))}
-        </div>
+            {SHORTCUTS.map((s) => (
+              <div key={s.action} className={styles.shortcutRow}>
+                <span className={styles.shortcutAction}>{s.action}</span>
+                <kbd className={styles.kbd}>{formatShortcut(s.binding.mac, s.binding.win)}</kbd>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

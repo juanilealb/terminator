@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Allotment } from 'allotment'
+import { formatShortcut } from '@shared/platform'
+import { SHORTCUT_MAP } from '@shared/shortcuts'
 import 'allotment/dist/style.css'
 import { useAppStore } from './store/app-store'
 import { Sidebar } from './components/Sidebar/Sidebar'
@@ -108,7 +110,9 @@ export function App() {
                       <div className={styles.welcomeLogo}>constellagent</div>
                       <div className={styles.welcomeHint}>
                         Add a project to get started, or press
-                        <span className={styles.welcomeShortcut}>⌘T</span>
+                        <span className={styles.welcomeShortcut}>
+                          {formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}
+                        </span>
                         for a new terminal
                       </div>
                     </div>

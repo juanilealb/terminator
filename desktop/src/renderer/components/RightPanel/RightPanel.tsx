@@ -1,3 +1,5 @@
+import { formatShortcut } from '@shared/platform'
+import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import { FileTree } from './FileTree'
 import { ChangedFiles } from './ChangedFiles'
@@ -13,7 +15,10 @@ export function RightPanel() {
     <div className={styles.rightPanel}>
       <div className={styles.header}>
         <div className={styles.modeToggle}>
-          <Tooltip label="Files" shortcut="⇧⌘E">
+          <Tooltip
+            label="Files"
+            shortcut={formatShortcut(SHORTCUT_MAP.filesPanel.mac, SHORTCUT_MAP.filesPanel.win)}
+          >
             <button
               className={`${styles.modeButton} ${rightPanelMode === 'files' ? styles.active : ''}`}
               onClick={() => setRightPanelMode('files')}
@@ -21,7 +26,10 @@ export function RightPanel() {
               Files
             </button>
           </Tooltip>
-          <Tooltip label="Changes" shortcut="⇧⌘G">
+          <Tooltip
+            label="Changes"
+            shortcut={formatShortcut(SHORTCUT_MAP.changesPanel.mac, SHORTCUT_MAP.changesPanel.win)}
+          >
             <button
               className={`${styles.modeButton} ${rightPanelMode === 'changes' ? styles.active : ''}`}
               onClick={() => setRightPanelMode('changes')}
