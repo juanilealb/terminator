@@ -17,6 +17,19 @@ mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   notarize: true
+win:
+  icon: build/icon.png
+  target:
+    - nsis
+extraResources:
+  - from: claude-hooks
+    to: claude-hooks
+    filter:
+      - '*.js'
+  - from: codex-hooks
+    to: codex-hooks
+    filter:
+      - '*.js'
 dmg:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: true

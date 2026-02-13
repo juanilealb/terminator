@@ -2,7 +2,7 @@
   "name": "constellagent",
   "productName": "Constellagent",
   "version": "1.0.0",
-  "description": "Mac app for running multiple AI agents in parallel",
+  "description": "Desktop app for running multiple AI agents in parallel",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -11,7 +11,8 @@
     "test": "bunx playwright test --project=electron",
     "rebuild": "bunx electron-rebuild",
     "dist": "electron-vite build && electron-builder --mac --arm64",
-    "postinstall": "bash scripts/patch-electron-dev.sh && bunx electron-rebuild"
+    "dist:win": "electron-vite build && electron-builder --win",
+    "postinstall": "node scripts/postinstall.cjs"
   },
   "keywords": [],
   "author": "",
