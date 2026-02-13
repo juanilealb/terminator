@@ -2,7 +2,7 @@ import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { BrowserWindow } from 'electron'
 import { IPC } from '../shared/ipc-channels'
-import { getTempDir } from '../shared/platform'
+import { debugLog, getTempDir } from '@shared/platform'
 
 const NOTIFY_DIR = join(getTempDir(), 'constellagent-notify')
 const ACTIVITY_DIR = join(getTempDir(), 'constellagent-activity')
@@ -67,6 +67,7 @@ export class NotificationWatcher {
 
         this.lastActiveIds = sorted
         this.sendActivity(workspaceIds)
+        debugLog('Activity markers changed', { activeWorkspaceIds: workspaceIds })
 
         // Fallback completion signal: if a workspace was active and now is not,
         // emit a notify event so renderer can show unread attention dots even
@@ -80,6 +81,7 @@ export class NotificationWatcher {
         const prevIds = this.lastActiveIds.split(',').filter(Boolean)
         this.lastActiveIds = ''
         this.sendActivity([])
+        debugLog('Activity markers cleared (activity dir unavailable)')
         for (const wsId of prevIds) {
           this.notifyRenderer(wsId)
         }
@@ -90,9 +92,14 @@ export class NotificationWatcher {
   private processFile(filePath: string): void {
     try {
       const wsId = readFileSync(filePath, 'utf-8').trim()
-      if (!wsId) return
-      this.notifyRenderer(wsId)
+      if (wsId) {
+        debugLog('Notify marker found', { workspaceId: wsId, filePath })
+        this.notifyRenderer(wsId)
+      } else {
+        debugLog('Notify marker empty; clearing marker file', { filePath })
+      }
       unlinkSync(filePath)
+      debugLog('Notify marker cleared', { filePath })
     } catch {
       // File may have been already processed or deleted
     }
@@ -117,8 +124,10 @@ export class NotificationWatcher {
   }
 
   private removeActivityMarker(name: string): void {
+    const markerPath = join(ACTIVITY_DIR, name)
     try {
-      unlinkSync(join(ACTIVITY_DIR, name))
+      unlinkSync(markerPath)
+      debugLog('Activity marker cleared', { markerPath })
     } catch {
       // Marker may already be gone
     }

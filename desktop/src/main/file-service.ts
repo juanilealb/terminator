@@ -1,5 +1,5 @@
-import { readdir, readFile as fsReadFile, writeFile as fsWriteFile, stat } from 'fs/promises'
-import { join, relative } from 'path'
+import { readdir, readFile as fsReadFile, writeFile as fsWriteFile } from 'fs/promises'
+import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 

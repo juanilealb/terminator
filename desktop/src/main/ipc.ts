@@ -6,7 +6,7 @@ import { tmpdir } from 'os'
 import { watch, type FSWatcher } from 'fs'
 import { IPC } from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
-import { toPosixPath } from '@shared/platform'
+import { debugLog, toPosixPath } from '@shared/platform'
 import { PtyManager } from './pty-manager'
 import { GitService } from './git-service'
 import { GithubService } from './github-service'
@@ -21,73 +21,130 @@ const automationScheduler = new AutomationScheduler(ptyManager)
 // Filesystem watchers: dirPath → { watcher, debounceTimer }
 const fsWatchers = new Map<string, { watcher: FSWatcher; timer: ReturnType<typeof setTimeout> | null }>()
 
+function serializeError(error: unknown): unknown {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    }
+  }
+  return error
+}
+
+async function runGitOperation<T>(
+  operation: string,
+  context: Record<string, unknown>,
+  op: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await op()
+  } catch (error) {
+    console.error('[Constellagent] Git operation failed', {
+      operation,
+      ...context,
+      error: serializeError(error),
+    })
+    throw error
+  }
+}
+
 export function registerIpcHandlers(): void {
   const normalizeGitPath = (filePath: string): string => toPosixPath(filePath)
 
   // ── Git handlers ──
   ipcMain.handle(IPC.GIT_LIST_WORKTREES, async (_e, repoPath: string) => {
-    return GitService.listWorktrees(repoPath)
+    return runGitOperation('list-worktrees', { repoPath }, () =>
+      GitService.listWorktrees(repoPath),
+    )
   })
 
   ipcMain.handle(IPC.GIT_CREATE_WORKTREE, async (_e, repoPath: string, name: string, branch: string, newBranch: boolean, baseBranch?: string, force?: boolean, requestId?: string) => {
-    return GitService.createWorktree(
-      repoPath,
-      name,
-      branch,
-      newBranch,
-      baseBranch,
-      force,
-      (progress) => {
-        const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
-        _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
-      }
+    return runGitOperation(
+      'create-worktree',
+      { repoPath, name, branch, newBranch, baseBranch, force, requestId },
+      () =>
+        GitService.createWorktree(
+          repoPath,
+          name,
+          branch,
+          newBranch,
+          baseBranch,
+          force,
+          (progress) => {
+            const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
+            _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
+          },
+        ),
     )
   })
 
   ipcMain.handle(IPC.GIT_REMOVE_WORKTREE, async (_e, repoPath: string, worktreePath: string) => {
-    return GitService.removeWorktree(repoPath, worktreePath)
+    return runGitOperation('remove-worktree', { repoPath, worktreePath }, () =>
+      GitService.removeWorktree(repoPath, worktreePath),
+    )
   })
 
   ipcMain.handle(IPC.GIT_GET_STATUS, async (_e, worktreePath: string) => {
-    const statuses = await GitService.getStatus(worktreePath)
+    const statuses = await runGitOperation('get-status', { worktreePath }, () =>
+      GitService.getStatus(worktreePath),
+    )
     return statuses.map((s) => ({ ...s, path: normalizeGitPath(s.path) }))
   })
 
   ipcMain.handle(IPC.GIT_GET_DIFF, async (_e, worktreePath: string, staged: boolean) => {
-    const diffs = await GitService.getDiff(worktreePath, staged)
+    const diffs = await runGitOperation('get-diff', { worktreePath, staged }, () =>
+      GitService.getDiff(worktreePath, staged),
+    )
     return diffs.map((d) => ({ ...d, path: normalizeGitPath(d.path) }))
   })
 
   ipcMain.handle(IPC.GIT_GET_FILE_DIFF, async (_e, worktreePath: string, filePath: string) => {
-    return GitService.getFileDiff(worktreePath, filePath)
+    return runGitOperation('get-file-diff', { worktreePath, filePath }, () =>
+      GitService.getFileDiff(worktreePath, filePath),
+    )
   })
 
   ipcMain.handle(IPC.GIT_GET_BRANCHES, async (_e, repoPath: string) => {
-    return GitService.getBranches(repoPath)
+    return runGitOperation('get-branches', { repoPath }, () =>
+      GitService.getBranches(repoPath),
+    )
   })
 
   ipcMain.handle(IPC.GIT_STAGE, async (_e, worktreePath: string, paths: string[]) => {
-    return GitService.stage(worktreePath, paths)
+    return runGitOperation('stage', { worktreePath, paths }, () =>
+      GitService.stage(worktreePath, paths),
+    )
   })
 
   ipcMain.handle(IPC.GIT_UNSTAGE, async (_e, worktreePath: string, paths: string[]) => {
-    return GitService.unstage(worktreePath, paths)
+    return runGitOperation('unstage', { worktreePath, paths }, () =>
+      GitService.unstage(worktreePath, paths),
+    )
   })
 
   ipcMain.handle(IPC.GIT_DISCARD, async (_e, worktreePath: string, paths: string[], untracked: string[]) => {
-    return GitService.discard(worktreePath, paths, untracked)
+    return runGitOperation('discard', { worktreePath, paths, untracked }, () =>
+      GitService.discard(worktreePath, paths, untracked),
+    )
   })
 
   ipcMain.handle(IPC.GIT_COMMIT, async (_e, worktreePath: string, message: string) => {
-    return GitService.commit(worktreePath, message)
+    return runGitOperation('commit', { worktreePath, message }, () =>
+      GitService.commit(worktreePath, message),
+    )
   })
 
   ipcMain.handle(IPC.GIT_GET_CURRENT_BRANCH, async (_e, worktreePath: string) => {
-    return GitService.getCurrentBranch(worktreePath)
+    return runGitOperation('get-current-branch', { worktreePath }, () =>
+      GitService.getCurrentBranch(worktreePath),
+    )
   })
 
   ipcMain.handle(IPC.GIT_GET_DEFAULT_BRANCH, async (_e, repoPath: string) => {
-    return GitService.getDefaultBranch(repoPath)
+    return runGitOperation('get-default-branch', { repoPath }, () =>
+      GitService.getDefaultBranch(repoPath),
+    )
   })
 
   // ── GitHub handlers ──
@@ -201,10 +258,16 @@ export function registerIpcHandlers(): void {
 
     try {
       const watcher = watch(dirPath, { recursive: true }, (_eventType, filename) => {
+        const fileNameText = typeof filename === 'string'
+          ? filename
+          : Buffer.isBuffer(filename)
+            ? filename.toString('utf-8')
+            : ''
+
         // For .git/ changes, only notify on meaningful state changes (commit, stage, branch switch)
         // Ignore noisy internals like objects/, logs/, COMMIT_EDITMSG
-        if (filename && (filename.startsWith('.git/') || filename.startsWith('.git\\'))) {
-          const f = filename.replaceAll('\\', '/')
+        if (fileNameText && (fileNameText.startsWith('.git/') || fileNameText.startsWith('.git\\'))) {
+          const f = fileNameText.replaceAll('\\', '/')
           const isStateChange =
             f === '.git/index' || f === '.git/HEAD' || f.startsWith('.git/refs/')
           if (!isStateChange) return
@@ -290,7 +353,7 @@ export function registerIpcHandlers(): void {
   ]
 
   function normalizeHookText(value: string): string {
-    return toPosixPath(value).replace(/\/+/g, '/')
+    return toPosixPath(value).replace(/\/+/g, '/').toLowerCase()
   }
 
   function commandHasIdentifier(command: string | undefined, identifiers: readonly string[]): boolean {
@@ -340,13 +403,21 @@ export function registerIpcHandlers(): void {
     settings.hooks = hooks
 
     await saveClaudeSettings(settings)
+    debugLog('Claude hooks installed', {
+      events: ['Stop', 'Notification', 'UserPromptSubmit'],
+      notifyPath,
+      activityPath,
+    })
     return { success: true }
   })
 
   ipcMain.handle(IPC.CLAUDE_UNINSTALL_HOOKS, async () => {
     const settings = await loadClaudeSettings()
     const hooks = settings.hooks as Record<string, unknown[]> | undefined
-    if (!hooks) return { success: true }
+    if (!hooks) {
+      debugLog('Claude hooks uninstall skipped (no hooks configured)')
+      return { success: true }
+    }
 
     function removeHook(event: string) {
       const rules = (hooks![event] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>
@@ -360,6 +431,9 @@ export function registerIpcHandlers(): void {
 
     if (Object.keys(hooks).length === 0) delete settings.hooks
     await saveClaudeSettings(settings)
+    debugLog('Claude hooks uninstalled', {
+      events: ['Stop', 'Notification', 'UserPromptSubmit'],
+    })
     return { success: true }
   })
 
@@ -463,18 +537,23 @@ export function registerIpcHandlers(): void {
     config = insertTopLevelNotify(config, notifyLine)
 
     await saveCodexConfigText(config)
+    debugLog('Codex notify hook installed', { notifyPath })
     return { success: true }
   })
 
   ipcMain.handle(IPC.CODEX_UNINSTALL_NOTIFY, async () => {
     let config = await loadCodexConfigText()
-    if (!textHasAnyCodexNotifyIdentifier(config)) return { success: true }
+    if (!textHasAnyCodexNotifyIdentifier(config)) {
+      debugLog('Codex notify hook uninstall skipped (no matching assignment)')
+      return { success: true }
+    }
 
     config = stripNotifyAssignments(config, (assignment) => textHasAnyCodexNotifyIdentifier(assignment))
     config = config.replace(/\n{3,}/g, '\n\n').trimEnd()
     if (config) config += '\n'
 
     await saveCodexConfigText(config)
+    debugLog('Codex notify hook uninstalled')
     return { success: true }
   })
 

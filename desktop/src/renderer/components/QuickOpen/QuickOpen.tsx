@@ -157,9 +157,11 @@ export function QuickOpen({ worktreePath }: Props) {
       closeQuickOpen()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
+      if (filtered.length === 0) return
       setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
+      if (filtered.length === 0) return
       setSelectedIndex((i) => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()

@@ -4,7 +4,7 @@ import { IPC } from '../shared/ipc-channels'
 import { PtyManager } from './pty-manager'
 import { GitService } from './git-service'
 import { trustPathForClaude } from './claude-config'
-import { resolveDefaultShell } from '../shared/platform'
+import { basenameSafe, resolveDefaultShell } from '@shared/platform'
 
 export interface AutomationConfig {
   id: string
@@ -14,6 +14,27 @@ export interface AutomationConfig {
   cronExpression: string
   enabled: boolean
   repoPath: string
+}
+
+function buildClaudePromptCommand(shell: string, prompt: string): string {
+  const shellName = basenameSafe(shell.toLowerCase())
+
+  if (shellName === 'pwsh.exe' || shellName === 'powershell.exe' || shellName === 'pwsh' || shellName === 'powershell') {
+    const escaped = prompt.replace(/'/g, "''")
+    return `claude '${escaped}'\r`
+  }
+
+  if (shellName === 'cmd.exe' || shellName === 'cmd') {
+    const escaped = prompt
+      .replace(/\^/g, '^^')
+      .replace(/%/g, '%%')
+      .replace(/"/g, '""')
+      .replace(/[&|<>]/g, (ch) => `^${ch}`)
+    return `claude "${escaped}"\r`
+  }
+
+  const escaped = prompt.replace(/"/g, '\\"')
+  return `claude "${escaped}"\r`
 }
 
 export class AutomationScheduler {
@@ -66,12 +87,13 @@ export class AutomationScheduler {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
       .slice(0, 30)
+    const safeName = sanitized || 'run'
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 
-    const branch = `auto/${sanitized}/${timestamp}`
-    const wtName = `auto-${sanitized}-${timestamp}`
+    const branch = `auto/${safeName}/${timestamp}`
+    const wtName = `auto-${safeName}-${timestamp}`
 
     let worktreePath: string
     try {
@@ -90,13 +112,13 @@ export class AutomationScheduler {
     // Spawn a shell with initialWrite — writes the claude command as soon as
     // the shell emits its first output (ready), no manual timeout needed.
     const shell = resolveDefaultShell()
-    const escapedPrompt = config.prompt.replace(/'/g, "'\\''")
+    const command = buildClaudePromptCommand(shell, config.prompt)
     const ptyId = this.ptyManager.create(
       worktreePath,
       win.webContents,
       shell,
       undefined,
-      `claude '${escapedPrompt}'\r`
+      command,
     )
 
     // Notify renderer to create workspace + terminal tab

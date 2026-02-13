@@ -7,6 +7,8 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { join } from 'path'
+import { arch, platform, release, tmpdir, version as osVersion } from 'os'
+import { debugLog, resolveDefaultShell } from '@shared/platform'
 import { registerIpcHandlers } from './ipc'
 import { NotificationWatcher } from './notification-watcher'
 
@@ -104,6 +106,25 @@ if (process.env.CI_TEST) {
 }
 
 app.whenReady().then(() => {
+  const detectedShell = resolveDefaultShell()
+  debugLog('Startup info', {
+    platform: platform(),
+    release: release(),
+    version: osVersion(),
+    arch: arch(),
+    detectedShell,
+    tempDir: tmpdir(),
+    appPaths: {
+      appPath: app.getAppPath(),
+      exe: app.getPath('exe'),
+      home: app.getPath('home'),
+      appData: app.getPath('appData'),
+      userData: app.getPath('userData'),
+      temp: app.getPath('temp'),
+      logs: app.getPath('logs'),
+    },
+  })
+
   const menu = Menu.buildFromTemplate(buildMenuTemplate())
   Menu.setApplicationMenu(menu)
 

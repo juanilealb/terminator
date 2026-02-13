@@ -22,6 +22,7 @@ function getTabTitle(tab: Tab): string {
 export function TabBar() {
   const { activeTabId, setActiveTab, removeTab, activeWorkspaceTabs, createTerminalForActiveWorkspace, lastSavedTabId, settings } = useAppStore()
   const tabs = activeWorkspaceTabs()
+  const confirmOnClose = settings.confirmOnClose
 
   const handleClose = useCallback(
     (e: React.MouseEvent, tabId: string) => {
@@ -29,7 +30,7 @@ export function TabBar() {
       const tab = tabs.find((t) => t.id === tabId)
       if (!tab) return
 
-      if (tab.type === 'file' && tab.unsaved && settings.confirmOnClose) {
+      if (tab.type === 'file' && tab.unsaved && confirmOnClose) {
         if (!window.confirm(`"${getTabTitle(tab)}" has unsaved changes. Close anyway?`)) return
       }
 
@@ -38,7 +39,7 @@ export function TabBar() {
       }
       removeTab(tabId)
     },
-    [tabs, removeTab]
+    [tabs, removeTab, confirmOnClose]
   )
 
   return (
