@@ -1,4 +1,11 @@
-import { app, BrowserWindow, Menu, shell, type BrowserWindowConstructorOptions } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  shell,
+  type BrowserWindowConstructorOptions,
+  type MenuItemConstructorOptions,
+} from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { NotificationWatcher } from './notification-watcher'
@@ -6,6 +13,79 @@ import { isMac, isWindows } from '../shared/platform'
 
 let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
+
+function buildMenuTemplate(): MenuItemConstructorOptions[] {
+  if (isMac) {
+    return [
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' },
+        ],
+      },
+      {
+        label: 'Window',
+        submenu: [{ role: 'minimize' }, { role: 'zoom' }],
+      },
+    ]
+  }
+
+  return [
+    {
+      label: 'File',
+      submenu: [{ role: 'close' }, { type: 'separator' }, { role: 'quit' }],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'delete' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
+    },
+  ]
+}
 
 function createWindow(): void {
   const windowOptions: BrowserWindowConstructorOptions = {
@@ -64,38 +144,7 @@ if (process.env.CI_TEST) {
 }
 
 app.whenReady().then(() => {
-  // Custom menu: keep standard Edit shortcuts (copy/paste/undo) but remove
-  // Cmd+W (close window) and Cmd+N (new window) so they reach the renderer
-  const menu = Menu.buildFromTemplate([
-    {
-      label: app.name,
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' },
-      ],
-    },
-    {
-      label: 'Window',
-      submenu: [{ role: 'minimize' }, { role: 'zoom' }],
-    },
-  ])
+  const menu = Menu.buildFromTemplate(buildMenuTemplate())
   Menu.setApplicationMenu(menu)
 
   registerIpcHandlers()
