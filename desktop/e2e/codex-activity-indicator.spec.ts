@@ -5,8 +5,56 @@ import { execSync } from 'child_process'
 import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
-const FAKE_CODEX_BIN = join(tmpdir(), process.platform === 'win32' ? 'codex.cmd' : 'codex')
-const TEST_SHELL = process.platform === 'win32' ? 'pwsh.exe' : 'bash'
+const FAKE_CODEX_BIN = join(tmpdir(), 'codex.exe')
+const TEST_TERMINAL = 'pwsh.exe'
+const NOTIFY_DIR = join(tmpdir(), 'constellagent-notify')
+const ACTIVITY_DIR = join(tmpdir(), 'constellagent-activity')
+
+function psQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+function spawnFakeCodexCommand(fakeCodexPath: string): string {
+  return [
+    `$timeoutBin = (Get-Command timeout.exe).Source`,
+    `$target = ${psQuote(fakeCodexPath)}`,
+    'Copy-Item -Path $timeoutBin -Destination $target -Force',
+    '& $target /T 2 /NOBREAK',
+    '',
+  ].join('; ')
+}
+
+function notifyAndClearCodexCommand(workspaceId: string): string {
+  const activityPattern = join(ACTIVITY_DIR, `${workspaceId}.codex.*`)
+  return [
+    `$notifyDir = ${psQuote(NOTIFY_DIR)}`,
+    'New-Item -ItemType Directory -Path $notifyDir -Force | Out-Null',
+    '$notifyFile = Join-Path $notifyDir ("test-" + [guid]::NewGuid().ToString())',
+    `Set-Content -Path $notifyFile -Value ${psQuote(workspaceId)} -NoNewline`,
+    `Remove-Item -Path ${psQuote(activityPattern)} -Force -ErrorAction SilentlyContinue`,
+    '',
+  ].join('; ') + '\n'
+}
+
+function clearCodexActivityCommand(workspaceId: string): string {
+  const activityPattern = join(ACTIVITY_DIR, `${workspaceId}.codex.*`)
+  return `Remove-Item -Path ${psQuote(activityPattern)} -Force -ErrorAction SilentlyContinue\n`
+}
+
+function markClaudeActivityCommand(workspaceId: string): string {
+  const markerPath = join(ACTIVITY_DIR, `${workspaceId}.claude`)
+  return [
+    `$activityDir = ${psQuote(ACTIVITY_DIR)}`,
+    'New-Item -ItemType Directory -Path $activityDir -Force | Out-Null',
+    `New-Item -ItemType File -Path ${psQuote(markerPath)} -Force | Out-Null`,
+    '',
+  ].join('; ') + '\n'
+}
+
+function clearClaudeActivityCommand(workspaceId: string): string {
+  const markerPath = join(ACTIVITY_DIR, `${workspaceId}.claude`)
+  return `Remove-Item -Path ${psQuote(markerPath)} -Force -ErrorAction SilentlyContinue\n`
+}
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })
@@ -19,8 +67,8 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 
 function createTestRepo(name: string): string {
   const stamp = `${name}-${Date.now()}`
-  const repoPath = join('/tmp', `test-repo-${stamp}`)
-  const remotePath = join('/tmp', `test-remote-${stamp}.git`)
+  const repoPath = join(tmpdir(), `test-repo-${stamp}`)
+  const remotePath = join(tmpdir(), `test-remote-${stamp}.git`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -60,7 +108,7 @@ async function setupWorkspace(window: Page, repoPath: string) {
     })
 
     return { workspaceId, ptyId }
-  }, { repo: repoPath, shell: TEST_SHELL })
+  }, { repo: repoPath, shell: TEST_TERMINAL })
 }
 
 async function setupTwoWorkspaces(window: Page, repoPath: string) {
@@ -111,7 +159,7 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
     store.setActiveWorkspace(workspaceId2)
 
     return { workspaceId1, workspaceId2, ptyId1, ptyId2 }
-  }, { repo: repoPath, shell: TEST_SHELL })
+  }, { repo: repoPath, shell: TEST_TERMINAL })
 }
 
 test.describe('Codex activity indicator', () => {
@@ -126,9 +174,9 @@ test.describe('Codex activity indicator', () => {
       await window.evaluate(({ ptyId: id, fakeCodexPath }) => {
         ;(window as any).api.pty.write(
           id,
-          `SLEEP_BIN="$(command -v sleep)" && ln -sf "$SLEEP_BIN" "${fakeCodexPath}" && "${fakeCodexPath}" 2\n`
+          fakeCodexPath
         )
-      }, { ptyId, fakeCodexPath: FAKE_CODEX_BIN })
+      }, { ptyId, fakeCodexPath: spawnFakeCodexCommand(FAKE_CODEX_BIN) })
 
       await window.waitForTimeout(300)
       await window.evaluate((id: string) => {
@@ -142,12 +190,9 @@ test.describe('Codex activity indicator', () => {
       )
 
       await window.waitForTimeout(2200)
-      await window.evaluate(({ ptyId: id, wsId }) => {
-        ;(window as any).api.pty.write(
-          id,
-          `mkdir -p /tmp/constellagent-notify && echo "${wsId}" > /tmp/constellagent-notify/test-$(date +%s%N)-$$ && rm -f /tmp/constellagent-activity/${wsId}.codex.*\n`
-        )
-      }, { ptyId, wsId: workspaceId })
+      await window.evaluate(({ ptyId: id, cmd }) => {
+        ;(window as any).api.pty.write(id, cmd)
+      }, { ptyId, cmd: notifyAndClearCodexCommand(workspaceId) })
 
       await window.waitForFunction(
         (wsId: string) => !(window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -176,9 +221,9 @@ test.describe('Codex activity indicator', () => {
       await window.evaluate(({ ptyId: id, fakeCodexPath }) => {
         ;(window as any).api.pty.write(
           id,
-          `SLEEP_BIN="$(command -v sleep)" && ln -sf "$SLEEP_BIN" "${fakeCodexPath}" && "${fakeCodexPath}" 2\n`
+          fakeCodexPath
         )
-      }, { ptyId: ptyId1, fakeCodexPath: FAKE_CODEX_BIN })
+      }, { ptyId: ptyId1, fakeCodexPath: spawnFakeCodexCommand(FAKE_CODEX_BIN) })
 
       await window.waitForTimeout(300)
       await window.evaluate((id: string) => {
@@ -197,12 +242,9 @@ test.describe('Codex activity indicator', () => {
       }, workspaceId2)
 
       await window.waitForTimeout(2200)
-      await window.evaluate(({ ptyId: id, wsId }) => {
-        ;(window as any).api.pty.write(
-          id,
-          `rm -f /tmp/constellagent-activity/${wsId}.codex.*\n`
-        )
-      }, { ptyId: ptyId1, wsId: workspaceId1 })
+      await window.evaluate(({ ptyId: id, cmd }) => {
+        ;(window as any).api.pty.write(id, cmd)
+      }, { ptyId: ptyId1, cmd: clearCodexActivityCommand(workspaceId1) })
 
       await window.waitForFunction(
         (wsId: string) => !(window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -248,15 +290,12 @@ test.describe('Codex activity indicator', () => {
           ptyId,
         })
         return ptyId
-      }, { wsId: workspaceId, shell: TEST_SHELL })
+      }, { wsId: workspaceId, shell: TEST_TERMINAL })
 
       // Simulate Claude UserPromptSubmit hook writing its activity marker.
-      await window.evaluate(({ ptyId: id, wsId }) => {
-        ;(window as any).api.pty.write(
-          id,
-          `mkdir -p /tmp/constellagent-activity && touch /tmp/constellagent-activity/${wsId}.claude\n`
-        )
-      }, { ptyId: primaryPtyId, wsId: workspaceId })
+      await window.evaluate(({ ptyId: id, cmd }) => {
+        ;(window as any).api.pty.write(id, cmd)
+      }, { ptyId: primaryPtyId, cmd: markClaudeActivityCommand(workspaceId) })
 
       await window.waitForFunction(
         (wsId: string) => (window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -276,9 +315,9 @@ test.describe('Codex activity indicator', () => {
       expect(isStillActive).toBe(true)
 
       // Cleanup marker created by this test.
-      await window.evaluate(({ ptyId: id, wsId }) => {
-        ;(window as any).api.pty.write(id, `rm -f /tmp/constellagent-activity/${wsId}.claude\n`)
-      }, { ptyId: primaryPtyId, wsId: workspaceId })
+      await window.evaluate(({ ptyId: id, cmd }) => {
+        ;(window as any).api.pty.write(id, cmd)
+      }, { ptyId: primaryPtyId, cmd: clearClaudeActivityCommand(workspaceId) })
     } finally {
       rmSync(FAKE_CODEX_BIN, { force: true })
       await app.close()

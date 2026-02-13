@@ -284,12 +284,9 @@ export function registerIpcHandlers(): void {
   }
 
   // Stable identifiers to match our hook entries regardless of full path.
-  // Keep legacy .sh IDs so uninstall also removes pre-portability installs.
   const CLAUDE_HOOK_IDENTIFIERS = [
     'claude-hooks/notify.js',
     'claude-hooks/activity.js',
-    'claude-hooks/notify.sh',
-    'claude-hooks/activity.sh',
   ]
 
   function normalizeHookText(value: string): string {
@@ -303,12 +300,7 @@ export function registerIpcHandlers(): void {
   }
 
   function buildNodeHookCommand(scriptPath: string): string {
-    if (process.platform === 'win32') {
-      const escapedPath = scriptPath.replace(/"/g, '""')
-      return `node "${escapedPath}"`
-    }
-
-    const escapedPath = scriptPath.replace(/(["\\$`])/g, '\\$1')
+    const escapedPath = scriptPath.replace(/"/g, '""')
     return `node "${escapedPath}"`
   }
 
@@ -374,8 +366,6 @@ export function registerIpcHandlers(): void {
   // ── Codex notify hook ──
   const CODEX_NOTIFY_IDENTIFIERS = [
     'codex-hooks/notify.js',
-    // Legacy shell hook
-    'codex-hooks/notify.sh',
   ]
   const TABLE_HEADER_RE = /^\s*\[[^\n]+\]\s*$/m
   const NOTIFY_ASSIGNMENT_RE = /^\s*notify\s*=/

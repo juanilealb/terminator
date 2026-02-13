@@ -12,7 +12,7 @@ test('Full visual verification: project + workspace + terminal + file tree + cha
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
   mkdirSync(join(repoPath, 'src'), { recursive: true })
-  writeFileSync(join(repoPath, 'README.md'), '# Constellagent\nA Mac app for running AI agents.\n')
+  writeFileSync(join(repoPath, 'README.md'), '# Constellagent\nA Windows app for running AI agents.\n')
   writeFileSync(join(repoPath, 'src/index.ts'), 'console.log("hello world")\n')
   writeFileSync(join(repoPath, 'src/utils.ts'), 'export function add(a: number, b: number) { return a + b }\n')
   writeFileSync(join(repoPath, 'package.json'), '{"name":"test","version":"1.0.0"}\n')

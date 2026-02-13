@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, readdirSync
 import { execSync } from 'child_process'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
-const MOD = process.platform === 'win32' ? 'Control' : 'Meta'
+const MOD = 'Control'
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })

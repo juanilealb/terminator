@@ -8,7 +8,7 @@
 
 ## 2. Claude Code hooks integration (replaced bell detection)
 
-- [x] 2.1 Create `resources/claude-hooks/notify.sh` — hook script that writes workspace ID to signal file in `/tmp/constellagent-notify/`
+- [x] 2.1 Create `resources/claude-hooks/notify.js` — hook script that writes workspace ID to signal file in `/tmp/constellagent-notify/`
 - [x] 2.2 Add `extraEnv` param to `pty-manager.ts` `create()`, pass through IPC handler and preload bridge
 - [x] 2.3 Pass `AGENT_ORCH_WS_ID` env var at all 3 PTY creation call sites (app-store.ts, Sidebar.tsx x2)
 - [x] 2.4 Create `NotificationWatcher` service in `src/main/notification-watcher.ts` — polls `/tmp/constellagent-notify/` for signal files, sends IPC to renderer

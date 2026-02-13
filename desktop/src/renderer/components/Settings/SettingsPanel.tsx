@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatShortcut, isWindows } from '@shared/platform'
+import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP, type ShortcutBinding } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import type { Settings } from '../../store/types'
@@ -347,7 +347,7 @@ export function SettingsPanel() {
               description="Path to shell executable (leave empty for system default)"
               value={settings.defaultShell}
               onChange={(v) => update('defaultShell', v)}
-              placeholder={isWindows ? 'pwsh.exe' : '/bin/zsh'}
+              placeholder="pwsh.exe"
             />
 
             <SelectRow

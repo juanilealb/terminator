@@ -132,6 +132,6 @@
   --sidebar-width: 220px;
   --right-panel-width: 280px;
   --tab-height: 35px;
-  --titlebar-height: 38px;     /* macOS traffic lights area */
+  --titlebar-height: 38px;     /* draggable title bar area */
   --status-bar-height: 22px;
 }

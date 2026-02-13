@@ -9,45 +9,11 @@ import {
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { NotificationWatcher } from './notification-watcher'
-import { isMac, isWindows } from '../shared/platform'
 
 let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
 
 function buildMenuTemplate(): MenuItemConstructorOptions[] {
-  if (isMac) {
-    return [
-      {
-        label: app.name,
-        submenu: [
-          { role: 'about' },
-          { type: 'separator' },
-          { role: 'hide' },
-          { role: 'hideOthers' },
-          { role: 'unhide' },
-          { type: 'separator' },
-          { role: 'quit' },
-        ],
-      },
-      {
-        label: 'Edit',
-        submenu: [
-          { role: 'undo' },
-          { role: 'redo' },
-          { type: 'separator' },
-          { role: 'cut' },
-          { role: 'copy' },
-          { role: 'paste' },
-          { role: 'selectAll' },
-        ],
-      },
-      {
-        label: 'Window',
-        submenu: [{ role: 'minimize' }, { role: 'zoom' }],
-      },
-    ]
-  }
-
   return [
     {
       label: 'File',
@@ -95,19 +61,13 @@ function createWindow(): void {
     minHeight: 600,
     backgroundColor: '#13141b',
     show: false,
+    frame: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false, // needed for node-pty IPC
     },
-  }
-
-  if (isMac) {
-    windowOptions.titleBarStyle = 'hiddenInset'
-    windowOptions.trafficLightPosition = { x: 12, y: 12 }
-  } else if (isWindows) {
-    windowOptions.frame = true
   }
 
   mainWindow = new BrowserWindow(windowOptions)
@@ -150,18 +110,10 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   notificationWatcher.start()
   createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
-  })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  app.quit()
 })
 
 app.on('before-quit', () => {

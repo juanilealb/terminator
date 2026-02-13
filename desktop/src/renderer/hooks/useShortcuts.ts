@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { isMac, isWindows } from '@shared/platform'
 import { useAppStore } from '../store/app-store'
 
 export function useShortcuts() {
@@ -38,40 +37,8 @@ export function useShortcuts() {
         return
       }
 
-      // Cmd+Left/Right/Backspace: macOS line-editing conventions.
-      if (isMac
-        && e.metaKey
-        && !e.ctrlKey
-        && !e.shiftKey
-        && !e.altKey
-        && (e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
-        const s = useAppStore.getState()
-        const tab = s.tabs.find((t) => t.id === s.activeTabId)
-        if (tab?.type === 'terminal') {
-          if (e.key === 'ArrowLeft') {
-            e.preventDefault()
-            e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x01') // Ctrl+A — beginning of line
-            return
-          }
-          if (e.key === 'ArrowRight') {
-            e.preventDefault()
-            e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x05') // Ctrl+E — end of line
-            return
-          }
-          if (e.key === 'Backspace') {
-            e.preventDefault()
-            e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x15') // Ctrl+U — kill to beginning of line
-            return
-          }
-        }
-      }
-
       // Windows terminal line-editing conventions.
-      if (isWindows
-        && (e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
+      if ((e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
         const s = useAppStore.getState()
         const tab = s.tabs.find((t) => t.id === s.activeTabId)
         if (tab?.type === 'terminal') {
@@ -108,7 +75,7 @@ export function useShortcuts() {
         }
       }
 
-      const meta = e.metaKey || e.ctrlKey
+      const meta = e.ctrlKey
       const shift = e.shiftKey
       const alt = e.altKey
       if (!meta) return
@@ -121,21 +88,21 @@ export function useShortcuts() {
         e.stopPropagation()
       }
 
-      // ── Quick open: Cmd+P ──
+      // ── Quick open: Ctrl+P ──
       if (!shift && !alt && e.key === 'p') {
         consume()
         store.toggleQuickOpen()
         return
       }
 
-      // ── Tab switching: Cmd+1-9 ──
+      // ── Tab switching: Ctrl+1-9 ──
       if (!shift && !alt && e.key >= '1' && e.key <= '9') {
         consume()
         store.switchToTabByIndex(parseInt(e.key) - 1)
         return
       }
 
-      // ── Workspace switching: Cmd+Shift+Up / Cmd+Shift+Down ──
+      // ── Workspace switching: Ctrl+Shift+Up / Ctrl+Shift+Down ──
       if (shift && !alt && e.key === 'ArrowUp') {
         consume()
         store.prevWorkspace()
@@ -180,26 +147,26 @@ export function useShortcuts() {
       }
 
       // ── Panels ──
-      // Cmd+B — toggle sidebar (left)
+      // Ctrl+B — toggle sidebar (left)
       if (!shift && !alt && e.key === 'b') {
         consume()
         store.toggleSidebar()
         return
       }
-      // Cmd+Option+B — toggle right panel (use e.code since Option changes e.key on macOS)
+      // Ctrl+Alt+B — toggle right panel
       if (!shift && alt && e.code === 'KeyB') {
         consume()
         store.toggleRightPanel()
         return
       }
-      // Cmd+Shift+E — files panel (open if closed)
+      // Ctrl+Shift+E — files panel (open if closed)
       if (shift && !alt && e.code === 'KeyE') {
         consume()
         store.setRightPanelMode('files')
         if (!store.rightPanelOpen) store.toggleRightPanel()
         return
       }
-      // Cmd+Shift+G — changes panel (open if closed)
+      // Ctrl+Shift+G — changes panel (open if closed)
       if (shift && !alt && e.code === 'KeyG') {
         consume()
         store.setRightPanelMode('changes')
@@ -208,14 +175,14 @@ export function useShortcuts() {
       }
 
       // ── Focus ──
-      // Cmd+J — focus terminal (or create one)
+      // Ctrl+J — focus terminal (or create one)
       if (!shift && !alt && e.key === 'j') {
         consume()
         store.focusOrCreateTerminal()
         return
       }
 
-      // ── Font size: Cmd+= / Cmd+- / Cmd+0 ──
+      // ── Font size: Ctrl+= / Ctrl+- / Ctrl+0 ──
       if (!shift && !alt && (e.key === '=' || e.key === '-' || e.key === '0')) {
         consume()
         const tab = store.tabs.find((t) => t.id === store.activeTabId)
@@ -232,7 +199,7 @@ export function useShortcuts() {
       }
 
       // ── Settings ──
-      // Cmd+, — toggle settings
+      // Ctrl+, — toggle settings
       if (!shift && !alt && e.key === ',') {
         consume()
         store.toggleSettings()
@@ -240,7 +207,7 @@ export function useShortcuts() {
       }
 
       // ── Workspace creation ──
-      // Cmd+N — new workspace dialog
+      // Ctrl+N — new workspace dialog
       if (!shift && !alt && e.key === 'n') {
         consume()
         const project = store.activeProject()

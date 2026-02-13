@@ -4,7 +4,7 @@ import { mkdirSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { WebContents } from 'electron'
 import { IPC } from '../shared/ipc-channels'
-import { basenameSafe, getTempDir, isWindows, resolveDefaultShell, toPosixPath } from '../shared/platform'
+import { basenameSafe, getTempDir, resolveDefaultShell, toPosixPath } from '../shared/platform'
 
 interface PtyInstance {
   process: pty.IPty
@@ -17,24 +17,7 @@ interface PtyInstance {
 
 interface ProcessEntry {
   pid: number
-  ppid: number
   command: string
-}
-
-function parseProcessTable(output: string): ProcessEntry[] {
-  const entries: ProcessEntry[] = []
-  for (const rawLine of output.split('\n')) {
-    const line = rawLine.trim()
-    if (!line) continue
-    const match = line.match(/^(\d+)\s+(\d+)\s+(.*)$/)
-    if (!match) continue
-    entries.push({
-      pid: Number(match[1]),
-      ppid: Number(match[2]),
-      command: match[3],
-    })
-  }
-  return entries
 }
 
 function parseCsvLine(line: string): string[] {
@@ -78,7 +61,6 @@ function parseTasklistOutput(output: string): ProcessEntry[] {
     if (!columns[0] || Number.isNaN(pid)) continue
     entries.push({
       pid,
-      ppid: 0,
       command: columns[0],
     })
   }
@@ -228,48 +210,18 @@ export class PtyManager {
   private isCodexRunningUnder(rootPid: number): boolean {
     let processTable = ''
     try {
-      processTable = isWindows
-        ? execFileSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf-8' })
-        : execFileSync('ps', ['-axo', 'pid=,ppid=,args='], { encoding: 'utf-8' })
+      processTable = execFileSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf-8' })
     } catch {
       return false
     }
 
-    const entries = isWindows ? parseTasklistOutput(processTable) : parseProcessTable(processTable)
+    const entries = parseTasklistOutput(processTable)
     if (entries.length === 0) return false
 
-    if (isWindows) {
-      // tasklist doesn't expose PPIDs, so treat Codex process presence as
-      // best-effort activity once this PTY PID is known alive.
-      const rootExists = entries.some((entry) => entry.pid === rootPid)
-      return rootExists && entries.some((entry) => isLikelyCodexCommand(entry.command))
-    }
-
-    const childrenByParent = new Map<number, ProcessEntry[]>()
-    for (const entry of entries) {
-      const children = childrenByParent.get(entry.ppid)
-      if (children) children.push(entry)
-      else childrenByParent.set(entry.ppid, [entry])
-    }
-
-    const stack = [rootPid]
-    const seen = new Set<number>()
-    while (stack.length > 0) {
-      const pid = stack.pop()!
-      if (seen.has(pid)) continue
-      seen.add(pid)
-
-      const children = childrenByParent.get(pid)
-      if (!children) continue
-
-      for (const child of children) {
-        if (isLikelyCodexCommand(child.command)) {
-          return true
-        }
-        stack.push(child.pid)
-      }
-    }
-    return false
+    // tasklist doesn't expose PPIDs, so treat Codex process presence as
+    // best-effort activity once this PTY PID is known alive.
+    const rootExists = entries.some((entry) => entry.pid === rootPid)
+    return rootExists && entries.some((entry) => isLikelyCodexCommand(entry.command))
   }
 
   private codexMarkerPath(workspaceId: string, ptyPid: number): string {
@@ -300,18 +252,11 @@ export class PtyManager {
     if (!instance) return false
     instance.webContents = webContents
 
-    if (isWindows) {
-      // Windows has no SIGWINCH. Nudge width to force a terminal redraw.
-      try {
-        instance.process.resize(instance.cols + 1, instance.rows)
-        instance.process.resize(instance.cols, instance.rows)
-      } catch {}
-      return true
-    }
-
-    // Send SIGWINCH directly so TUI apps (Claude Code) redraw their screen.
-    // Can't use resize() with same dimensions — kernel skips the signal on no-op.
-    try { process.kill(instance.process.pid, 'SIGWINCH') } catch {}
+    // Nudge width to force a terminal redraw after renderer reattach.
+    try {
+      instance.process.resize(instance.cols + 1, instance.rows)
+      instance.process.resize(instance.cols, instance.rows)
+    } catch {}
     return true
   }
 

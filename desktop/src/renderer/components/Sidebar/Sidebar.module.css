@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-/* macOS traffic light spacing */
+/* Title bar spacing */
 .titleArea {
   height: var(--titlebar-height);
   -webkit-app-region: drag;
