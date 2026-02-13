@@ -20,6 +20,10 @@ interface Props {
   worktreePath: string
 }
 
+function lastPathSeparatorIndex(pathText: string): number {
+  return Math.max(pathText.lastIndexOf('/'), pathText.lastIndexOf('\\'))
+}
+
 function flattenTree(nodes: FileNode[], basePath: string): FileEntry[] {
   const result: FileEntry[] = []
   const basePosix = toPosixPath(basePath).replace(/\/+$/g, '')
@@ -69,7 +73,8 @@ function HighlightedPath({ text, indices }: { text: string; indices: number[] })
   const normalizedText = toPosixPath(text)
   const set = new Set(indices)
   const name = basenameSafe(normalizedText)
-  const dir = normalizedText.slice(0, Math.max(0, normalizedText.length - name.length))
+  const lastSeparator = lastPathSeparatorIndex(normalizedText)
+  const dir = lastSeparator >= 0 ? normalizedText.slice(0, lastSeparator + 1) : ''
 
   const renderChars = (str: string, offset: number) =>
     str.split('').map((ch, i) => {
@@ -114,8 +119,7 @@ export function QuickOpen({ worktreePath }: Props) {
       const indices = fuzzyMatch(query, entry.relativePath)
       if (indices) {
         // Score: prefer matches at start of filename, shorter paths, tighter clusters
-        const fileName = basenameSafe(entry.relativePath)
-        const nameStart = Math.max(0, entry.relativePath.length - fileName.length)
+        const nameStart = lastPathSeparatorIndex(entry.relativePath) + 1
         const nameMatchCount = indices.filter((i) => i >= nameStart).length
         const score = -nameMatchCount * 10 + indices.length + entry.relativePath.length
         results.push({ entry, indices, score })

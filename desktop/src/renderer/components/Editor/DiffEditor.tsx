@@ -62,8 +62,9 @@ const DiffFileSection = memo(function DiffFileSection({
   onOpenFile,
 }: DiffFileSectionProps) {
   const displayPath = toPosixPath(data.filePath)
-  const fileName = basenameSafe(displayPath)
-  const dir = displayPath.slice(0, Math.max(0, displayPath.length - fileName.length))
+  const pathParts = displayPath.split(/[\\/]/)
+  const fileName = pathParts[pathParts.length - 1] || basenameSafe(displayPath)
+  const dir = pathParts.length > 1 ? `${pathParts.slice(0, -1).join('/')}/` : ''
 
   const fullPath = joinWorktreePath(worktreePath, data.filePath)
 

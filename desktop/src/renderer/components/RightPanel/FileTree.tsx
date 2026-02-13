@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Tree, NodeRendererProps, NodeApi } from 'react-arborist'
-import { basenameSafe } from '@shared/platform'
+import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import styles from './RightPanel.module.css'
 
@@ -15,10 +15,6 @@ interface FileNode {
 interface Props {
   worktreePath: string
   isActive?: boolean
-}
-
-function basename(p: string) {
-  return basenameSafe(p)
 }
 
 /** Recursively open or close all descendants of a node */
@@ -108,7 +104,7 @@ export function FileTree({ worktreePath, isActive }: Props) {
     window.api.fs.getTreeWithStatus(worktreePath).then((nodes: FileNode[]) => {
       // Wrap in root node
       const root: FileNode = {
-        name: basename(worktreePath),
+        name: basenameSafe(toPosixPath(worktreePath)),
         path: worktreePath,
         type: 'directory',
         children: nodes,
