@@ -34,6 +34,16 @@ export function App() {
     return unsub
   }, [])
 
+  useEffect(() => {
+    const unsub = window.api.app.onActivateWorkspace((workspaceId: string) => {
+      const state = useAppStore.getState()
+      if (state.workspaces.some((w) => w.id === workspaceId)) {
+        state.setActiveWorkspace(workspaceId)
+      }
+    })
+    return unsub
+  }, [])
+
   // Listen for agent activity updates (Claude hooks + Codex submit/notify markers)
   useEffect(() => {
     let prevActive = new Set<string>()
@@ -69,6 +79,7 @@ export function App() {
     commandPaletteVisible,
     activeClaudeWorkspaceIds,
   } = useAppStore()
+  const unreadWorkspaceCount = useAppStore((s) => s.unreadWorkspaceIds.size)
 
   const wsTabs = activeWorkspaceTabs()
   const activeTab = wsTabs.find((t) => t.id === activeTabId)
@@ -84,6 +95,10 @@ export function App() {
 
   // All terminal tabs across every workspace — kept alive to preserve PTY state
   const allTerminals = allTabs.filter((t): t is Extract<typeof t, { type: 'terminal' }> => t.type === 'terminal')
+
+  useEffect(() => {
+    window.api.app.setUnreadCount(unreadWorkspaceCount)
+  }, [unreadWorkspaceCount])
 
   return (
     <div className={styles.app} style={appStyle}>

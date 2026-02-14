@@ -1,14 +1,30 @@
 import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow, nativeImage, Notification } from 'electron'
 import { IPC } from '../shared/ipc-channels'
 import { debugLog, getTempDir } from '@shared/platform'
+import { sendActivateWorkspace } from './ipc'
 
 const NOTIFY_DIR = join(getTempDir(), 'terminator-notify')
 const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const POLL_INTERVAL = 500
 const CLAUDE_MARKER_SUFFIX = '.claude'
 const CODEX_MARKER_SEGMENT = '.codex.'
+
+function getNotificationIcon() {
+  const candidates = [
+    join(app.getAppPath(), 'build', 'icon.png'),
+    join(process.resourcesPath, 'build', 'icon.png'),
+    join(process.resourcesPath, 'icon.png'),
+  ]
+
+  for (const iconPath of candidates) {
+    const icon = nativeImage.createFromPath(iconPath)
+    if (!icon.isEmpty()) return icon
+  }
+
+  return nativeImage.createEmpty()
+}
 
 export class NotificationWatcher {
   private timer: ReturnType<typeof setInterval> | null = null
@@ -134,11 +150,35 @@ export class NotificationWatcher {
   }
 
   private notifyRenderer(workspaceId: string): void {
+    this.showNotification(workspaceId)
+
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
         win.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, workspaceId)
       }
     }
+  }
+
+  private showNotification(workspaceId: string): void {
+    if (!Notification.isSupported()) return
+
+    const notification = new Notification({
+      title: 'Terminator',
+      body: `Agent completed in workspace ${workspaceId}`,
+      icon: getNotificationIcon(),
+    })
+
+    notification.on('click', () => {
+      const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+      if (!win) return
+
+      if (win.isMinimized()) win.restore()
+      if (!win.isVisible()) win.show()
+      win.focus()
+      sendActivateWorkspace(workspaceId)
+    })
+
+    notification.show()
   }
 
   private sendActivity(workspaceIds: string[]): void {

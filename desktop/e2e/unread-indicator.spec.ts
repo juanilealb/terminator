@@ -2,9 +2,10 @@ import { test, expect, _electron as electron, ElectronApplication, Page } from '
 import { resolve, join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
-const NOTIFY_DIR = '/tmp/terminator-notify'
+const NOTIFY_DIR = join(tmpdir(), 'terminator-notify')
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })
@@ -16,7 +17,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })

@@ -8,6 +8,8 @@ const api = {
       ipcRenderer.invoke(IPC.GIT_LIST_WORKTREES, repoPath),
     createWorktree: (repoPath: string, name: string, branch: string, newBranch: boolean, baseBranch?: string, force?: boolean, requestId?: string) =>
       ipcRenderer.invoke(IPC.GIT_CREATE_WORKTREE, repoPath, name, branch, newBranch, baseBranch, force, requestId),
+    createWorktreeFromPr: (repoPath: string, name: string, prNumber: number, localBranch: string, force?: boolean, requestId?: string) =>
+      ipcRenderer.invoke(IPC.GIT_CREATE_WORKTREE_FROM_PR, repoPath, name, prNumber, localBranch, force, requestId) as Promise<{ worktreePath: string; branch: string }>,
     onCreateWorktreeProgress: (callback: (progress: CreateWorktreeProgressEvent) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, progress: CreateWorktreeProgressEvent) => callback(progress)
       ipcRenderer.on(IPC.GIT_CREATE_WORKTREE_PROGRESS, listener)
@@ -56,8 +58,8 @@ const api = {
   },
 
   pty: {
-    create: (workingDir: string, shell?: string, extraEnv?: Record<string, string>) =>
-      ipcRenderer.invoke(IPC.PTY_CREATE, workingDir, shell, extraEnv),
+    create: (workingDir: string, shell?: string, shellArgs?: string[], extraEnv?: Record<string, string>) =>
+      ipcRenderer.invoke(IPC.PTY_CREATE, workingDir, shell, shellArgs, extraEnv),
     write: (ptyId: string, data: string) =>
       ipcRenderer.send(IPC.PTY_WRITE, ptyId, data),
     resize: (ptyId: string, cols: number, rows: number) =>
@@ -107,6 +109,15 @@ const api = {
       ipcRenderer.invoke(IPC.APP_ADD_PROJECT_PATH, dirPath),
     getDataPath: () =>
       ipcRenderer.invoke(IPC.APP_GET_DATA_PATH),
+    setUnreadCount: (count: number) =>
+      ipcRenderer.send(IPC.APP_SET_UNREAD_COUNT, count),
+    onActivateWorkspace: (callback: (workspaceId: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, workspaceId: string) => callback(workspaceId)
+      ipcRenderer.on(IPC.ACTIVATE_WORKSPACE, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC.ACTIVATE_WORKSPACE, listener)
+      }
+    },
   },
 
   claude: {
@@ -166,6 +177,8 @@ const api = {
   github: {
     getPrStatuses: (repoPath: string, branches: string[]) =>
       ipcRenderer.invoke(IPC.GITHUB_GET_PR_STATUSES, repoPath, branches),
+    listOpenPrs: (repoPath: string) =>
+      ipcRenderer.invoke(IPC.GITHUB_LIST_OPEN_PRS, repoPath),
   },
 
   clipboard: {

@@ -22,6 +22,7 @@ export interface Project {
   name: string
   repoPath: string
   startupCommands?: StartupCommand[]
+  prLinkProvider?: PrLinkProvider
 }
 
 export interface Workspace {
@@ -57,11 +58,11 @@ export interface Settings {
   confirmOnClose: boolean
   autoSaveOnBlur: boolean
   defaultShell: string
+  defaultShellArgs: string
   restoreWorkspace: boolean
   diffInline: boolean
   terminalFontSize: number
   editorFontSize: number
-  prLinkProvider: PrLinkProvider
   promptTemplates: PromptTemplate[]
 }
 
@@ -69,11 +70,11 @@ export const DEFAULT_SETTINGS: Settings = {
   confirmOnClose: true,
   autoSaveOnBlur: false,
   defaultShell: '',
+  defaultShellArgs: '',
   restoreWorkspace: true,
   diffInline: false,
   terminalFontSize: 14,
   editorFontSize: 13,
-  prLinkProvider: 'github',
   promptTemplates: [
     {
       id: 'template-plan',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useAppStore } from '../../store/app-store'
+import type { Tab } from '../../store/types'
 import { expandPromptTemplate, normalizePreviewUrl } from '../../utils/prompt-template'
 import styles from './CommandPalette.module.css'
 
@@ -11,6 +12,8 @@ interface CommandAction {
   keywords: string[]
   run: () => Promise<void> | void
 }
+
+type TerminalTab = Extract<Tab, { type: 'terminal' }>
 
 function scoreCommand(query: string, action: CommandAction): number {
   if (!query) return 0
@@ -56,12 +59,12 @@ export function CommandPalette() {
 
   const insertTemplateIntoTerminal = async (templateContent: string, templateName: string) => {
     const expanded = await expandPromptTemplate(templateContent, workspace)
-    let terminalTab = tabs.find((t) => t.id === activeTabId && t.type === 'terminal')
+    let terminalTab = tabs.find((t): t is TerminalTab => t.id === activeTabId && t.type === 'terminal')
 
     if (!terminalTab || (workspace && terminalTab.workspaceId !== workspace.id)) {
       const workspaceTerminal = workspace
-        ? tabs.find((t) => t.type === 'terminal' && t.workspaceId === workspace.id)
-        : null
+        ? tabs.find((t): t is TerminalTab => t.type === 'terminal' && t.workspaceId === workspace.id)
+        : undefined
       if (workspaceTerminal) {
         terminalTab = workspaceTerminal
       } else {

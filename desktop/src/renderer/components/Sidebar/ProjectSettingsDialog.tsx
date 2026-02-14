@@ -1,11 +1,11 @@
 import { useState, useCallback, useId } from 'react'
-import type { Project, StartupCommand } from '../../store/types'
+import type { Project, PrLinkProvider, StartupCommand } from '../../store/types'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './ProjectSettingsDialog.module.css'
 
 interface Props {
   project: Project
-  onSave: (commands: StartupCommand[]) => void
+  onSave: (settings: { startupCommands: StartupCommand[]; prLinkProvider: PrLinkProvider }) => void
   onCancel: () => void
 }
 
@@ -14,6 +14,9 @@ export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
   const titleId = useId()
   const [commands, setCommands] = useState<StartupCommand[]>(
     project.startupCommands?.length ? [...project.startupCommands] : []
+  )
+  const [prLinkProvider, setPrLinkProvider] = useState<PrLinkProvider>(
+    project.prLinkProvider ?? 'github'
   )
 
   const handleAdd = useCallback(() => {
@@ -33,8 +36,11 @@ export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
   const handleSave = useCallback(() => {
     // Filter out entries with no command
     const filtered = commands.filter((c) => c.command.trim())
-    onSave(filtered.length > 0 ? filtered : [])
-  }, [commands, onSave])
+    onSave({
+      startupCommands: filtered.length > 0 ? filtered : [],
+      prLinkProvider,
+    })
+  }, [commands, onSave, prLinkProvider])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -94,6 +100,20 @@ export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
             <span>Add command</span>
           </button>
         </div>
+
+        <label className={styles.label}>PR Link Provider</label>
+        <div className={styles.hint}>
+          Where this project opens pull request links.
+        </div>
+        <select
+          className={styles.selectInput}
+          value={prLinkProvider}
+          onChange={(e) => setPrLinkProvider(e.target.value as PrLinkProvider)}
+        >
+          <option value="github">GitHub</option>
+          <option value="graphite">Graphite</option>
+          <option value="devinreview">Devin Review</option>
+        </select>
 
         <div className={styles.actions}>
           <button className={styles.cancelBtn} onClick={onCancel}>

@@ -21,13 +21,14 @@ test.describe('Codex notify config', () => {
     const homeDir = mkdtempSync(join(tmpdir(), 'terminator-codex-home-'))
     const codexDir = join(homeDir, '.codex')
     const configPath = join(codexDir, 'config.toml')
+    const projectPath = join(tmpdir(), 'my-repo').replace(/\\/g, '/')
     mkdirSync(codexDir, { recursive: true })
     writeFileSync(
       configPath,
       [
         'model = "gpt-5.3-codex"',
         '',
-        '[projects."/tmp/my-repo"]',
+        `[projects."${projectPath}"]`,
         'trust_level = "trusted"',
         '',
       ].join('\n'),
@@ -62,7 +63,7 @@ test.describe('Codex notify config', () => {
 
       const removed = readFileSync(configPath, 'utf-8')
       expect(removed.includes('codex-hooks/notify.js')).toBe(false)
-      expect(removed.includes('[projects."/tmp/my-repo"]')).toBe(true)
+      expect(removed.includes(`[projects."${projectPath}"]`)).toBe(true)
     } finally {
       await app.close()
     }

@@ -41,6 +41,27 @@ function clearCodexActivityCommand(workspaceId: string): string {
   return `Remove-Item -Path ${psQuote(activityPattern)} -Force -ErrorAction SilentlyContinue\n`
 }
 
+function markCodexActivityCommand(workspaceId: string): string {
+  return [
+    `$activityDir = ${psQuote(ACTIVITY_DIR)}`,
+    'New-Item -ItemType Directory -Path $activityDir -Force | Out-Null',
+    `$workspaceId = ${psQuote(workspaceId)}`,
+    '$markerPath = Join-Path $activityDir ("$workspaceId.codex.$PID")',
+    'New-Item -ItemType File -Path $markerPath -Force | Out-Null',
+    '',
+  ].join('; ') + '\n'
+}
+
+function codexQuestionPromptCommand(): string {
+  return [
+    'Write-Output "Question 1/1 (1 unanswered)"',
+    'Write-Output "How should project-level provider interact with the existing global setting?"',
+    'Write-Output "tab to add notes | enter to submit answer | esc to interrupt"',
+    'Start-Sleep -Seconds 20',
+    '',
+  ].join('; ') + '\n'
+}
+
 function markClaudeActivityCommand(workspaceId: string): string {
   const markerPath = join(ACTIVITY_DIR, `${workspaceId}.claude`)
   return [
@@ -318,6 +339,50 @@ test.describe('Codex activity indicator', () => {
       await window.evaluate(({ ptyId: id, cmd }) => {
         ;(window as any).api.pty.write(id, cmd)
       }, { ptyId: primaryPtyId, cmd: clearClaudeActivityCommand(workspaceId) })
+    } finally {
+      rmSync(FAKE_CODEX_BIN, { force: true })
+      await app.close()
+    }
+  })
+
+  test('shows unread when Codex asks a question before process exit', async () => {
+    const repoPath = createTestRepo('codex-question-unread')
+    const { app, window } = await launchApp()
+
+    try {
+      const { workspaceId1, workspaceId2, ptyId1 } = await setupTwoWorkspaces(window, repoPath)
+      await window.waitForTimeout(800)
+
+      await window.evaluate(({ ptyId: id, cmd }) => {
+        ;(window as any).api.pty.write(id, cmd)
+      }, { ptyId: ptyId1, cmd: markCodexActivityCommand(workspaceId1) })
+
+      await window.waitForFunction(
+        (wsId: string) => (window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
+        workspaceId1,
+        { timeout: 8000 }
+      )
+
+      await window.evaluate(({ ptyId: id, cmd }) => {
+        ;(window as any).api.pty.write(id, cmd)
+      }, { ptyId: ptyId1, cmd: codexQuestionPromptCommand() })
+
+      // Keep ws-b selected while ws-a asks a question in the background.
+      await window.evaluate((wsId: string) => {
+        ;(window as any).__store.getState().setActiveWorkspace(wsId)
+      }, workspaceId2)
+
+      // The question prompt should stop activity and mark unread before process exit.
+      await window.waitForFunction(
+        (wsId: string) => !(window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
+        workspaceId1,
+        { timeout: 7000 }
+      )
+      await window.waitForFunction(
+        (wsId: string) => (window as any).__store.getState().unreadWorkspaceIds.has(wsId),
+        workspaceId1,
+        { timeout: 7000 }
+      )
     } finally {
       rmSync(FAKE_CODEX_BIN, { force: true })
       await app.close()

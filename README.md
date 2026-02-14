@@ -2,14 +2,14 @@
 
 A Windows desktop app for running multiple AI coding agents in parallel. Each agent gets its own terminal, code editor, and git worktree â€” all in one window.
 
-> **Fork note:** This is a Windows-only port of [@owengretzinger](https://github.com/owengretzinger), originally built for macOS. All macOS code has been stripped for a leaner, Windows-native experience.
+> **Fork note:** This is a Windows-only fork of [@owengretzinger](https://github.com/owengretzinger), streamlined for a Windows-native experience.
 
 ---
 
 ## Features
 
 - **Parallel agents** â€” Run separate Claude Code / Codex sessions side-by-side, each in its own isolated workspace
-- **Full terminal emulator** â€” Ghostty-web + node-pty with PowerShell/cmd support
+- **Full terminal emulator** â€” `xterm.js` + node-pty with PowerShell/cmd support
 - **Monaco code editor** â€” Syntax highlighting, diffs, and file editing
 - **Git integration** â€” Staging, committing, branching, and worktree management
 - **File tree navigation** â€” Browse project files with git status indicators
@@ -138,7 +138,7 @@ This logs platform info, PTY lifecycle, hook operations, git status, and path no
 | UI | React 19 + TypeScript (strict) |
 | State | Zustand |
 | Editor | Monaco Editor |
-| Terminal | ghostty-web + node-pty (ConPTY) |
+| Terminal | xterm.js + node-pty (ConPTY) |
 | Build | electron-vite + Bun |
 | Packaging | electron-builder (NSIS) |
 | Tests | Playwright |
@@ -175,13 +175,11 @@ terminator/
 
 ## Credits
 
-- Original macOS app by [@owengretzinger](https://github.com/owengretzinger)
-- Windows port by [@Juanilealb](https://github.com/Juanilealb)
+- Original project by [@owengretzinger](https://github.com/owengretzinger)
+- Terminator Windows fork by [@Juanilealb](https://github.com/Juanilealb)
 
 ---
 
 ## License
 
 ISC
-
-

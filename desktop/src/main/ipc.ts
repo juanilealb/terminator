@@ -1,7 +1,7 @@
 import { ipcMain, dialog, app, BrowserWindow, clipboard } from 'electron'
 import { join, relative } from 'path'
 import { mkdir, writeFile } from 'fs/promises'
-import { mkdirSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { watch, type FSWatcher } from 'fs'
 import { IPC } from '../shared/ipc-channels'
@@ -49,7 +49,123 @@ async function runGitOperation<T>(
   }
 }
 
-export function registerIpcHandlers(): void {
+interface StateSanitizeResult {
+  data: unknown
+  changed: boolean
+  removedWorkspaceCount: number
+}
+
+interface IpcHandlerOptions {
+  onCreateWorktreeProgress?: (progress: CreateWorktreeProgressEvent) => void
+  onCreateWorktreeComplete?: () => void
+  onUnreadCountChanged?: (count: number) => void
+}
+
+interface WorkspaceLike {
+  id: string
+  worktreePath: string
+}
+
+interface TabLike {
+  id: string
+  workspaceId: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isWorkspaceLike(value: unknown): value is WorkspaceLike {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.worktreePath === 'string'
+}
+
+function isTabLike(value: unknown): value is TabLike {
+  return isRecord(value) && typeof value.id === 'string' && typeof value.workspaceId === 'string'
+}
+
+function sanitizeLoadedState(data: unknown): StateSanitizeResult {
+  if (!isRecord(data)) return { data, changed: false, removedWorkspaceCount: 0 }
+  const rawWorkspaces = Array.isArray(data.workspaces) ? data.workspaces : null
+  if (!rawWorkspaces) return { data, changed: false, removedWorkspaceCount: 0 }
+
+  const keptWorkspaces: unknown[] = []
+  const keptWorkspaceIds = new Set<string>()
+  let removedWorkspaceCount = 0
+
+  for (const workspace of rawWorkspaces) {
+    if (!isWorkspaceLike(workspace) || !existsSync(workspace.worktreePath)) {
+      removedWorkspaceCount += 1
+      continue
+    }
+    keptWorkspaces.push(workspace)
+    keptWorkspaceIds.add(workspace.id)
+  }
+
+  if (removedWorkspaceCount === 0) {
+    return { data, changed: false, removedWorkspaceCount: 0 }
+  }
+
+  const next: Record<string, unknown> = { ...data, workspaces: keptWorkspaces }
+  let changed = true
+
+  const rawTabs = Array.isArray(data.tabs) ? data.tabs : null
+  const keptTabs = rawTabs
+    ? rawTabs.filter((tab) => isTabLike(tab) && keptWorkspaceIds.has(tab.workspaceId))
+    : []
+  if (rawTabs) next.tabs = keptTabs
+
+  const rawActiveWorkspaceId = typeof data.activeWorkspaceId === 'string' ? data.activeWorkspaceId : null
+  let nextActiveWorkspaceId: string | null = null
+  if (rawActiveWorkspaceId && keptWorkspaceIds.has(rawActiveWorkspaceId)) {
+    nextActiveWorkspaceId = rawActiveWorkspaceId
+  } else {
+    const firstWorkspace = keptWorkspaces.find(isWorkspaceLike)
+    nextActiveWorkspaceId = firstWorkspace?.id ?? null
+  }
+  if ((data.activeWorkspaceId ?? null) !== nextActiveWorkspaceId) {
+    changed = true
+  }
+  next.activeWorkspaceId = nextActiveWorkspaceId
+
+  const rawActiveTabId = typeof data.activeTabId === 'string' ? data.activeTabId : null
+  let nextActiveTabId: string | null = null
+  if (rawTabs) {
+    const tabIds = new Set<string>()
+    for (const tab of keptTabs) {
+      if (isTabLike(tab)) tabIds.add(tab.id)
+    }
+    if (rawActiveTabId && tabIds.has(rawActiveTabId)) {
+      nextActiveTabId = rawActiveTabId
+    } else if (nextActiveWorkspaceId) {
+      const fallback = keptTabs.find(
+        (tab) => isTabLike(tab) && tab.workspaceId === nextActiveWorkspaceId
+      )
+      if (isTabLike(fallback)) nextActiveTabId = fallback.id
+    }
+  }
+  if ((data.activeTabId ?? null) !== nextActiveTabId) {
+    changed = true
+  }
+  next.activeTabId = nextActiveTabId
+
+  if (isRecord(data.lastActiveTabByWorkspace)) {
+    const filtered = Object.fromEntries(
+      Object.entries(data.lastActiveTabByWorkspace).filter(([workspaceId]) =>
+        keptWorkspaceIds.has(workspaceId)
+      )
+    )
+    if (
+      Object.keys(filtered).length !==
+      Object.keys(data.lastActiveTabByWorkspace).length
+    ) {
+      changed = true
+    }
+    next.lastActiveTabByWorkspace = filtered
+  }
+
+  return { data: next, changed, removedWorkspaceCount }
+}
+export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
   const normalizeGitPath = (filePath: string): string => toPosixPath(filePath)
 
   // ── Git handlers ──
@@ -60,23 +176,47 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.GIT_CREATE_WORKTREE, async (_e, repoPath: string, name: string, branch: string, newBranch: boolean, baseBranch?: string, force?: boolean, requestId?: string) => {
-    return runGitOperation(
-      'create-worktree',
-      { repoPath, name, branch, newBranch, baseBranch, force, requestId },
-      () =>
-        GitService.createWorktree(
-          repoPath,
-          name,
-          branch,
-          newBranch,
-          baseBranch,
-          force,
-          (progress) => {
-            const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
-            _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
-          },
-        ),
-    )
+    try {
+      return await runGitOperation(
+        'create-worktree',
+        { repoPath, name, branch, newBranch, baseBranch, force, requestId },
+        () =>
+          GitService.createWorktree(
+            repoPath,
+            name,
+            branch,
+            newBranch,
+            baseBranch,
+            force,
+            (progress) => {
+              const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
+              _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
+              options.onCreateWorktreeProgress?.(payload)
+            },
+          ),
+      )
+    } finally {
+      options.onCreateWorktreeComplete?.()
+    }
+  })
+
+  ipcMain.handle(IPC.GIT_CREATE_WORKTREE_FROM_PR, async (_e, repoPath: string, name: string, prNumber: number, localBranch: string, force?: boolean, requestId?: string) => {
+    try {
+      return await GitService.createWorktreeFromPr(
+        repoPath,
+        name,
+        prNumber,
+        localBranch,
+        force,
+        (progress) => {
+          const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
+          _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
+          options.onCreateWorktreeProgress?.(payload)
+        }
+      )
+    } finally {
+      options.onCreateWorktreeComplete?.()
+    }
   })
 
   ipcMain.handle(IPC.GIT_REMOVE_WORKTREE, async (_e, repoPath: string, worktreePath: string) => {
@@ -176,11 +316,15 @@ export function registerIpcHandlers(): void {
     return GithubService.getPrStatuses(repoPath, branches)
   })
 
+  ipcMain.handle(IPC.GITHUB_LIST_OPEN_PRS, async (_e, repoPath: string) => {
+    return GithubService.listOpenPrs(repoPath)
+  })
+
   // ── PTY handlers ──
-  ipcMain.handle(IPC.PTY_CREATE, async (_e, workingDir: string, shell?: string, extraEnv?: Record<string, string>) => {
+  ipcMain.handle(IPC.PTY_CREATE, async (_e, workingDir: string, shell?: string, shellArgs?: string[], extraEnv?: Record<string, string>) => {
     const win = BrowserWindow.fromWebContents(_e.sender)
     if (!win) throw new Error('No window found')
-    return ptyManager.create(workingDir, win.webContents, shell, undefined, undefined, extraEnv)
+    return ptyManager.create(workingDir, win.webContents, shell, shellArgs, undefined, undefined, extraEnv)
   })
 
   ipcMain.on(IPC.PTY_WRITE, (_e, ptyId: string, data: string) => {
@@ -284,9 +428,7 @@ export function registerIpcHandlers(): void {
       const watcher = watch(dirPath, { recursive: true }, (_eventType, filename) => {
         const fileNameText = typeof filename === 'string'
           ? filename
-          : Buffer.isBuffer(filename)
-            ? filename.toString('utf-8')
-            : ''
+          : ''
 
         // For .git/ changes, only notify on meaningful state changes (commit, stage, branch switch)
         // Ignore noisy internals like objects/, logs/, COMMIT_EDITMSG
@@ -348,6 +490,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.APP_GET_DATA_PATH, async () => {
     return app.getPath('userData')
+  })
+
+  ipcMain.on(IPC.APP_SET_UNREAD_COUNT, (_e, count: number) => {
+    const normalizedCount = Number.isFinite(count)
+      ? Math.max(0, Math.floor(count))
+      : 0
+    options.onUnreadCountChanged?.(normalizedCount)
   })
 
   // ── Claude Code trust ──
@@ -640,6 +789,23 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.STATE_LOAD, async () => {
-    return loadJsonFile(stateFilePath(), null)
+    const loaded = await loadJsonFile(stateFilePath(), null)
+    const sanitized = sanitizeLoadedState(loaded)
+    if (sanitized.changed) {
+      await saveJsonFile(stateFilePath(), sanitized.data).catch(() => {})
+      const count = sanitized.removedWorkspaceCount
+      if (count > 0) {
+        console.info(`[state] removed ${count} stale workspace${count === 1 ? '' : 's'}`)
+      }
+    }
+    return sanitized.data
   })
+}
+
+export function sendActivateWorkspace(workspaceId: string): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send(IPC.ACTIVATE_WORKSPACE, workspaceId)
+    }
+  }
 }

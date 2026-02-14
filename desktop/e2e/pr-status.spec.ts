@@ -1,7 +1,8 @@
 import { test, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test'
-import { resolve, join } from 'path'
+import { resolve, join, basename } from 'path'
 import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 
@@ -16,7 +17,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -32,7 +33,7 @@ function cleanupTestRepo(repoPath: string): void {
       rmSync(repoPath, { recursive: true, force: true })
     }
     const parentDir = resolve(repoPath, '..')
-    const repoName = repoPath.split('/').pop()
+    const repoName = basename(repoPath)
     if (repoName) {
       const entries = readdirSync(parentDir)
       for (const entry of entries) {
@@ -281,8 +282,63 @@ test.describe('PR status indicators', () => {
 
       await expect(window.locator('[class*="prPendingComments"]')).toBeVisible()
       await expect(window.locator('[class*="prBlockedCi"]')).toBeVisible()
+      await expect(window.locator('[class*="prCiPending"]')).not.toBeVisible()
       await expect(window.locator('[class*="prApproved"]')).not.toBeVisible()
       await expect(window.locator('[class*="prCiPassing"]')).not.toBeVisible()
+    } finally {
+      await app.close()
+      cleanupTestRepo(repoPath)
+    }
+  })
+
+  test('open PR shows pending CI badge without red failure badge', async () => {
+    const repoPath = createTestRepo('pr-signals-pending')
+    const { app, window } = await launchApp()
+
+    try {
+      await window.evaluate(async (repo: string) => {
+        const store = (window as any).__store.getState()
+        store.hydrateState({ projects: [], workspaces: [] })
+
+        const projectId = 'test-proj-signals-pending'
+        store.addProject({ id: projectId, name: 'pending-project', repoPath: repo })
+        store.addWorkspace({
+          id: crypto.randomUUID(),
+          name: 'main',
+          branch: 'main',
+          worktreePath: repo,
+          projectId,
+        })
+      }, repoPath)
+
+      await window.waitForTimeout(4000)
+
+      await window.evaluate(() => {
+        const store = (window as any).__store.getState()
+        store.setGhAvailability('test-proj-signals-pending', true)
+        store.setPrStatuses('test-proj-signals-pending', {
+          main: {
+            number: 125,
+            state: 'open',
+            title: 'Pending CI PR',
+            url: 'https://github.com/test/repo/pull/125',
+            checkStatus: 'pending',
+            hasPendingComments: false,
+            pendingCommentCount: 0,
+            // Keep true to ensure UI no longer renders this as red while running.
+            isBlockedByCi: true,
+            isApproved: false,
+            updatedAt: new Date().toISOString(),
+          },
+        })
+      })
+
+      await window.waitForTimeout(500)
+
+      await expect(window.locator('[class*="prCiPending"]')).toBeVisible()
+      await expect(window.locator('[class*="prBlockedCi"]')).not.toBeVisible()
+      await expect(window.locator('[class*="prCiPassing"]')).not.toBeVisible()
+      await expect(window.locator('[class*="prApproved"]')).not.toBeVisible()
     } finally {
       await app.close()
       cleanupTestRepo(repoPath)
