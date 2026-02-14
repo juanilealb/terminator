@@ -528,6 +528,34 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
     }
   })
 
+  ipcMain.on(IPC.APP_WINDOW_MINIMIZE, (_e) => {
+    const win = BrowserWindow.fromWebContents(_e.sender)
+    if (!win) return
+    win.minimize()
+  })
+
+  ipcMain.on(IPC.APP_WINDOW_TOGGLE_MAXIMIZE, (_e) => {
+    const win = BrowserWindow.fromWebContents(_e.sender)
+    if (!win) return
+    if (win.isMaximized()) {
+      win.unmaximize()
+      return
+    }
+    win.maximize()
+  })
+
+  ipcMain.on(IPC.APP_WINDOW_CLOSE, (_e) => {
+    const win = BrowserWindow.fromWebContents(_e.sender)
+    if (!win) return
+    win.close()
+  })
+
+  ipcMain.handle(IPC.APP_WINDOW_IS_MAXIMIZED, (_e) => {
+    const win = BrowserWindow.fromWebContents(_e.sender)
+    if (!win) return false
+    return win.isMaximized()
+  })
+
   // ── Claude Code trust ──
   ipcMain.handle(IPC.CLAUDE_TRUST_PATH, async (_e, dirPath: string) => {
     await trustPathForClaude(dirPath)

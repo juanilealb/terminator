@@ -53,7 +53,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
   const pasteFromClipboard = async () => {
     const text = await window.api.clipboard.readText()
     if (!text) return
-    window.api.pty.write(ptyId, `\x1b[200~${text}\x1b[201~`)
+    window.api.pty.write(ptyId, text)
   }
 
   const clearTerminalView = () => {

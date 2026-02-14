@@ -16,16 +16,48 @@
   border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   -webkit-app-region: drag;
 }
 
-.titleArea::after {
-  content: 'terminator';
-  font-size: 13px;
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.04em;
-  color: var(--text-primary);
-  text-transform: lowercase;
+.windowControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.windowControlButton {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  transition: filter var(--transition-fast), transform var(--transition-fast);
+}
+
+.windowControlButton:hover {
+  filter: brightness(1.08);
+}
+
+.windowControlButton:active {
+  transform: scale(0.95);
+}
+
+.windowControlClose {
+  background: #ff5f56;
+  box-shadow: 0 0 0 1px rgba(160, 36, 30, 0.42) inset;
+}
+
+.windowControlMinimize {
+  background: #ffbd2e;
+  box-shadow: 0 0 0 1px rgba(158, 102, 15, 0.35) inset;
+}
+
+.windowControlMaximize {
+  background: #27c93f;
+  box-shadow: 0 0 0 1px rgba(24, 126, 37, 0.36) inset;
 }
 
 .projectList {
@@ -841,6 +873,10 @@
 
 .pr_closed {
   color: var(--accent-red);
+}
+
+.pr_inferred {
+  color: var(--text-secondary);
 }
 
 .branchBadge {

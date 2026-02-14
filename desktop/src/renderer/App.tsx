@@ -120,12 +120,10 @@ export function App() {
   const workspace = workspaces.find((w) => w.id === activeWorkspaceId)
   const activeAgents = runningAgentCount
   const waitingAgents = waitingAgentCount
-  const isWindows = navigator.userAgent.toLowerCase().includes('windows')
-  const windowControlsWidth = isWindows ? '138px' : '0px'
   const appStyle = {
-    '--window-controls-width': windowControlsWidth,
-    '--window-controls-width-tabbar': rightPanelOpen ? '0px' : windowControlsWidth,
-    '--window-controls-width-right-panel': rightPanelOpen ? windowControlsWidth : '0px',
+    '--window-controls-width': '0px',
+    '--window-controls-width-tabbar': '0px',
+    '--window-controls-width-right-panel': '0px',
   } as CSSProperties
 
   // All terminal tabs across every workspace — kept alive to preserve PTY state

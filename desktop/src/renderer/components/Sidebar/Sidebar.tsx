@@ -88,6 +88,21 @@ function githubErrorMessage(error?: GithubLookupError): string {
   return "Failed to load open pull requests.";
 }
 
+function extractPrNumberFromBranch(branch: string): number | null {
+  const patterns = [
+    /(?:^|\/)pr[/-](\d+)(?:[-/]|$)/i,
+    /(?:^|\/)pull[/-](\d+)(?:[-/]|$)/i,
+    /#(\d+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = branch.match(pattern);
+    if (!match?.[1]) continue;
+    const number = Number.parseInt(match[1], 10);
+    if (Number.isFinite(number) && number > 0) return number;
+  }
+  return null;
+}
+
 interface WorkspaceCreationState {
   requestId: string;
   message: string;
@@ -176,8 +191,10 @@ function WorkspaceMeta({
     (s) => s.projects.find((p) => p.id === projectId)?.prLinkProvider ?? "github",
   );
   const hasPr = !!(ghAvailable && prInfo !== undefined && prInfo !== null);
+  const inferredPrNumber = hasPr ? null : extractPrNumberFromBranch(branch);
+  const hasInferredPr = inferredPrNumber !== null;
 
-  if (!hasPr && !showBranch) return null;
+  if (!hasPr && !hasInferredPr && !showBranch) return null;
 
   const stateClass = hasPr ? styles[`pr_${prInfo!.state}`] || "" : "";
   const openPr = hasPr && prInfo!.state === "open";
@@ -255,13 +272,76 @@ function WorkspaceMeta({
           )}
         </span>
       )}
-      {hasPr && showBranch && <span style={{ marginRight: 4 }} />}
+      {!hasPr && hasInferredPr && (
+        <span className={`${styles.prInline} ${styles.pr_inferred}`} title={`Detected from branch name: #${inferredPrNumber!}`}>
+          <PrStateIcon state="open" />
+          <span className={styles.prNumber}>#{inferredPrNumber!}</span>
+        </span>
+      )}
+      {(hasPr || hasInferredPr) && showBranch && <span style={{ marginRight: 4 }} />}
       {showBranch && branch}
     </span>
   );
 }
 
+function WindowControls() {
+  const [maximized, setMaximized] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void window.api.app
+      .isWindowMaximized()
+      .then((value) => {
+        if (active) setMaximized(!!value);
+      })
+      .catch(() => {});
+    const unsub = window.api.app.onWindowMaximizedChange((value) => {
+      setMaximized(!!value);
+    });
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, []);
+
+  return (
+    <div className={styles.windowControls}>
+      <Tooltip label="Close window">
+        <button
+          aria-label="Close window"
+          className={`${styles.windowControlButton} ${styles.windowControlClose}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.api.app.closeWindow();
+          }}
+        />
+      </Tooltip>
+      <Tooltip label="Minimize window">
+        <button
+          aria-label="Minimize window"
+          className={`${styles.windowControlButton} ${styles.windowControlMinimize}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.api.app.minimizeWindow();
+          }}
+        />
+      </Tooltip>
+      <Tooltip label={maximized ? "Restore window" : "Maximize window"}>
+        <button
+          aria-label={maximized ? "Restore window" : "Maximize window"}
+          className={`${styles.windowControlButton} ${styles.windowControlMaximize}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.api.app.toggleMaximizeWindow();
+          }}
+        />
+      </Tooltip>
+    </div>
+  );
+}
+
 export function Sidebar() {
+  const isWindows = navigator.userAgent.toLowerCase().includes("windows");
   const projects = useAppStore((s) => s.projects);
   const workspaces = useAppStore((s) => s.workspaces);
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
@@ -775,7 +855,7 @@ export function Sidebar() {
 
   return (
     <div className={styles.sidebar}>
-      <div className={styles.titleArea} />
+      <div className={styles.titleArea}>{isWindows && <WindowControls />}</div>
 
       <div className={styles.projectList}>
         {projects.length === 0 && (
@@ -851,8 +931,7 @@ export function Sidebar() {
                     const isEditing = editingWorkspaceId === ws.id;
                     const isAutoName = /^ws-[a-z0-9]+$/.test(ws.name);
                     const displayName = isAutoName ? ws.branch : ws.name;
-                    const showMeta =
-                      !isAutoName && ws.branch && ws.branch !== ws.name;
+                    const showMeta = !!(ws.branch && ws.branch !== displayName);
                     const isRunning = activeClaudeWorkspaceIds.has(ws.id);
                     const isWaiting = !isRunning && waitingClaudeWorkspaceIds.has(ws.id);
                     const isUnread = !isRunning && !isWaiting && unreadWorkspaceIds.has(ws.id);
