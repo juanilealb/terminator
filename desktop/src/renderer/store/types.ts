@@ -1,4 +1,5 @@
 import type { PrInfo } from '@shared/github-types'
+import type { ThemePreference } from '@shared/ipc-channels'
 
 export interface StartupCommand {
   name: string
@@ -55,6 +56,7 @@ export interface PromptTemplate {
 }
 
 export interface Settings {
+  themePreference: ThemePreference
   confirmOnClose: boolean
   autoSaveOnBlur: boolean
   defaultShell: string
@@ -67,6 +69,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  themePreference: 'system',
   confirmOnClose: true,
   autoSaveOnBlur: false,
   defaultShell: '',

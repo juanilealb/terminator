@@ -1,3 +1,10 @@
+export type ThemePreference = 'system' | 'dark' | 'light'
+
+export interface ThemeChangedPayload {
+  dark: boolean
+  accentColor: string
+}
+
 // IPC channel constants shared between main and renderer
 
 export const IPC = {
@@ -46,7 +53,9 @@ export const IPC = {
   APP_GET_DATA_PATH: 'app:get-data-path',
   APP_SET_UNREAD_COUNT: 'app:set-unread-count',
   APP_OPEN_DIRECTORY: 'app:open-directory',
+  APP_SET_THEME_SOURCE: 'app:set-theme-source',
   ACTIVATE_WORKSPACE: 'app:activate-workspace',
+  THEME_CHANGED: 'theme:changed',
 
   // Claude Code integration
   CLAUDE_TRUST_PATH: 'claude:trust-path',

@@ -1,9 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels'
+import type { ThemeChangedPayload, ThemePreference } from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 
 const openDirectoryListeners = new Set<(dirPath: string) => void>()
 const pendingDirectoryPaths: string[] = []
+const themeListeners = new Set<(payload: ThemeChangedPayload) => void>()
+let latestThemePayload: ThemeChangedPayload | null = null
 
 ipcRenderer.on(IPC.APP_OPEN_DIRECTORY, (_event, dirPath: string) => {
   if (openDirectoryListeners.size === 0) {
@@ -12,6 +15,13 @@ ipcRenderer.on(IPC.APP_OPEN_DIRECTORY, (_event, dirPath: string) => {
   }
   for (const listener of openDirectoryListeners) {
     listener(dirPath)
+  }
+})
+
+ipcRenderer.on(IPC.THEME_CHANGED, (_event, payload: ThemeChangedPayload) => {
+  latestThemePayload = payload
+  for (const listener of themeListeners) {
+    listener(payload)
   }
 })
 
@@ -124,6 +134,8 @@ const api = {
       ipcRenderer.invoke(IPC.APP_GET_DATA_PATH),
     setUnreadCount: (count: number) =>
       ipcRenderer.send(IPC.APP_SET_UNREAD_COUNT, count),
+    setThemePreference: (themePreference: ThemePreference) =>
+      ipcRenderer.send(IPC.APP_SET_THEME_SOURCE, themePreference),
     onOpenDirectory: (callback: (dirPath: string) => void) => {
       openDirectoryListeners.add(callback)
       while (pendingDirectoryPaths.length > 0) {
@@ -132,6 +144,13 @@ const api = {
       }
       return () => {
         openDirectoryListeners.delete(callback)
+      }
+    },
+    onThemeChanged: (callback: (payload: ThemeChangedPayload) => void) => {
+      themeListeners.add(callback)
+      if (latestThemePayload) callback(latestThemePayload)
+      return () => {
+        themeListeners.delete(callback)
       }
     },
     onActivateWorkspace: (callback: (workspaceId: string) => void) => {

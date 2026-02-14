@@ -3,13 +3,16 @@ import {
   BrowserWindow,
   Menu,
   nativeImage,
+  nativeTheme,
   shell,
+  systemPreferences,
   type BrowserWindowConstructorOptions,
 } from 'electron'
 import { statSync } from 'fs'
 import { isAbsolute, join, resolve } from 'path'
 import { arch, platform, release, tmpdir, version as osVersion } from 'os'
 import { IPC } from '../shared/ipc-channels'
+import type { ThemeChangedPayload, ThemePreference } from '../shared/ipc-channels'
 import { debugLog, resolveDefaultShell } from '@shared/platform'
 import { CREATE_WORKTREE_STAGES, type CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 import { registerIpcHandlers } from './ipc'
@@ -21,7 +24,9 @@ const notificationWatcher = new NotificationWatcher()
 let unreadWorkspaceCount = 0
 let windowStateTimer: ReturnType<typeof setTimeout> | null = null
 let pendingDirectoryToOpen = extractDirectoryFromArgv(process.argv)
+let pendingThemePayload: ThemeChangedPayload | null = null
 let waitingForRendererLoad = false
+let themeUpdatedHandler: (() => void) | null = null
 
 function setMainWindowProgress(progress: CreateWorktreeProgressEvent): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -96,6 +101,10 @@ function extractDirectoryFromArgv(argv: string[]): string | null {
 
 function flushPendingWindowCommands(): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
+  if (pendingThemePayload) {
+    mainWindow.webContents.send(IPC.THEME_CHANGED, pendingThemePayload)
+    pendingThemePayload = null
+  }
   if (pendingDirectoryToOpen) {
     mainWindow.webContents.send(IPC.APP_OPEN_DIRECTORY, pendingDirectoryToOpen)
     pendingDirectoryToOpen = null
@@ -121,8 +130,43 @@ function requestOpenDirectory(dirPath: string): void {
   schedulePendingWindowCommandFlush()
 }
 
+function formatAccentColor(rawColor: string): string {
+  const cleaned = rawColor.trim().replace(/^#/, '')
+  if (/^[0-9a-fA-F]{8}$/.test(cleaned)) return `#${cleaned.slice(2)}`
+  if (/^[0-9a-fA-F]{6}$/.test(cleaned)) return `#${cleaned}`
+  return '#58abff'
+}
+
+function getThemePayload(): ThemeChangedPayload {
+  return {
+    dark: nativeTheme.shouldUseDarkColors,
+    accentColor: formatAccentColor(systemPreferences.getAccentColor()),
+  }
+}
+
+function getTitleBarOverlay(dark: boolean): Exclude<BrowserWindowConstructorOptions['titleBarOverlay'], false> {
+  return {
+    color: dark ? '#121013' : '#f3f5f7',
+    symbolColor: dark ? '#f4edf7' : '#1b1e24',
+    height: 38,
+  }
+}
+
+function applyThemeToMainWindow(dark: boolean): void {
+  if (!mainWindow || mainWindow.isDestroyed() || process.platform !== 'win32') return
+  mainWindow.setTitleBarOverlay(getTitleBarOverlay(dark))
+}
+
+function broadcastThemeChanged(): void {
+  const payload = getThemePayload()
+  applyThemeToMainWindow(payload.dark)
+  pendingThemePayload = payload
+  schedulePendingWindowCommandFlush()
+}
+
 function createWindow(): void {
   const isWindows = process.platform === 'win32'
+  const darkTheme = nativeTheme.shouldUseDarkColors
   const initialWindowState = loadWindowState()
   const windowOptions: BrowserWindowConstructorOptions = {
     x: initialWindowState.bounds?.x,
@@ -131,18 +175,12 @@ function createWindow(): void {
     height: initialWindowState.bounds?.height ?? 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#121013',
+    backgroundColor: darkTheme ? '#121013' : '#f3f5f7',
     show: false,
     frame: true,
     autoHideMenuBar: true,
     titleBarStyle: isWindows ? 'hidden' : 'default',
-    titleBarOverlay: isWindows
-      ? {
-          color: '#121013',
-          symbolColor: '#f4edf7',
-          height: 38,
-        }
-      : false,
+    titleBarOverlay: isWindows ? getTitleBarOverlay(darkTheme) : false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
@@ -280,9 +318,21 @@ if (hasSingleInstanceLock) {
         unreadWorkspaceCount = count
         syncUnreadOverlay()
       },
+      onThemePreferenceChanged: (themePreference: ThemePreference) => {
+        nativeTheme.themeSource = themePreference
+        broadcastThemeChanged()
+      },
     })
+    themeUpdatedHandler = () => {
+      broadcastThemeChanged()
+    }
+    nativeTheme.on('updated', themeUpdatedHandler)
+    if (process.platform === 'win32') {
+      systemPreferences.on('accent-color-changed', themeUpdatedHandler)
+    }
     notificationWatcher.start()
     createWindow()
+    broadcastThemeChanged()
 
     if (pendingDirectoryToOpen) {
       requestOpenDirectory(pendingDirectoryToOpen)
@@ -301,6 +351,13 @@ app.on('before-quit', () => {
   }
   if (mainWindow && !mainWindow.isDestroyed()) {
     saveWindowState(mainWindow)
+  }
+  if (themeUpdatedHandler) {
+    nativeTheme.removeListener('updated', themeUpdatedHandler)
+    if (process.platform === 'win32') {
+      systemPreferences.removeListener('accent-color-changed', themeUpdatedHandler)
+    }
+    themeUpdatedHandler = null
   }
   notificationWatcher.stop()
 })

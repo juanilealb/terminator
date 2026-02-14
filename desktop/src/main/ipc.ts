@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { watch, type FSWatcher } from 'fs'
 import { IPC } from '../shared/ipc-channels'
+import type { ThemePreference } from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 import { debugLog, toPosixPath } from '@shared/platform'
 import { PtyManager } from './pty-manager'
@@ -59,6 +60,7 @@ interface IpcHandlerOptions {
   onCreateWorktreeProgress?: (progress: CreateWorktreeProgressEvent) => void
   onCreateWorktreeComplete?: () => void
   onUnreadCountChanged?: (count: number) => void
+  onThemePreferenceChanged?: (themePreference: ThemePreference) => void
 }
 
 interface WorkspaceLike {
@@ -497,6 +499,12 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
       ? Math.max(0, Math.floor(count))
       : 0
     options.onUnreadCountChanged?.(normalizedCount)
+  })
+
+  ipcMain.on(IPC.APP_SET_THEME_SOURCE, (_e, themePreference: unknown) => {
+    if (themePreference === 'system' || themePreference === 'dark' || themePreference === 'light') {
+      options.onThemePreferenceChanged?.(themePreference)
+    }
   })
 
   // ── Claude Code trust ──
