@@ -2,6 +2,7 @@ import { test, expect, _electron as electron, ElectronApplication, Page } from '
 import { resolve, join } from 'path'
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 
@@ -16,7 +17,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createLocalRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-project-prs-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-project-prs-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -29,7 +30,7 @@ function createLocalRepo(name: string): string {
 }
 
 function createRepoWithPullRef(name: string, prNumber: number): { basePath: string; repoPath: string; prFile: string } {
-  const basePath = join('/tmp', `test-repo-project-pr-pull-${name}-${Date.now()}`)
+  const basePath = join(tmpdir(), `test-repo-project-pr-pull-${name}-${Date.now()}`)
   const repoPath = join(basePath, 'repo')
   const remotePath = join(basePath, 'remote.git')
   const prFile = 'PR_FILE.txt'

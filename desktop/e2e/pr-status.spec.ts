@@ -1,7 +1,8 @@
 import { test, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test'
-import { resolve, join } from 'path'
+import { resolve, join, basename } from 'path'
 import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 
@@ -16,7 +17,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -32,7 +33,7 @@ function cleanupTestRepo(repoPath: string): void {
       rmSync(repoPath, { recursive: true, force: true })
     }
     const parentDir = resolve(repoPath, '..')
-    const repoName = repoPath.split('/').pop()
+    const repoName = basename(repoPath)
     if (repoName) {
       const entries = readdirSync(parentDir)
       for (const entry of entries) {

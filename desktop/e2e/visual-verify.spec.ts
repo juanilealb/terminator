@@ -2,12 +2,13 @@ import { test, expect, _electron as electron } from '@playwright/test'
 import { resolve, join } from 'path'
 import { mkdirSync, writeFileSync, realpathSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 
 test('Full visual verification: project + workspace + terminal + file tree + changes', async () => {
   // Create test repo
-  const repoPath = join('/tmp', `visual-verify-${Date.now()}`)
+  const repoPath = join(tmpdir(), `visual-verify-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
