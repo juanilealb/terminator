@@ -438,6 +438,9 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
           const f = fileNameText.replaceAll('\\', '/')
           const isStateChange =
             f === '.git/index' || f === '.git/HEAD' || f.startsWith('.git/refs/')
+            || f === '.git/packed-refs'
+            || f === '.git/logs/HEAD'
+            || f.startsWith('.git/logs/refs/')
           if (!isStateChange) return
         }
 

@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { basenameSafe, formatShortcut, toPosixPath } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
+import { dispatchGitStatusChanged } from '../../utils/git-status-events'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './RightPanel.module.css'
 
@@ -30,25 +31,32 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
+  const refreshSeqRef = useRef(0)
   const { openDiffTab } = useAppStore()
 
-  const refresh = useCallback(() => {
-    window.api.git.getStatus(worktreePath).then(setFiles).catch(() => {})
+  const refresh = useCallback(async (showLoading = false) => {
+    const seq = ++refreshSeqRef.current
+    if (showLoading) setLoading(true)
+
+    try {
+      const statuses = await window.api.git.getStatus(worktreePath)
+      if (seq !== refreshSeqRef.current) return
+      setFiles(statuses)
+      dispatchGitStatusChanged(worktreePath, statuses.length)
+    } catch {
+      if (seq !== refreshSeqRef.current) return
+      setFiles([])
+      dispatchGitStatusChanged(worktreePath, 0)
+    } finally {
+      if (showLoading && seq === refreshSeqRef.current) {
+        setLoading(false)
+      }
+    }
   }, [worktreePath])
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    window.api.git.getStatus(worktreePath).then((statuses) => {
-      if (!cancelled) {
-        setFiles(statuses)
-        setLoading(false)
-      }
-    }).catch(() => {
-      if (!cancelled) setLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [worktreePath])
+    void refresh(true)
+  }, [refresh])
 
   // Watch filesystem for changes and auto-refresh
   useEffect(() => {
@@ -56,7 +64,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
 
     const cleanup = window.api.fs.onDirChanged((changedPath) => {
       if (changedPath === worktreePath) {
-        refresh()
+        void refresh()
       }
     })
 
@@ -68,7 +76,9 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
 
   // Re-fetch when tab becomes visible (git ops only touch .git/ which the watcher ignores)
   useEffect(() => {
-    if (isActive) refresh()
+    if (isActive) {
+      void refresh()
+    }
   }, [isActive, refresh])
 
   const staged = files.filter((f) => f.staged)
@@ -81,7 +91,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     } catch (err) {
       console.error('[ChangedFiles] git operation failed:', err)
     } finally {
-      refresh()
+      await refresh()
       setBusy(false)
     }
   }, [refresh])
