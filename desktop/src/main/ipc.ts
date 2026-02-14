@@ -55,6 +55,12 @@ interface StateSanitizeResult {
   removedWorkspaceCount: number
 }
 
+interface IpcHandlerOptions {
+  onCreateWorktreeProgress?: (progress: CreateWorktreeProgressEvent) => void
+  onCreateWorktreeComplete?: () => void
+  onUnreadCountChanged?: (count: number) => void
+}
+
 interface WorkspaceLike {
   id: string
   worktreePath: string
@@ -159,7 +165,7 @@ function sanitizeLoadedState(data: unknown): StateSanitizeResult {
 
   return { data: next, changed, removedWorkspaceCount }
 }
-export function registerIpcHandlers(): void {
+export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
   const normalizeGitPath = (filePath: string): string => toPosixPath(filePath)
 
   // ── Git handlers ──
@@ -170,37 +176,47 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.GIT_CREATE_WORKTREE, async (_e, repoPath: string, name: string, branch: string, newBranch: boolean, baseBranch?: string, force?: boolean, requestId?: string) => {
-    return runGitOperation(
-      'create-worktree',
-      { repoPath, name, branch, newBranch, baseBranch, force, requestId },
-      () =>
-        GitService.createWorktree(
-          repoPath,
-          name,
-          branch,
-          newBranch,
-          baseBranch,
-          force,
-          (progress) => {
-            const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
-            _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
-          },
-        ),
-    )
+    try {
+      return await runGitOperation(
+        'create-worktree',
+        { repoPath, name, branch, newBranch, baseBranch, force, requestId },
+        () =>
+          GitService.createWorktree(
+            repoPath,
+            name,
+            branch,
+            newBranch,
+            baseBranch,
+            force,
+            (progress) => {
+              const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
+              _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
+              options.onCreateWorktreeProgress?.(payload)
+            },
+          ),
+      )
+    } finally {
+      options.onCreateWorktreeComplete?.()
+    }
   })
 
   ipcMain.handle(IPC.GIT_CREATE_WORKTREE_FROM_PR, async (_e, repoPath: string, name: string, prNumber: number, localBranch: string, force?: boolean, requestId?: string) => {
-    return GitService.createWorktreeFromPr(
-      repoPath,
-      name,
-      prNumber,
-      localBranch,
-      force,
-      (progress) => {
-        const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
-        _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
-      }
-    )
+    try {
+      return await GitService.createWorktreeFromPr(
+        repoPath,
+        name,
+        prNumber,
+        localBranch,
+        force,
+        (progress) => {
+          const payload: CreateWorktreeProgressEvent = { requestId, ...progress }
+          _e.sender.send(IPC.GIT_CREATE_WORKTREE_PROGRESS, payload)
+          options.onCreateWorktreeProgress?.(payload)
+        }
+      )
+    } finally {
+      options.onCreateWorktreeComplete?.()
+    }
   })
 
   ipcMain.handle(IPC.GIT_REMOVE_WORKTREE, async (_e, repoPath: string, worktreePath: string) => {
@@ -474,6 +490,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.APP_GET_DATA_PATH, async () => {
     return app.getPath('userData')
+  })
+
+  ipcMain.on(IPC.APP_SET_UNREAD_COUNT, (_e, count: number) => {
+    const normalizedCount = Number.isFinite(count)
+      ? Math.max(0, Math.floor(count))
+      : 0
+    options.onUnreadCountChanged?.(normalizedCount)
   })
 
   // ── Claude Code trust ──

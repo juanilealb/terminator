@@ -44,6 +44,7 @@ export const IPC = {
   APP_SELECT_DIRECTORY: 'app:select-directory',
   APP_ADD_PROJECT_PATH: 'app:add-project-path',
   APP_GET_DATA_PATH: 'app:get-data-path',
+  APP_SET_UNREAD_COUNT: 'app:set-unread-count',
   ACTIVATE_WORKSPACE: 'app:activate-workspace',
 
   // Claude Code integration

@@ -79,6 +79,7 @@ export function App() {
     commandPaletteVisible,
     activeClaudeWorkspaceIds,
   } = useAppStore()
+  const unreadWorkspaceCount = useAppStore((s) => s.unreadWorkspaceIds.size)
 
   const wsTabs = activeWorkspaceTabs()
   const activeTab = wsTabs.find((t) => t.id === activeTabId)
@@ -94,6 +95,10 @@ export function App() {
 
   // All terminal tabs across every workspace — kept alive to preserve PTY state
   const allTerminals = allTabs.filter((t): t is Extract<typeof t, { type: 'terminal' }> => t.type === 'terminal')
+
+  useEffect(() => {
+    window.api.app.setUnreadCount(unreadWorkspaceCount)
+  }, [unreadWorkspaceCount])
 
   return (
     <div className={styles.app} style={appStyle}>

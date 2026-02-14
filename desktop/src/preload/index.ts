@@ -109,6 +109,8 @@ const api = {
       ipcRenderer.invoke(IPC.APP_ADD_PROJECT_PATH, dirPath),
     getDataPath: () =>
       ipcRenderer.invoke(IPC.APP_GET_DATA_PATH),
+    setUnreadCount: (count: number) =>
+      ipcRenderer.send(IPC.APP_SET_UNREAD_COUNT, count),
     onActivateWorkspace: (callback: (workspaceId: string) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, workspaceId: string) => callback(workspaceId)
       ipcRenderer.on(IPC.ACTIVATE_WORKSPACE, listener)

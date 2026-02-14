@@ -2,17 +2,60 @@ import {
   app,
   BrowserWindow,
   Menu,
+  nativeImage,
   shell,
   type BrowserWindowConstructorOptions,
 } from 'electron'
 import { join } from 'path'
 import { arch, platform, release, tmpdir, version as osVersion } from 'os'
 import { debugLog, resolveDefaultShell } from '@shared/platform'
+import { CREATE_WORKTREE_STAGES, type CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 import { registerIpcHandlers } from './ipc'
 import { NotificationWatcher } from './notification-watcher'
 
 let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
+let unreadWorkspaceCount = 0
+
+function setMainWindowProgress(progress: CreateWorktreeProgressEvent): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const stageIndex = CREATE_WORKTREE_STAGES.indexOf(progress.stage)
+  const value = stageIndex >= 0
+    ? (stageIndex + 1) / CREATE_WORKTREE_STAGES.length
+    : 0.1
+  mainWindow.setProgressBar(value)
+}
+
+function clearMainWindowProgress(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.setProgressBar(-1)
+}
+
+function createOverlayBadge(count: number) {
+  const label = count > 99 ? '99+' : String(count)
+  const fontSize = label.length > 2 ? 16 : 18
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">',
+    '<circle cx="32" cy="32" r="30" fill="#d12d2d" />',
+    `<text x="32" y="40" text-anchor="middle" font-size="${fontSize}" font-family="Segoe UI, sans-serif" font-weight="700" fill="#ffffff">${label}</text>`,
+    '</svg>',
+  ].join('')
+  const dataUrl = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
+  return nativeImage.createFromDataURL(dataUrl).resize({ width: 32, height: 32 })
+}
+
+function syncUnreadOverlay(): void {
+  if (!mainWindow || mainWindow.isDestroyed() || process.platform !== 'win32') return
+  if (unreadWorkspaceCount <= 0) {
+    mainWindow.setOverlayIcon(null, '')
+    return
+  }
+  const badge = createOverlayBadge(unreadWorkspaceCount)
+  mainWindow.setOverlayIcon(
+    badge,
+    `${unreadWorkspaceCount} unread workspace notification${unreadWorkspaceCount === 1 ? '' : 's'}`,
+  )
+}
 
 function createWindow(): void {
   const isWindows = process.platform === 'win32'
@@ -44,6 +87,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow(windowOptions)
   mainWindow.removeMenu()
   mainWindow.setMenuBarVisibility(false)
+  syncUnreadOverlay()
 
   // Show window when ready to avoid white flash (skip in tests)
   if (!process.env.CI_TEST) {
@@ -98,7 +142,14 @@ app.whenReady().then(() => {
 
   Menu.setApplicationMenu(null)
 
-  registerIpcHandlers()
+  registerIpcHandlers({
+    onCreateWorktreeProgress: setMainWindowProgress,
+    onCreateWorktreeComplete: clearMainWindowProgress,
+    onUnreadCountChanged: (count) => {
+      unreadWorkspaceCount = count
+      syncUnreadOverlay()
+    },
+  })
   notificationWatcher.start()
   createWindow()
 })
