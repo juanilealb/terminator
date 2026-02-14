@@ -6,9 +6,21 @@ import { tmpdir } from 'os'
 const appPath = resolve(__dirname, '../out/main/index.js')
 
 async function launchAppWithHome(homeDir: string): Promise<{ app: ElectronApplication; window: Page }> {
+  const appDataDir = join(homeDir, 'AppData', 'Roaming')
+  const localAppDataDir = join(homeDir, 'AppData', 'Local')
+  mkdirSync(appDataDir, { recursive: true })
+  mkdirSync(localAppDataDir, { recursive: true })
+
   const app = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CI_TEST: '1', HOME: homeDir },
+    env: {
+      ...process.env,
+      CI_TEST: '1',
+      HOME: homeDir,
+      USERPROFILE: homeDir,
+      APPDATA: appDataDir,
+      LOCALAPPDATA: localAppDataDir,
+    },
   })
   const window = await app.firstWindow()
   await window.waitForLoadState('domcontentloaded')
@@ -48,10 +60,14 @@ test.describe('Codex notify config', () => {
       const installed = readFileSync(configPath, 'utf-8')
       const notifyIndex = installed.indexOf('notify = [')
       const projectsIndex = installed.indexOf('[projects.')
+      const topLevelSection = projectsIndex >= 0 ? installed.slice(0, projectsIndex) : installed
+      const projectSection = projectsIndex >= 0 ? installed.slice(projectsIndex) : ''
       expect(notifyIndex).toBeGreaterThanOrEqual(0)
       expect(projectsIndex).toBeGreaterThanOrEqual(0)
       expect(notifyIndex).toBeLessThan(projectsIndex)
       expect(installed.includes('notify = ["node",')).toBe(true)
+      expect(topLevelSection.includes('notify = ["node",')).toBe(true)
+      expect(projectSection.includes('notify = [')).toBe(false)
 
       const uninstallResult = await window.evaluate(async () => {
         const result = await (window as any).api.codex.uninstallNotify()

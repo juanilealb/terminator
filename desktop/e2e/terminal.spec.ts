@@ -16,13 +16,18 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
+  const stamp = `${name}-${Date.now()}`
+  const repoPath = join(tmpdir(), `test-repo-${stamp}`)
+  const remotePath = join(tmpdir(), `test-remote-${stamp}.git`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
   writeFileSync(join(repoPath, 'README.md'), '# Test Repo\n')
   execSync('git add .', { cwd: repoPath })
   execSync('git commit -m "initial commit"', { cwd: repoPath })
+  execSync(`git init --bare "${remotePath}"`)
+  execSync(`git remote add origin "${remotePath}"`, { cwd: repoPath })
+  execSync('git -c core.hooksPath=/dev/null push -u origin main', { cwd: repoPath })
   return repoPath
 }
 
