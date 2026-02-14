@@ -3,6 +3,7 @@ import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP, type ShortcutBinding } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import type { PromptTemplate, Settings } from '../../store/types'
+import type { ThemePreference } from '@shared/ipc-channels'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './SettingsPanel.module.css'
 
@@ -76,6 +77,40 @@ function TextRow({ label, description, value, onChange, placeholder }: {
   )
 }
 
+function SelectRow<T extends string>({
+  label,
+  description,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  description: string
+  value: T
+  onChange: (v: T) => void
+  options: Array<{ value: T; label: string }>
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowText}>
+        <div className={styles.rowLabel}>{label}</div>
+        <div className={styles.rowDescription}>{description}</div>
+      </div>
+      <select
+        className={styles.selectInput}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 function NumberRow({ label, description, value, onChange, min = 8, max = 32 }: {
   label: string
   description: string
@@ -111,32 +146,6 @@ function NumberRow({ label, description, value, onChange, min = 8, max = 32 }: {
   )
 }
 
-function SelectRow({ label, description, value, onChange, options }: {
-  label: string
-  description: string
-  value: string
-  onChange: (v: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>{label}</div>
-        <div className={styles.rowDescription}>{description}</div>
-      </div>
-      <select
-        className={styles.selectInput}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
 function TemplateEditorRow({
   template,
   onChange,
@@ -166,7 +175,6 @@ function TemplateEditorRow({
     </div>
   )
 }
-
 function ClaudeHooksSection() {
   const [installed, setInstalled] = useState<boolean | null>(null)
   const [installing, setInstalling] = useState(false)
@@ -295,6 +303,11 @@ function CodexNotifySection() {
 
 export function SettingsPanel() {
   const { settings, updateSettings, toggleSettings } = useAppStore()
+  const themeOptions: Array<{ value: ThemePreference; label: string }> = [
+    { value: 'system', label: 'Follow system' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'light', label: 'Light' },
+  ]
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     updateSettings({ [key]: value })
@@ -350,6 +363,14 @@ export function SettingsPanel() {
           <div className={styles.section}>
             <div className={styles.sectionTitle}>Appearance</div>
 
+            <SelectRow
+              label="Theme"
+              description="Follow Windows theme, or force dark/light mode"
+              value={settings.themePreference}
+              onChange={(v) => update('themePreference', v)}
+              options={themeOptions}
+            />
+
             <NumberRow
               label="Terminal font size"
               description="Font size in pixels for terminal tabs"
@@ -404,18 +425,23 @@ export function SettingsPanel() {
               placeholder="e.g., pwsh.exe, powershell.exe, cmd.exe"
             />
 
-            <SelectRow
-              label="PR link provider"
-              description="Where to open pull request links"
-              value={settings.prLinkProvider}
-              onChange={(v) => update('prLinkProvider', v as Settings['prLinkProvider'])}
-              options={[
-                { value: 'github', label: 'GitHub' },
-                { value: 'graphite', label: 'Graphite' },
-                { value: 'devinreview', label: 'Devin Review' },
-              ]}
+            <TextRow
+              label="Default shell args"
+              description="Optional startup arguments for the default shell"
+              value={settings.defaultShellArgs}
+              onChange={(v) => update('defaultShellArgs', v)}
+              placeholder='e.g., -NoLogo or /K "chcp 65001>nul"'
             />
+
+          <div className={styles.row}>
+            <div className={styles.rowText}>
+              <div className={styles.rowLabel}>PR link provider</div>
+              <div className={styles.rowDescription}>
+                Set per project in Project Settings (gear icon in the sidebar).
+              </div>
+            </div>
           </div>
+        </div>
 
           <div className={styles.section}>
             <div className={styles.sectionTitle}>Agent Integrations</div>

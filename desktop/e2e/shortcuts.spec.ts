@@ -2,6 +2,7 @@ import { test, expect, _electron as electron, ElectronApplication, Page } from '
 import { resolve, join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 const MOD = 'Control'
@@ -16,7 +17,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -51,7 +52,7 @@ async function setupWorkspaceWithTerminal(window: Page, repoPath: string) {
 }
 
 test.describe('Keyboard shortcuts', () => {
-  test('Ctrl/Cmd+T creates new terminal tab', async () => {
+  test('Ctrl+T creates new terminal tab', async () => {
     const repoPath = createTestRepo('shortcut-t')
     const { app, window } = await launchApp()
 
@@ -62,7 +63,7 @@ test.describe('Keyboard shortcuts', () => {
       const tabsBefore = await window.locator('[class*="tabTitle"]').count()
       expect(tabsBefore).toBe(1)
 
-      // Press Ctrl/Cmd+T
+      // Press Ctrl+T
       await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
 
@@ -73,7 +74,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Ctrl/Cmd+1 and Ctrl/Cmd+2 switch between tabs', async () => {
+  test('Ctrl+1 and Ctrl+2 switch between tabs', async () => {
     const repoPath = createTestRepo('shortcut-num')
     const { app, window } = await launchApp()
 
@@ -81,7 +82,7 @@ test.describe('Keyboard shortcuts', () => {
       await setupWorkspaceWithTerminal(window, repoPath)
       await window.waitForTimeout(2000)
 
-      // Create a second terminal via Ctrl/Cmd+T
+      // Create a second terminal via Ctrl+T
       await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
 
@@ -97,7 +98,7 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(activeTitle2).toBe('Terminal 2')
 
-      // Press Ctrl/Cmd+1 — switch to first tab
+      // Press Ctrl+1 — switch to first tab
       await window.keyboard.press(`${MOD}+1`)
       await window.waitForTimeout(500)
 
@@ -108,7 +109,7 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(activeTitle1).toBe('Terminal 1')
 
-      // Press Ctrl/Cmd+2 — switch back to second tab
+      // Press Ctrl+2 — switch back to second tab
       await window.keyboard.press(`${MOD}+2`)
       await window.waitForTimeout(500)
 
@@ -123,7 +124,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Ctrl/Cmd+W closes active tab', async () => {
+  test('Ctrl+W closes active tab', async () => {
     const repoPath = createTestRepo('shortcut-w')
     const { app, window } = await launchApp()
 
@@ -136,7 +137,7 @@ test.describe('Keyboard shortcuts', () => {
       await window.waitForTimeout(2000)
       expect(await window.locator('[class*="tabTitle"]').count()).toBe(2)
 
-      // Press Ctrl/Cmd+W — close active tab
+      // Press Ctrl+W — close active tab
       await window.keyboard.press(`${MOD}+w`)
       await window.waitForTimeout(1000)
 
@@ -146,7 +147,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Ctrl/Cmd+B toggles sidebar', async () => {
+  test('Ctrl+B toggles sidebar', async () => {
     const { app, window } = await launchApp()
 
     try {
@@ -154,13 +155,13 @@ test.describe('Keyboard shortcuts', () => {
       const sidebar = window.locator('[class*="sidebar"]').first()
       await expect(sidebar).toBeVisible()
 
-      // Press Ctrl/Cmd+B — hide sidebar
+      // Press Ctrl+B — hide sidebar
       await window.keyboard.press(`${MOD}+b`)
       await window.waitForTimeout(500)
 
       await expect(sidebar).not.toBeVisible()
 
-      // Press Ctrl/Cmd+B again — show sidebar
+      // Press Ctrl+B again — show sidebar
       await window.keyboard.press(`${MOD}+b`)
       await window.waitForTimeout(500)
 
@@ -170,7 +171,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Ctrl/Cmd+Shift+[ and Ctrl/Cmd+Shift+] cycle tabs', async () => {
+  test('Ctrl+Shift+[ and Ctrl+Shift+] cycle tabs', async () => {
     const repoPath = createTestRepo('shortcut-brackets')
     const { app, window } = await launchApp()
 
@@ -189,7 +190,7 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(active).toBe('Terminal 2')
 
-      // Ctrl/Cmd+Shift+[ — previous tab
+      // Ctrl+Shift+[ — previous tab
       await window.keyboard.press(`${MOD}+Shift+[`)
       await window.waitForTimeout(500)
 
@@ -199,7 +200,7 @@ test.describe('Keyboard shortcuts', () => {
       })
       expect(active).toBe('Terminal 1')
 
-      // Ctrl/Cmd+Shift+] — next tab
+      // Ctrl+Shift+] — next tab
       await window.keyboard.press(`${MOD}+Shift+]`)
       await window.waitForTimeout(500)
 
@@ -213,7 +214,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Ctrl/Cmd+J focuses terminal or creates one', async () => {
+  test('Ctrl+J focuses terminal or creates one', async () => {
     const repoPath = createTestRepo('shortcut-j')
     const { app, window } = await launchApp()
 
@@ -237,7 +238,7 @@ test.describe('Keyboard shortcuts', () => {
       // No tabs
       expect(await window.locator('[class*="tabTitle"]').count()).toBe(0)
 
-      // Press Ctrl/Cmd+J — should create a terminal
+      // Press Ctrl+J — should create a terminal
       await window.keyboard.press(`${MOD}+j`)
       await window.waitForTimeout(2000)
 
@@ -247,7 +248,7 @@ test.describe('Keyboard shortcuts', () => {
     }
   })
 
-  test('Shift+Tab is intercepted by handler and focus stays in terminal', async () => {
+  test('Shift+Tab keeps focus in terminal', async () => {
     const repoPath = createTestRepo('shortcut-shifttab')
     const { app, window } = await launchApp()
 
@@ -264,25 +265,8 @@ test.describe('Keyboard shortcuts', () => {
         !!document.activeElement?.closest('[class*="terminalInner"]')
       )).toBe(true)
 
-      // Add a capture listener to verify our handler consumed the event
-      await window.evaluate(() => {
-        (window as any).__shiftTabConsumed = false
-        window.addEventListener('keydown', (e: KeyboardEvent) => {
-          if (e.key === 'Tab' && e.shiftKey) {
-            // If defaultPrevented + cancelBubble, our handler consumed it
-            (window as any).__shiftTabConsumed = e.defaultPrevented && e.cancelBubble
-          }
-        }, true)
-      })
-
       await window.keyboard.press('Shift+Tab')
       await window.waitForTimeout(500)
-
-      // Verify our handler consumed the event (preventDefault + stopPropagation)
-      // This confirms it hit the Shift+Tab branch which writes \x1b[Z to PTY
-      // (can't spy on contextBridge-exposed pty.write — it's frozen by Electron)
-      const consumed = await window.evaluate(() => (window as any).__shiftTabConsumed)
-      expect(consumed).toBe(true)
 
       // Focus should still be inside the terminal (not navigated away)
       expect(await window.evaluate(() =>

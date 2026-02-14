@@ -9,10 +9,12 @@ files:
   - '!{.env,.env.*,.npmrc,bun.lock}'
   - '!{tsconfig.json,tsconfig.node.json}'
 win:
-  icon: build/icon.png
+  icon: build/icon.ico
   signAndEditExecutable: false
   target:
     - nsis
+nsis:
+  include: build/installer.nsh
 extraResources:
   - from: claude-hooks
     to: claude-hooks
@@ -23,4 +25,3 @@ extraResources:
     filter:
       - '*.js'
 npmRebuild: true
-

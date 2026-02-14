@@ -30,31 +30,7 @@
   background: var(--term-bg);
 }
 
-.loading {
-  position: absolute;
-  inset: var(--space-2);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  background: rgba(20, 15, 22, 0.84);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-}
-
-.loadingDot {
-  color: var(--accent-cyan);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-
-  50% {
-    opacity: 1;
-  }
+/* Ensure xterm consumes full pane height for fit calculations. */
+.terminalInner :global(.xterm) {
+  height: 100%;
 }

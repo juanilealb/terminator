@@ -1,9 +1,17 @@
+export type ThemePreference = 'system' | 'dark' | 'light'
+
+export interface ThemeChangedPayload {
+  dark: boolean
+  accentColor: string
+}
+
 // IPC channel constants shared between main and renderer
 
 export const IPC = {
   // Git operations
   GIT_LIST_WORKTREES: 'git:list-worktrees',
   GIT_CREATE_WORKTREE: 'git:create-worktree',
+  GIT_CREATE_WORKTREE_FROM_PR: 'git:create-worktree-from-pr',
   GIT_CREATE_WORKTREE_PROGRESS: 'git:create-worktree-progress',
   GIT_REMOVE_WORKTREE: 'git:remove-worktree',
   GIT_GET_STATUS: 'git:get-status',
@@ -43,6 +51,11 @@ export const IPC = {
   APP_SELECT_DIRECTORY: 'app:select-directory',
   APP_ADD_PROJECT_PATH: 'app:add-project-path',
   APP_GET_DATA_PATH: 'app:get-data-path',
+  APP_SET_UNREAD_COUNT: 'app:set-unread-count',
+  APP_OPEN_DIRECTORY: 'app:open-directory',
+  APP_SET_THEME_SOURCE: 'app:set-theme-source',
+  ACTIVATE_WORKSPACE: 'app:activate-workspace',
+  THEME_CHANGED: 'theme:changed',
 
   // Claude Code integration
   CLAUDE_TRUST_PATH: 'claude:trust-path',
@@ -68,6 +81,7 @@ export const IPC = {
 
   // GitHub operations
   GITHUB_GET_PR_STATUSES: 'github:get-pr-statuses',
+  GITHUB_LIST_OPEN_PRS: 'github:list-open-prs',
 
   // Clipboard operations
   CLIPBOARD_SAVE_IMAGE: 'clipboard:save-image',

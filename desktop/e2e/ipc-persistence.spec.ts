@@ -1,7 +1,8 @@
 import { test, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test'
-import { resolve, join } from 'path'
+import { resolve, join, basename } from 'path'
 import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 
@@ -15,7 +16,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -31,7 +32,7 @@ function cleanupTestRepo(repoPath: string): void {
       rmSync(repoPath, { recursive: true, force: true })
     }
     const parentDir = resolve(repoPath, '..')
-    const repoName = repoPath.split('/').pop()
+    const repoName = basename(repoPath)
     if (repoName) {
       const entries = readdirSync(parentDir)
       for (const entry of entries) {
@@ -59,9 +60,10 @@ test.describe('IPC handlers & state persistence', () => {
       expect(result).toBe(repoPath)
 
       // Invalid directory should return null
-      const badResult = await window.evaluate(async () => {
-        return await (window as any).api.app.addProjectPath('/tmp/does-not-exist-' + Date.now())
-      })
+      const badPath = join(tmpdir(), `does-not-exist-${Date.now()}`)
+      const badResult = await window.evaluate(async (path: string) => {
+        return await (window as any).api.app.addProjectPath(path)
+      }, badPath)
 
       expect(badResult).toBeNull()
 
@@ -146,7 +148,7 @@ test.describe('IPC handlers & state persistence', () => {
       // Step 2: Add project to store using the validated path
       await window.evaluate(async (repo: string) => {
         const store = (window as any).__store.getState()
-        const name = repo.split('/').pop() || repo
+        const name = basename(repo) || repo
         store.addProject({
           id: crypto.randomUUID(),
           name,
@@ -176,7 +178,7 @@ test.describe('IPC handlers & state persistence', () => {
 
       // Step 6: Verify project appears in sidebar
       await window.waitForTimeout(500)
-      const repoName = repoPath.split('/').pop()!
+      const repoName = basename(repoPath)!
       const projectHeader = window.locator('[class*="projectHeader"]', { hasText: repoName })
       await expect(projectHeader).toBeVisible()
 

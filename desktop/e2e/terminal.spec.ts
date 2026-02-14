@@ -2,6 +2,7 @@ import { test, expect, _electron as electron, ElectronApplication, Page } from '
 import { resolve, join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
+import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 
@@ -15,7 +16,7 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join('/tmp', `test-repo-${name}-${Date.now()}`)
+  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -86,9 +87,9 @@ test.describe('Terminal functionality', () => {
     const { app, window } = await launchApp()
 
     try {
-      const ptyId = await window.evaluate(async () => {
-        return await (window as any).api.pty.create('/tmp')
-      })
+      const ptyId = await window.evaluate(async (workingDir: string) => {
+        return await (window as any).api.pty.create(workingDir)
+      }, tmpdir())
 
       expect(ptyId).toBeTruthy()
       expect(ptyId).toMatch(/^pty-/)

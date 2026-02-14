@@ -2,6 +2,74 @@ import { create } from 'zustand'
 import type { AppState, PersistedState, Tab } from './types'
 import { DEFAULT_SETTINGS } from './types'
 
+const DEFAULT_PR_LINK_PROVIDER = 'github' as const
+
+function parseShellArgs(raw: string): string[] | undefined {
+  const input = raw.trim()
+  if (!input) return undefined
+
+  const args: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+  let escaping = false
+
+  for (const ch of input) {
+    if (escaping) {
+      current += ch
+      escaping = false
+      continue
+    }
+
+    if (ch === '\\' && quote === '"') {
+      escaping = true
+      continue
+    }
+
+    if (quote) {
+      if (ch === quote) {
+        quote = null
+      } else {
+        current += ch
+      }
+      continue
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+
+    if (/\s/.test(ch)) {
+      if (current) {
+        args.push(current)
+        current = ''
+      }
+      continue
+    }
+
+    current += ch
+  }
+
+  if (escaping) current += '\\'
+  if (current) args.push(current)
+  return args.length > 0 ? args : undefined
+}
+
+function shellOverrides(settings: { defaultShell: string; defaultShellArgs: string }): {
+  shell?: string
+  args?: string[]
+} {
+  const shell = settings.defaultShell.trim() || undefined
+  const args = parseShellArgs(settings.defaultShellArgs)
+  return { shell, args }
+}
+
+function basenameFromPath(dirPath: string): string {
+  const normalized = dirPath.replace(/\\/g, '/').replace(/\/+$/, '')
+  const parts = normalized.split('/').filter(Boolean)
+  return parts[parts.length - 1] ?? dirPath
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [],
   workspaces: [],
@@ -29,7 +97,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   previewUrlByWorkspace: {},
 
   addProject: (project) =>
-    set((s) => ({ projects: [...s.projects, project] })),
+    set((s) => ({
+      projects: [
+        ...s.projects,
+        {
+          ...project,
+          prLinkProvider: project.prLinkProvider ?? DEFAULT_PR_LINK_PROVIDER,
+        },
+      ],
+    })),
 
   removeProject: (id) =>
     set((s) => {
@@ -224,8 +300,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (!workspaceId || !ws) return
 
-    const shell = s.settings.defaultShell || undefined
-    const ptyId = await window.api.pty.create(ws.worktreePath, shell, { AGENT_ORCH_WS_ID: ws.id })
+    const { shell, args } = shellOverrides(s.settings)
+    const ptyId = await window.api.pty.create(ws.worktreePath, shell, args, { AGENT_ORCH_WS_ID: ws.id })
     const wsTabs = s.tabs.filter((t) => t.workspaceId === workspaceId)
     const termCount = wsTabs.filter((t) => t.type === 'terminal').length
 
@@ -236,6 +312,69 @@ export const useAppStore = create<AppState>((set, get) => ({
       title: `Terminal ${termCount + 1}`,
       ptyId,
     })
+  },
+
+  openDirectory: async (dirPath) => {
+    const validDirPath = await window.api.app.addProjectPath(dirPath)
+    if (!validDirPath) return
+
+    const existingWorkspace = get().workspaces.find((w) => w.worktreePath === validDirPath)
+    if (existingWorkspace) {
+      get().setActiveWorkspace(existingWorkspace.id)
+      const latest = get()
+      const wsTabs = latest.tabs.filter((t) => t.workspaceId === existingWorkspace.id)
+      if (wsTabs.length === 0) {
+        await latest.createTerminalForActiveWorkspace()
+      } else {
+        latest.setActiveTab(wsTabs[wsTabs.length - 1].id)
+      }
+      return
+    }
+
+    const baseName = basenameFromPath(validDirPath) || validDirPath
+    let project = get().projects.find((p) => p.repoPath === validDirPath)
+    if (!project) {
+      project = {
+        id: crypto.randomUUID(),
+        name: baseName,
+        repoPath: validDirPath,
+      }
+      get().addProject(project)
+    }
+
+    const currentState = get()
+    let workspace = currentState.workspaces.find(
+      (w) => w.projectId === project.id && w.worktreePath === validDirPath
+    )
+    if (!workspace) {
+      let branch = ''
+      try {
+        branch = await window.api.git.getCurrentBranch(validDirPath)
+      } catch {
+        // Non-git directories are valid for ad-hoc terminals.
+      }
+
+      workspace = {
+        id: crypto.randomUUID(),
+        name: `${baseName}-quick`,
+        branch: branch || 'local',
+        worktreePath: validDirPath,
+        projectId: project.id,
+        memory: '',
+      }
+      get().addWorkspace(workspace)
+    } else {
+      get().setActiveWorkspace(workspace.id)
+    }
+
+    const latest = get()
+    const workspaceTabs = latest.tabs.filter((t) => t.workspaceId === workspace.id)
+    if (workspaceTabs.length === 0) {
+      await latest.createTerminalForActiveWorkspace()
+      return
+    }
+    const terminalTab = workspaceTabs.find((t) => t.type === 'terminal')
+    latest.setActiveTab((terminalTab ?? workspaceTabs[0]).id)
   },
 
   closeActiveTab: () => {
@@ -532,6 +671,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   hydrateState: (data) => {
+    const projects = (data.projects ?? []).map((project) => ({
+      ...project,
+      prLinkProvider: project.prLinkProvider ?? DEFAULT_PR_LINK_PROVIDER,
+    }))
     const workspaces = data.workspaces ?? []
     const saved = data.activeWorkspaceId
     const settings = data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : { ...DEFAULT_SETTINGS }
@@ -542,7 +685,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const tabs = data.tabs ?? []
     const activeTabId = data.activeTabId ?? null
     set({
-      projects: data.projects ?? [],
+      projects,
       workspaces,
       tabs,
       automations: data.automations ?? [],
@@ -648,13 +791,13 @@ export async function hydrateFromDisk(): Promise<void> {
         t.type === 'terminal' && !livePtyIds.has(t.ptyId)
     )
     if (deadTabs.length > 0) {
-      const shell = store.settings.defaultShell || undefined
+      const { shell, args } = shellOverrides(store.settings)
       const updatedTabs = [...tabs]
       for (const dead of deadTabs) {
         const ws = store.workspaces.find((w) => w.id === dead.workspaceId)
         if (!ws) continue
         try {
-          const newPtyId = await window.api.pty.create(ws.worktreePath, shell, { AGENT_ORCH_WS_ID: ws.id })
+          const newPtyId = await window.api.pty.create(ws.worktreePath, shell, args, { AGENT_ORCH_WS_ID: ws.id })
           const idx = updatedTabs.findIndex((t) => t.id === dead.id)
           if (idx !== -1) updatedTabs[idx] = { ...dead, ptyId: newPtyId }
         } catch {

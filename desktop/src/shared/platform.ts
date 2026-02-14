@@ -1,11 +1,18 @@
 import { spawnSync } from 'child_process'
+import { existsSync } from 'fs'
 import { tmpdir } from 'os'
 
 export const isWindows = true
 const DEBUG_PREFIX = '[Terminator]'
 let cachedDebugEnabled: boolean | null = null
-let cachedDefaultShell: string | null = null
+let cachedDefaultShellProfile: ShellProfile | null = null
 let didLogShellResolution = false
+
+export interface ShellProfile {
+  shell: string
+  args: string[]
+  wslAvailable: boolean
+}
 
 export function isDebugLoggingEnabled(): boolean {
   if (cachedDebugEnabled !== null) return cachedDebugEnabled
@@ -34,24 +41,74 @@ function commandExists(command: string): boolean {
   }
 }
 
-export function resolveDefaultShell(): string {
-  if (cachedDefaultShell) return cachedDefaultShell
+function shellExists(shell: string): boolean {
+  const trimmed = shell.trim()
+  if (!trimmed) return false
+  if (trimmed.includes('\\') || trimmed.includes('/') || trimmed.includes(':')) {
+    return existsSync(trimmed)
+  }
+  return commandExists(trimmed)
+}
+
+function normalizeShellName(shell: string): string {
+  const normalized = shell.replace(/[\\/]+$/g, '')
+  const segments = normalized.split(/[\\/]/)
+  const basename = segments[segments.length - 1] || normalized
+  return basename.toLowerCase()
+}
+
+export function defaultShellArgsFor(shell: string): string[] {
+  const shellName = normalizeShellName(shell)
+  if (shellName === 'cmd' || shellName === 'cmd.exe') {
+    return ['/K', 'chcp 65001>nul']
+  }
+  if (
+    shellName === 'pwsh' ||
+    shellName === 'pwsh.exe' ||
+    shellName === 'powershell' ||
+    shellName === 'powershell.exe'
+  ) {
+    return ['-NoLogo']
+  }
+  return []
+}
+
+export function resolveDefaultShellProfile(): ShellProfile {
+  if (cachedDefaultShellProfile) return cachedDefaultShellProfile
 
   const windowsShells = ['pwsh.exe', 'powershell.exe', 'cmd.exe']
-  let resolved = 'cmd.exe'
-  for (const shell of windowsShells) {
-    if (commandExists(shell)) {
-      resolved = shell
-      break
-    }
+  const wslAvailable = commandExists('wsl.exe')
+  const comSpec = process.env.ComSpec?.trim()
+  let resolved = windowsShells.find((shell) => commandExists(shell)) ?? ''
+
+  if (!resolved && comSpec && shellExists(comSpec)) {
+    resolved = comSpec
+  }
+  if (!resolved) {
+    resolved = 'cmd.exe'
   }
 
-  cachedDefaultShell = resolved
+  cachedDefaultShellProfile = {
+    shell: resolved,
+    args: defaultShellArgsFor(resolved),
+    wslAvailable,
+  }
+
   if (!didLogShellResolution) {
     didLogShellResolution = true
-    debugLog('Resolved default shell', { shell: resolved, candidates: windowsShells })
+    debugLog('Resolved default shell', {
+      shell: resolved,
+      args: cachedDefaultShellProfile.args,
+      candidates: windowsShells,
+      comSpec,
+      wslAvailable,
+    })
   }
-  return resolved
+  return cachedDefaultShellProfile
+}
+
+export function resolveDefaultShell(): string {
+  return resolveDefaultShellProfile().shell
 }
 
 export function toPosixPath(p: string): string {

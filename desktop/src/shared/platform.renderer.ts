@@ -1,5 +1,11 @@
 export const isWindows = true
 
+export interface ShellProfile {
+  shell: string
+  args: string[]
+  wslAvailable: boolean
+}
+
 export function isDebugLoggingEnabled(): boolean {
   return false
 }
@@ -9,7 +15,33 @@ export function debugLog(_message: string, _details?: unknown): void {
 }
 
 export function resolveDefaultShell(): string {
-  return 'cmd.exe'
+  return resolveDefaultShellProfile().shell
+}
+
+export function defaultShellArgsFor(shell: string): string[] {
+  const lower = shell.toLowerCase()
+  if (lower.endsWith('cmd.exe') || lower === 'cmd' || lower === 'cmd.exe') {
+    return ['/K', 'chcp 65001>nul']
+  }
+  if (
+    lower.endsWith('pwsh.exe') ||
+    lower === 'pwsh' ||
+    lower === 'pwsh.exe' ||
+    lower.endsWith('powershell.exe') ||
+    lower === 'powershell' ||
+    lower === 'powershell.exe'
+  ) {
+    return ['-NoLogo']
+  }
+  return []
+}
+
+export function resolveDefaultShellProfile(): ShellProfile {
+  return {
+    shell: 'cmd.exe',
+    args: defaultShellArgsFor('cmd.exe'),
+    wslAvailable: false,
+  }
 }
 
 export function toPosixPath(p: string): string {
