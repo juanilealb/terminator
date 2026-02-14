@@ -13,6 +13,19 @@ const rendererAlias = [
   { find: '@shared', replacement: sharedPath },
 ]
 
+function onwarnFilterPierreUseClient(warning: any, warn: (warning: any) => void) {
+  const isModuleDirective = warning?.code === 'MODULE_LEVEL_DIRECTIVE'
+  const isPierreReactFile = typeof warning?.id === 'string'
+    && warning.id.includes('/node_modules/@pierre/diffs/dist/react/')
+  const isUseClientDirective = typeof warning?.message === 'string'
+    && warning.message.includes('"use client"')
+
+  if (isModuleDirective && isPierreReactFile && isUseClientDirective) {
+    return
+  }
+  warn(warning)
+}
+
 export default defineConfig({
   main: {
     resolve: {
@@ -25,6 +38,11 @@ export default defineConfig({
     }
   },
   renderer: {
+    build: {
+      rollupOptions: {
+        onwarn: onwarnFilterPierreUseClient,
+      },
+    },
     resolve: {
       alias: rendererAlias
     }
