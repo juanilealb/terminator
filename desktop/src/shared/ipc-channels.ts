@@ -5,6 +5,21 @@ export interface ThemeChangedPayload {
   accentColor: string
 }
 
+export type AgentNotifyReason = 'completed' | 'waiting_input'
+
+export interface AgentNotifyEvent {
+  workspaceId: string
+  reason: AgentNotifyReason
+}
+
+export interface AgentActivitySnapshot {
+  runningWorkspaceIds: string[]
+  waitingWorkspaceIds: string[]
+  runningAgentsByWorkspace: Record<string, number>
+  waitingAgentsByWorkspace: Record<string, number>
+  runningAgentCount: number
+}
+
 // IPC channel constants shared between main and renderer
 
 export const IPC = {

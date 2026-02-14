@@ -602,7 +602,8 @@
 }
 
 .workspaceItem.unread .workspaceIcon,
-.workspaceItem.claudeActive .workspaceIcon {
+.workspaceItem.claudeActive .workspaceIcon,
+.workspaceItem.waitingInput .workspaceIcon {
   visibility: hidden;
 }
 
@@ -632,6 +633,19 @@
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
   animation: spin 0.9s linear infinite;
+}
+
+.workspaceItem.waitingInput::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-orange);
+  box-shadow: 0 0 8px rgba(255, 158, 100, 0.45);
 }
 
 .workspaceItem.unread.claudeActive::after {

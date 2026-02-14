@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels'
-import type { ThemeChangedPayload, ThemePreference } from '../shared/ipc-channels'
+import type {
+  AgentActivitySnapshot,
+  AgentNotifyEvent,
+  ThemeChangedPayload,
+  ThemePreference,
+} from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 
 const openDirectoryListeners = new Set<(dirPath: string) => void>()
@@ -171,15 +176,33 @@ const api = {
       ipcRenderer.invoke(IPC.CLAUDE_UNINSTALL_HOOKS),
     checkHooks: () =>
       ipcRenderer.invoke(IPC.CLAUDE_CHECK_HOOKS),
-    onNotifyWorkspace: (callback: (workspaceId: string) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, wsId: string) => callback(wsId)
+    onNotifyWorkspace: (callback: (event: AgentNotifyEvent) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: AgentNotifyEvent | string) => {
+        if (typeof payload === 'string') {
+          callback({ workspaceId: payload, reason: 'completed' })
+          return
+        }
+        callback(payload)
+      }
       ipcRenderer.on(IPC.CLAUDE_NOTIFY_WORKSPACE, listener)
       return () => {
         ipcRenderer.removeListener(IPC.CLAUDE_NOTIFY_WORKSPACE, listener)
       }
     },
-    onActivityUpdate: (callback: (workspaceIds: string[]) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, wsIds: string[]) => callback(wsIds)
+    onActivityUpdate: (callback: (snapshot: AgentActivitySnapshot) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: AgentActivitySnapshot | string[]) => {
+        if (Array.isArray(payload)) {
+          callback({
+            runningWorkspaceIds: payload,
+            waitingWorkspaceIds: [],
+            runningAgentsByWorkspace: Object.fromEntries(payload.map((id) => [id, 1])),
+            waitingAgentsByWorkspace: {},
+            runningAgentCount: payload.length,
+          })
+          return
+        }
+        callback(payload)
+      }
       ipcRenderer.on(IPC.CLAUDE_ACTIVITY_UPDATE, listener)
       return () => {
         ipcRenderer.removeListener(IPC.CLAUDE_ACTIVITY_UPDATE, listener)
