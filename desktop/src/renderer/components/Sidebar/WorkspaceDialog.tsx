@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useId } from 'react'
 import {
+  DEFAULT_AGENT_PERMISSION_MODE,
   DEFAULT_WORKSPACE_TYPE,
+  type AgentPermissionMode,
   type Project,
   type WorkspaceType,
 } from '../../store/types'
@@ -23,7 +25,8 @@ interface Props {
     type: WorkspaceType,
     branch: string,
     newBranch: boolean,
-    baseBranch?: string
+    baseBranch: string | undefined,
+    agentPermissionMode: AgentPermissionMode,
   ) => void
   onCancel: () => void
   isCreating?: boolean
@@ -47,6 +50,7 @@ export function WorkspaceDialog({
   const [isNewBranch, setIsNewBranch] = useState(true)
   const [newBranchName, setNewBranchName] = useState('')
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType>(DEFAULT_WORKSPACE_TYPE)
+  const [agentPermissionMode, setAgentPermissionMode] = useState<AgentPermissionMode>(DEFAULT_AGENT_PERMISSION_MODE)
   const [baseBranch, setBaseBranch] = useState('')
   const [loading, setLoading] = useState(true)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -82,8 +86,25 @@ export function WorkspaceDialog({
   const handleSubmit = useCallback(() => {
     if (isCreating) return
     const branch = isNewBranch ? (newBranchName || name) : selectedBranch
-    onConfirm(name, workspaceType, branch, isNewBranch, isNewBranch ? baseBranch : undefined)
-  }, [name, workspaceType, isNewBranch, newBranchName, selectedBranch, baseBranch, onConfirm, isCreating])
+    onConfirm(
+      name,
+      workspaceType,
+      branch,
+      isNewBranch,
+      isNewBranch ? baseBranch : undefined,
+      agentPermissionMode,
+    )
+  }, [
+    name,
+    workspaceType,
+    isNewBranch,
+    newBranchName,
+    selectedBranch,
+    baseBranch,
+    onConfirm,
+    isCreating,
+    agentPermissionMode,
+  ])
 
   // Close pickers on click outside
   useEffect(() => {
@@ -237,6 +258,19 @@ export function WorkspaceDialog({
             )}
           </div>
         )}
+
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={agentPermissionMode === 'full-permissions'}
+            onChange={(e) => setAgentPermissionMode(e.target.checked ? 'full-permissions' : 'default')}
+            disabled={isCreating}
+          />
+          <span>Full permissions for codex and claude</span>
+        </label>
+        <div className={styles.hint}>
+          Off keeps standard mode. On expands codex and claude to full permissions.
+        </div>
 
         {isCreating && (
           <div className={styles.createStatus} role="status" aria-live="polite">
