@@ -219,8 +219,6 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
         await window.api.git.stage(worktreePath, unstaged.map((f) => f.path))
       }
       await window.api.git.commit(worktreePath, message)
-      lastAutofilledCommitMsgRef.current = defaultCommitPrefix
-      setCommitMsg(defaultCommitPrefix)
 
       if (commitFlow === 'ship-main' || commitFlow === 'ship-main-close') {
         if (!project) {
@@ -230,11 +228,8 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
         if (!sourceBranch || sourceBranch === 'HEAD') {
           throw new Error('Cannot ship workspace from detached HEAD')
         }
-        const result = await window.api.git.shipBranchToMain(project.repoPath, sourceBranch)
         const closesWorkspace = commitFlow === 'ship-main-close'
-        if (closesWorkspace) {
-          await deleteWorkspace(workspaceId)
-        }
+        const result = await window.api.git.shipBranchToMain(project.repoPath, sourceBranch)
 
         if (result.prUrl) {
           const prMsg = result.prCreated ? 'PR created from main.' : 'PR from main already exists.'
@@ -255,6 +250,12 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
             type: 'info',
           })
         }
+
+        if (closesWorkspace) {
+          await deleteWorkspace(workspaceId)
+        }
+        lastAutofilledCommitMsgRef.current = defaultCommitPrefix
+        setCommitMsg(defaultCommitPrefix)
         return
       }
 
@@ -263,6 +264,8 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
         message: 'Commit created',
         type: 'info',
       })
+      lastAutofilledCommitMsgRef.current = defaultCommitPrefix
+      setCommitMsg(defaultCommitPrefix)
     })
   }, [
     commitMsg,
