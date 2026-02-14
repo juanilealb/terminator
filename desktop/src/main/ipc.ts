@@ -778,3 +778,11 @@ export function registerIpcHandlers(): void {
     return sanitized.data
   })
 }
+
+export function sendActivateWorkspace(workspaceId: string): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send(IPC.ACTIVATE_WORKSPACE, workspaceId)
+    }
+  }
+}

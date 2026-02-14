@@ -34,6 +34,16 @@ export function App() {
     return unsub
   }, [])
 
+  useEffect(() => {
+    const unsub = window.api.app.onActivateWorkspace((workspaceId: string) => {
+      const state = useAppStore.getState()
+      if (state.workspaces.some((w) => w.id === workspaceId)) {
+        state.setActiveWorkspace(workspaceId)
+      }
+    })
+    return unsub
+  }, [])
+
   // Listen for agent activity updates (Claude hooks + Codex submit/notify markers)
   useEffect(() => {
     let prevActive = new Set<string>()

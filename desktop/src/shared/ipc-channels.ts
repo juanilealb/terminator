@@ -44,6 +44,7 @@ export const IPC = {
   APP_SELECT_DIRECTORY: 'app:select-directory',
   APP_ADD_PROJECT_PATH: 'app:add-project-path',
   APP_GET_DATA_PATH: 'app:get-data-path',
+  ACTIVATE_WORKSPACE: 'app:activate-workspace',
 
   // Claude Code integration
   CLAUDE_TRUST_PATH: 'claude:trust-path',
