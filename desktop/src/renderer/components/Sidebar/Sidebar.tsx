@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { basenameSafe, formatShortcut, toPosixPath } from "@shared/platform";
 import { SHORTCUT_MAP } from "@shared/shortcuts";
 import { useAppStore } from "../../store/app-store";
-import type { Project } from "../../store/types";
+import type { Project, PrLinkProvider } from "../../store/types";
 import type { CreateWorktreeProgressEvent } from "../../../shared/workspace-creation";
 import type { OpenPrInfo, GithubLookupError } from "../../../shared/github-types";
 import { WorkspaceDialog } from "./WorkspaceDialog";
@@ -15,6 +15,15 @@ const PR_ICON_SIZE = 10;
 const PR_REVIEW_ICON_SIZE = 10;
 const START_TERMINAL_MESSAGE = "Starting terminal...";
 const MAX_COMMENT_COUNT_DISPLAY = 9;
+const PR_PROVIDER_DOMAINS: Record<PrLinkProvider, string> = {
+  github: "github.com",
+  graphite: "graphite.dev",
+  devinreview: "devinreview.com",
+};
+
+function providerUrl(url: string, provider: PrLinkProvider): string {
+  return url.replace("github.com", PR_PROVIDER_DOMAINS[provider]);
+}
 
 function sanitizeBranchName(name: string): string {
   return name
@@ -162,7 +171,9 @@ function WorkspaceMeta({
     s.prStatusMap.get(`${projectId}:${branch}`),
   );
   const ghAvailable = useAppStore((s) => s.ghAvailability.get(projectId));
-  const prLinkProvider = useAppStore((s) => s.settings.prLinkProvider);
+  const prLinkProvider = useAppStore(
+    (s) => s.projects.find((p) => p.id === projectId)?.prLinkProvider ?? "github",
+  );
   const hasPr = !!(ghAvailable && prInfo !== undefined && prInfo !== null);
 
   if (!hasPr && !showBranch) return null;
@@ -190,13 +201,7 @@ function WorkspaceMeta({
           title={`PR #${prInfo!.number}: ${prInfo!.title}`}
           onClick={(e) => {
             e.stopPropagation();
-            const domains: Record<string, string> = {
-              github: 'github.com',
-              graphite: 'graphite.dev',
-              devinreview: 'devinreview.com',
-            };
-            const url = prInfo!.url.replace('github.com', domains[prLinkProvider] || 'github.com');
-            window.open(url);
+            window.open(providerUrl(prInfo!.url, prLinkProvider));
           }}
         >
           <PrStateIcon state={prInfo!.state} />
@@ -280,7 +285,6 @@ export function Sidebar() {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const setPrStatuses = useAppStore((s) => s.setPrStatuses);
   const setGhAvailability = useAppStore((s) => s.setGhAvailability);
-  const prLinkProvider = useAppStore((s) => s.settings.prLinkProvider);
 
   const [manualCollapsed, setManualCollapsed] = useState<Set<string>>(
     new Set(),
@@ -715,19 +719,13 @@ export function Sidebar() {
   );
 
   const openPrUrl = useCallback(
-    (url: string) => {
-      const domains: Record<string, string> = {
-        github: "github.com",
-        graphite: "graphite.dev",
-        devinreview: "devinreview.com",
-      };
-      const preferred = url.replace(
-        "github.com",
-        domains[prLinkProvider] || "github.com",
-      );
-      window.open(preferred);
+    (projectId: string, url: string) => {
+      const provider =
+        projects.find((project) => project.id === projectId)?.prLinkProvider ??
+        "github";
+      window.open(providerUrl(url, provider));
     },
-    [prLinkProvider],
+    [projects],
   );
 
   const projectPrModalProject = openProjectPrPopoverId
@@ -1076,7 +1074,7 @@ export function Sidebar() {
                       <div className={styles.projectPrRowMain}>
                         <button
                           className={styles.projectPrLink}
-                          onClick={() => openPrUrl(pr.url)}
+                          onClick={() => openPrUrl(projectPrModalProject.id, pr.url)}
                           title={`PR #${pr.number}: ${pr.title}`}
                         >
                           <span className={`${styles.prInline} ${styles.pr_open}`}>
@@ -1173,8 +1171,11 @@ export function Sidebar() {
       {editingProject && (
         <ProjectSettingsDialog
           project={editingProject}
-          onSave={(cmds) => {
-            updateProject(editingProject.id, { startupCommands: cmds });
+          onSave={({ startupCommands, prLinkProvider }) => {
+            updateProject(editingProject.id, {
+              startupCommands,
+              prLinkProvider,
+            });
             setEditingProject(null);
           }}
           onCancel={() => setEditingProject(null)}
