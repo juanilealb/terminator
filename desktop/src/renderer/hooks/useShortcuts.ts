@@ -1,6 +1,11 @@
 import { useEffect } from 'react'
 import { useAppStore } from '../store/app-store'
 
+function quotePathForPaste(path: string): string {
+  if (!/\s/.test(path)) return path
+  return `"${path.replace(/"/g, '\\"')}"`
+}
+
 export function useShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -248,7 +253,7 @@ export function useShortcuts() {
       const s = useAppStore.getState()
       const tab = s.tabs.find((t) => t.id === s.activeTabId)
       if (tab?.type === 'terminal') {
-        window.api.pty.write(tab.ptyId, `\x1b[200~${filePath}\x1b[201~`)
+        window.api.pty.write(tab.ptyId, quotePathForPaste(filePath))
       }
     }
 

@@ -7,7 +7,6 @@ import {
   shell,
   systemPreferences,
   type BrowserWindowConstructorOptions,
-  type TitleBarOverlay,
 } from 'electron'
 import { statSync } from 'fs'
 import { isAbsolute, join, resolve } from 'path'
@@ -147,24 +146,15 @@ function getThemePayload(): ThemeChangedPayload {
   }
 }
 
-function getTitleBarOverlay(dark: boolean): TitleBarOverlay {
-  return {
-    color: dark ? '#121013' : '#f3f5f7',
-    symbolColor: dark ? '#f4edf7' : '#1b1e24',
-    height: 38,
-  }
-}
-
-function applyThemeToMainWindow(dark: boolean): void {
-  if (!mainWindow || mainWindow.isDestroyed() || process.platform !== 'win32') return
-  mainWindow.setTitleBarOverlay(getTitleBarOverlay(dark))
-}
-
 function broadcastThemeChanged(): void {
   const payload = getThemePayload()
-  applyThemeToMainWindow(payload.dark)
   pendingThemePayload = payload
   schedulePendingWindowCommandFlush()
+}
+
+function notifyWindowMaximizedChanged(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send(IPC.APP_WINDOW_MAXIMIZED_CHANGED, mainWindow.isMaximized())
 }
 
 function createWindow(): void {
@@ -180,10 +170,10 @@ function createWindow(): void {
     minHeight: 600,
     backgroundColor: darkTheme ? '#121013' : '#f3f5f7',
     show: false,
-    frame: true,
+    frame: !isWindows,
     autoHideMenuBar: true,
-    titleBarStyle: isWindows ? 'hidden' : 'default',
-    titleBarOverlay: isWindows ? getTitleBarOverlay(darkTheme) : false,
+    titleBarStyle: 'default',
+    titleBarOverlay: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
@@ -198,8 +188,14 @@ function createWindow(): void {
   syncUnreadOverlay()
   mainWindow.on('move', scheduleWindowStateSave)
   mainWindow.on('resize', scheduleWindowStateSave)
-  mainWindow.on('maximize', scheduleWindowStateSave)
-  mainWindow.on('unmaximize', scheduleWindowStateSave)
+  mainWindow.on('maximize', () => {
+    scheduleWindowStateSave()
+    notifyWindowMaximizedChanged()
+  })
+  mainWindow.on('unmaximize', () => {
+    scheduleWindowStateSave()
+    notifyWindowMaximizedChanged()
+  })
 
   // Show window when ready to avoid white flash (skip in tests)
   if (!process.env.CI_TEST) {
@@ -208,6 +204,7 @@ function createWindow(): void {
       if (initialWindowState.isMaximized) {
         mainWindow?.maximize()
       }
+      notifyWindowMaximizedChanged()
     })
   } else if (initialWindowState.isMaximized) {
     mainWindow.maximize()
@@ -225,6 +222,10 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    notifyWindowMaximizedChanged()
+  })
 
   schedulePendingWindowCommandFlush()
 }

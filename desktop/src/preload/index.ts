@@ -155,6 +155,14 @@ const api = {
       ipcRenderer.send(IPC.APP_SET_UNREAD_COUNT, count),
     setThemePreference: (themePreference: ThemePreference) =>
       ipcRenderer.send(IPC.APP_SET_THEME_SOURCE, themePreference),
+    minimizeWindow: () =>
+      ipcRenderer.send(IPC.APP_WINDOW_MINIMIZE),
+    toggleMaximizeWindow: () =>
+      ipcRenderer.send(IPC.APP_WINDOW_TOGGLE_MAXIMIZE),
+    closeWindow: () =>
+      ipcRenderer.send(IPC.APP_WINDOW_CLOSE),
+    isWindowMaximized: () =>
+      ipcRenderer.invoke(IPC.APP_WINDOW_IS_MAXIMIZED) as Promise<boolean>,
     onOpenDirectory: (callback: (dirPath: string) => void) => {
       openDirectoryListeners.add(callback)
       while (pendingDirectoryPaths.length > 0) {
@@ -170,6 +178,13 @@ const api = {
       if (latestThemePayload) callback(latestThemePayload)
       return () => {
         themeListeners.delete(callback)
+      }
+    },
+    onWindowMaximizedChange: (callback: (maximized: boolean) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, maximized: boolean) => callback(maximized)
+      ipcRenderer.on(IPC.APP_WINDOW_MAXIMIZED_CHANGED, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC.APP_WINDOW_MAXIMIZED_CHANGED, listener)
       }
     },
     onActivateWorkspace: (callback: (workspaceId: string) => void) => {

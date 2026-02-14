@@ -72,6 +72,11 @@ export const IPC = {
   APP_SET_UNREAD_COUNT: 'app:set-unread-count',
   APP_OPEN_DIRECTORY: 'app:open-directory',
   APP_SET_THEME_SOURCE: 'app:set-theme-source',
+  APP_WINDOW_MINIMIZE: 'app:window-minimize',
+  APP_WINDOW_TOGGLE_MAXIMIZE: 'app:window-toggle-maximize',
+  APP_WINDOW_CLOSE: 'app:window-close',
+  APP_WINDOW_IS_MAXIMIZED: 'app:window-is-maximized',
+  APP_WINDOW_MAXIMIZED_CHANGED: 'app:window-maximized-changed',
   ACTIVATE_WORKSPACE: 'app:activate-workspace',
   THEME_CHANGED: 'theme:changed',
 
