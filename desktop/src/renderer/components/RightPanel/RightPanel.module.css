@@ -186,9 +186,20 @@
   color: var(--text-tertiary);
 }
 
+.commitActions {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
 .commitButton {
+  flex: 1;
   border: 1px solid rgba(72, 209, 138, 0.5);
-  border-radius: var(--radius-md);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  min-height: 30px;
+  text-align: center;
   background: linear-gradient(180deg, rgba(72, 209, 138, 0.95) 0%, rgba(49, 169, 109, 0.95) 100%);
   color: #06120c;
   font-size: var(--font-size-sm);
@@ -205,6 +216,61 @@
 .commitButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.commitMenuToggle {
+  width: 32px;
+  border: 1px solid rgba(72, 209, 138, 0.5);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: linear-gradient(180deg, rgba(72, 209, 138, 0.95) 0%, rgba(49, 169, 109, 0.95) 100%);
+  color: #06120c;
+  font-size: 12px;
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  transition: filter var(--transition-fast), opacity var(--transition-fast);
+}
+
+.commitMenuToggle:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.commitMenuToggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.commitMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.commitMenuItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.commitMenuItem:hover {
+  background: rgba(99, 212, 217, 0.14);
+}
+
+.activeCommitMenuItem {
+  background: rgba(99, 212, 217, 0.2);
+  color: var(--accent-cyan);
 }
 
 .changeSection {

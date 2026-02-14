@@ -277,6 +277,24 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
     )
   })
 
+  ipcMain.handle(IPC.GIT_PUSH_CURRENT_BRANCH, async (_e, worktreePath: string) => {
+    return runGitOperation('push-current-branch', { worktreePath }, () =>
+      GitService.pushCurrentBranch(worktreePath),
+    )
+  })
+
+  ipcMain.handle(IPC.GIT_OPEN_OR_CREATE_PR, async (_e, worktreePath: string) => {
+    return runGitOperation('open-or-create-pr', { worktreePath }, () =>
+      GitService.openOrCreatePullRequest(worktreePath),
+    )
+  })
+
+  ipcMain.handle(IPC.GIT_SHIP_BRANCH_TO_MAIN, async (_e, repoPath: string, sourceBranch: string) => {
+    return runGitOperation('ship-branch-to-main', { repoPath, sourceBranch }, () =>
+      GitService.shipBranchToMain(repoPath, sourceBranch),
+    )
+  })
+
   ipcMain.handle(IPC.GIT_GET_CURRENT_BRANCH, async (_e, worktreePath: string) => {
     return runGitOperation('get-current-branch', { worktreePath }, () =>
       GitService.getCurrentBranch(worktreePath),

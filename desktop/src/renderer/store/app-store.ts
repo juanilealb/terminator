@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { AppState, PersistedState, Tab } from './types'
-import { DEFAULT_SETTINGS } from './types'
+import { DEFAULT_SETTINGS, DEFAULT_WORKSPACE_TYPE, isWorkspaceType } from './types'
 
 const DEFAULT_PR_LINK_PROVIDER = 'github' as const
 
@@ -68,6 +68,12 @@ function basenameFromPath(dirPath: string): string {
   const normalized = dirPath.replace(/\\/g, '/').replace(/\/+$/, '')
   const parts = normalized.split('/').filter(Boolean)
   return parts[parts.length - 1] ?? dirPath
+}
+
+function formatUserError(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback
+  const invokePrefix = /^Error invoking remote method '[^']+': Error:\s*/i
+  return err.message.replace(invokePrefix, '') || fallback
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -310,6 +316,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const newWorkspace = {
           id: crypto.randomUUID(),
           name: `${baseName}-quick`,
+          type: DEFAULT_WORKSPACE_TYPE,
           branch: branch || 'local',
           worktreePath: dirPath,
           projectId: project.id,
@@ -382,6 +389,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       workspace = {
         id: crypto.randomUUID(),
         name: `${baseName}-quick`,
+        type: DEFAULT_WORKSPACE_TYPE,
         branch: branch || 'local',
         worktreePath: validDirPath,
         projectId: project.id,
@@ -569,7 +577,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         await window.api.git.removeWorktree(project.repoPath, ws.worktreePath)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to remove worktree'
+        const msg = formatUserError(err, 'Failed to remove worktree')
         get().addToast({ id: crypto.randomUUID(), message: msg, type: 'error' })
       }
     }
@@ -595,7 +603,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         try {
           await window.api.git.removeWorktree(project.repoPath, ws.worktreePath)
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Failed to remove worktree'
+          const msg = formatUserError(err, 'Failed to remove worktree')
           get().addToast({ id: crypto.randomUUID(), message: msg, type: 'error' })
         }
       }
@@ -719,7 +727,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...project,
       prLinkProvider: project.prLinkProvider ?? DEFAULT_PR_LINK_PROVIDER,
     }))
-    const workspaces = data.workspaces ?? []
+    const workspaces = (data.workspaces ?? []).map((workspace) => ({
+      ...workspace,
+      type: isWorkspaceType(workspace.type) ? workspace.type : DEFAULT_WORKSPACE_TYPE,
+    }))
     const saved = data.activeWorkspaceId
     const settings = data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : { ...DEFAULT_SETTINGS }
     const activeWorkspaceId = settings.restoreWorkspace
@@ -892,6 +903,7 @@ export async function hydrateFromDisk(): Promise<void> {
     const wsId = crypto.randomUUID()
     store.addWorkspace({
       id: wsId,
+      type: DEFAULT_WORKSPACE_TYPE,
       name: `${automationName} · ${timestamp}`,
       branch: branch || '',
       worktreePath: worktreePath || project.repoPath,
@@ -912,3 +924,4 @@ export async function hydrateFromDisk(): Promise<void> {
     store.updateAutomation(automationId, { lastRunAt: Date.now() })
   })
 }
+

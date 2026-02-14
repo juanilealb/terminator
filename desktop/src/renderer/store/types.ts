@@ -6,6 +6,14 @@ export interface StartupCommand {
   command: string
 }
 
+export const WORKSPACE_TYPES = ['bug', 'feature', 'chore', 'refactor', 'docs', 'test', 'spike'] as const
+export type WorkspaceType = (typeof WORKSPACE_TYPES)[number]
+export const DEFAULT_WORKSPACE_TYPE: WorkspaceType = 'feature'
+
+export function isWorkspaceType(value: unknown): value is WorkspaceType {
+  return typeof value === 'string' && WORKSPACE_TYPES.includes(value as WorkspaceType)
+}
+
 export interface Automation {
   id: string
   name: string
@@ -29,6 +37,7 @@ export interface Project {
 export interface Workspace {
   id: string
   name: string
+  type: WorkspaceType
   branch: string
   worktreePath: string
   projectId: string

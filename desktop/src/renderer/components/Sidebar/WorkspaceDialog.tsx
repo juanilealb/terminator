@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useId } from 'react'
-import type { Project } from '../../store/types'
+import {
+  DEFAULT_WORKSPACE_TYPE,
+  type Project,
+  type WorkspaceType,
+} from '../../store/types'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './WorkspaceDialog.module.css'
 
@@ -14,7 +18,13 @@ function toBranchName(input: string): string {
 
 interface Props {
   project: Project
-  onConfirm: (name: string, branch: string, newBranch: boolean, baseBranch?: string) => void
+  onConfirm: (
+    name: string,
+    type: WorkspaceType,
+    branch: string,
+    newBranch: boolean,
+    baseBranch?: string
+  ) => void
   onCancel: () => void
   isCreating?: boolean
   createProgressMessage?: string
@@ -36,6 +46,7 @@ export function WorkspaceDialog({
   const [selectedBranch, setSelectedBranch] = useState('')
   const [isNewBranch, setIsNewBranch] = useState(true)
   const [newBranchName, setNewBranchName] = useState('')
+  const [workspaceType, setWorkspaceType] = useState<WorkspaceType>(DEFAULT_WORKSPACE_TYPE)
   const [baseBranch, setBaseBranch] = useState('')
   const [loading, setLoading] = useState(true)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -71,8 +82,8 @@ export function WorkspaceDialog({
   const handleSubmit = useCallback(() => {
     if (isCreating) return
     const branch = isNewBranch ? (newBranchName || name) : selectedBranch
-    onConfirm(name, branch, isNewBranch, isNewBranch ? baseBranch : undefined)
-  }, [name, isNewBranch, newBranchName, selectedBranch, baseBranch, onConfirm, isCreating])
+    onConfirm(name, workspaceType, branch, isNewBranch, isNewBranch ? baseBranch : undefined)
+  }, [name, workspaceType, isNewBranch, newBranchName, selectedBranch, baseBranch, onConfirm, isCreating])
 
   // Close pickers on click outside
   useEffect(() => {
@@ -118,6 +129,22 @@ export function WorkspaceDialog({
           disabled={isCreating}
           placeholder="workspace-name"
         />
+
+        <label className={styles.label}>Type</label>
+        <select
+          className={styles.input}
+          value={workspaceType}
+          onChange={(e) => setWorkspaceType(e.target.value as WorkspaceType)}
+          disabled={isCreating}
+        >
+          <option value="feature">Feature</option>
+          <option value="bug">Bug</option>
+          <option value="chore">Chore</option>
+          <option value="refactor">Refactor</option>
+          <option value="docs">Docs</option>
+          <option value="test">Test</option>
+          <option value="spike">Spike</option>
+        </select>
 
         <label className={styles.label}>Branch</label>
         <div className={styles.branchToggle}>

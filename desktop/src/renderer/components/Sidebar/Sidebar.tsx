@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { basenameSafe, formatShortcut, toPosixPath } from "@shared/platform";
 import { SHORTCUT_MAP } from "@shared/shortcuts";
 import { useAppStore } from "../../store/app-store";
-import type { Project, PrLinkProvider } from "../../store/types";
+import { DEFAULT_WORKSPACE_TYPE, type Project, type PrLinkProvider, type WorkspaceType } from "../../store/types";
 import type { CreateWorktreeProgressEvent } from "../../../shared/workspace-creation";
 import type { OpenPrInfo, GithubLookupError } from "../../../shared/github-types";
 import { WorkspaceDialog } from "./WorkspaceDialog";
@@ -400,6 +400,7 @@ export function Sidebar() {
     async (
       project: Project,
       name: string,
+      type: WorkspaceType,
       branch: string,
       worktreePath: string,
     ) => {
@@ -407,6 +408,7 @@ export function Sidebar() {
       addWorkspace({
         id: wsId,
         name,
+        type,
         branch,
         worktreePath,
         projectId: project.id,
@@ -462,6 +464,7 @@ export function Sidebar() {
     async (
       project: Project,
       name: string,
+      type: WorkspaceType,
       branch: string,
       newBranch: boolean,
       force = false,
@@ -488,7 +491,7 @@ export function Sidebar() {
           if (!prev || prev.requestId !== requestId) return prev;
           return { ...prev, message: START_TERMINAL_MESSAGE };
         });
-        await finishCreateWorkspace(project, name, branch, worktreePath);
+        await finishCreateWorkspace(project, name, type, branch, worktreePath);
         openWorkspaceDialog(null);
       } catch (err) {
         const msg =
@@ -513,7 +516,7 @@ export function Sidebar() {
             destructive: true,
             onConfirm: () => {
               dismissConfirmDialog();
-              handleCreateWorkspace(project, name, branch, newBranch, true, baseBranch);
+              handleCreateWorkspace(project, name, type, branch, newBranch, true, baseBranch);
             },
           });
           return;
@@ -630,7 +633,13 @@ export function Sidebar() {
           if (!prev || prev.requestId !== requestId) return prev;
           return { ...prev, message: START_TERMINAL_MESSAGE };
         });
-        await finishCreateWorkspace(project, workspaceName, branch, worktreePath);
+        await finishCreateWorkspace(
+          project,
+          workspaceName,
+          DEFAULT_WORKSPACE_TYPE,
+          branch,
+          worktreePath,
+        );
         closeProjectPrModal();
       } catch (err) {
         const msg =
@@ -1153,10 +1162,11 @@ export function Sidebar() {
       {dialogProject && (
         <WorkspaceDialog
           project={dialogProject}
-          onConfirm={(name, branch, newBranch, baseBranch) => {
+          onConfirm={(name, type, branch, newBranch, baseBranch) => {
             handleCreateWorkspace(
               dialogProject,
               name,
+              type,
               branch,
               newBranch,
               false,

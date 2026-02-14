@@ -33,6 +33,22 @@ export interface WorkspaceSnapshot {
   createdAt: number
 }
 
+export interface PushBranchResult {
+  branch: string
+}
+
+export interface PullRequestResult {
+  url: string
+  created: boolean
+  branch: string
+}
+
+export interface ShipToMainResult {
+  mainBranch: string
+  prUrl: string | null
+  prCreated: boolean
+}
+
 const SNAPSHOT_PREFIX = '[terminator:snapshot]'
 
 export interface PrWorktreeResult {
@@ -45,6 +61,14 @@ async function git(args: string[], cwd: string): Promise<string> {
     maxBuffer: 10 * 1024 * 1024,
   })
   return stdout.trimEnd()
+}
+
+async function gh(args: string[], cwd: string): Promise<string> {
+  const { stdout } = await execFileAsync('gh', args, {
+    cwd,
+    maxBuffer: 10 * 1024 * 1024,
+  })
+  return stdout.trim()
 }
 
 /** Extract a user-friendly message from a git exec error */
@@ -76,6 +100,89 @@ function friendlyGitError(err: unknown, fallback: string): string {
   if (fatal) return fatal
 
   return fallback
+}
+
+function friendlyGhError(err: unknown, fallback: string): string {
+  const code = (err as { code?: string })?.code
+  if (code === 'ENOENT') return 'GitHub CLI is not installed'
+
+  const stderr = ((err as { stderr?: string })?.stderr ?? '').trim()
+  if (!stderr) return fallback
+
+  const lower = stderr.toLowerCase()
+  if (lower.includes('not logged into any github hosts')) {
+    return 'GitHub CLI is not authenticated'
+  }
+  if (lower.includes('authentication failed')) {
+    return 'GitHub CLI authentication failed'
+  }
+  if (lower.includes('could not resolve to a repository')) {
+    return 'Repository is not available in GitHub CLI'
+  }
+  if (lower.includes('no commits between')) {
+    return 'No changes to open a pull request'
+  }
+
+  return stderr.split('\n').find((line) => line.trim())?.trim() ?? fallback
+}
+
+function isAlreadyMissingWorktreeError(err: unknown): boolean {
+  const stderr = ((err as any)?.stderr as string | undefined)?.toLowerCase() ?? ''
+  if (!stderr) return false
+  return (
+    stderr.includes('is not a working tree') ||
+    stderr.includes('is not a worktree') ||
+    stderr.includes('does not exist') ||
+    stderr.includes('no such file or directory')
+  )
+}
+
+function samePath(a: string, b: string): boolean {
+  const left = resolve(a)
+  const right = resolve(b)
+  if (process.platform === 'win32') {
+    return left.toLowerCase() === right.toLowerCase()
+  }
+  return left === right
+}
+
+interface GithubRepoRef {
+  owner: string
+  repo: string
+}
+
+function parseGithubRemote(url: string): GithubRepoRef | null {
+  const trimmed = url.trim()
+  if (!trimmed) return null
+
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.hostname.toLowerCase() !== 'github.com') return null
+    const path = parsed.pathname.replace(/^\/+/, '').replace(/\.git$/i, '')
+    const [owner, repo] = path.split('/')
+    if (!owner || !repo) return null
+    return { owner, repo }
+  } catch {
+    // fall through to SSH parsing
+  }
+
+  const sshMatch = trimmed.match(/^[^@]+@github(?:-[^:]+)?:([^/\s:]+)\/([^/\s]+?)(?:\.git)?$/i)
+  if (sshMatch) {
+    const owner = sshMatch[1]
+    const repo = sshMatch[2]
+    if (!owner || !repo) return null
+    return { owner, repo }
+  }
+
+  const plainMatch = trimmed.match(/^github\.com[:/]([^/\s:]+)\/([^/\s]+?)(?:\.git)?$/i)
+  if (plainMatch) {
+    const owner = plainMatch[1]
+    const repo = plainMatch[2]
+    if (!owner || !repo) return null
+    return { owner, repo }
+  }
+
+  return null
 }
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.next'])
@@ -418,10 +525,22 @@ export class GitService {
   }
 
   static async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
+    if (samePath(repoPath, worktreePath)) {
+      return
+    }
+
     try {
       await git(['worktree', 'remove', worktreePath, '--force'], repoPath)
     } catch (err) {
-      throw new Error(friendlyGitError(err, 'Failed to remove worktree'))
+      if (!isAlreadyMissingWorktreeError(err)) {
+        throw new Error(friendlyGitError(err, 'Failed to remove worktree'))
+      }
+    }
+
+    try {
+      await rm(worktreePath, { recursive: true, force: true })
+    } catch (err) {
+      throw new Error(friendlyGitError(err, 'Worktree removed from git but failed to delete folder'))
     }
   }
 
@@ -563,6 +682,181 @@ export class GitService {
 
   static async commit(worktreePath: string, message: string): Promise<void> {
     await git(['commit', '-m', message], worktreePath)
+  }
+
+  static async pushCurrentBranch(worktreePath: string): Promise<PushBranchResult> {
+    const branch = await git(['rev-parse', '--abbrev-ref', 'HEAD'], worktreePath)
+    if (!branch || branch === 'HEAD') {
+      throw new Error('Cannot push detached HEAD')
+    }
+    try {
+      await git(['push', '--set-upstream', 'origin', branch], worktreePath)
+    } catch (err) {
+      throw new Error(friendlyGitError(err, 'Failed to push current branch'))
+    }
+    return { branch }
+  }
+
+  private static async findOpenPrUrl(worktreePath: string, branch: string): Promise<string | null> {
+    try {
+      const out = await gh(
+        ['pr', 'list', '--head', branch, '--state', 'open', '--json', 'url', '--jq', '.[0].url'],
+        worktreePath
+      )
+      const url = out.trim()
+      if (!url || url === 'null') return null
+      return url
+    } catch {
+      return null
+    }
+  }
+
+  static async openOrCreatePullRequest(worktreePath: string): Promise<PullRequestResult> {
+    const branch = await git(['rev-parse', '--abbrev-ref', 'HEAD'], worktreePath)
+    if (!branch || branch === 'HEAD') {
+      throw new Error('Cannot open pull request from detached HEAD')
+    }
+    if (branch === 'main' || branch === 'master') {
+      throw new Error(`Cannot open pull request from ${branch}`)
+    }
+
+    const existing = await GitService.findOpenPrUrl(worktreePath, branch)
+    if (existing) {
+      return { url: existing, created: false, branch }
+    }
+
+    try {
+      const createdUrl = await gh(
+        ['pr', 'create', '--fill', '--head', branch],
+        worktreePath
+      )
+      const url = createdUrl.trim()
+      if (!url) throw new Error('Pull request created but URL was not returned')
+      return { url, created: true, branch }
+    } catch (err) {
+      const maybeExisting = await GitService.findOpenPrUrl(worktreePath, branch)
+      if (maybeExisting) {
+        return { url: maybeExisting, created: false, branch }
+      }
+      throw new Error(friendlyGhError(err, 'Failed to create pull request'))
+    }
+  }
+
+  private static async openOrCreateMainToUpstreamPr(
+    repoPath: string,
+    mainBranch: string
+  ): Promise<{ url: string; created: boolean } | null> {
+    if (!(await GitService.hasRemote(repoPath, 'upstream'))) return null
+
+    const [originUrl, upstreamUrl] = await Promise.all([
+      git(['remote', 'get-url', 'origin'], repoPath),
+      git(['remote', 'get-url', 'upstream'], repoPath),
+    ])
+    const originRepo = parseGithubRemote(originUrl)
+    const upstreamRepo = parseGithubRemote(upstreamUrl)
+    if (!originRepo || !upstreamRepo) return null
+
+    // Skip PR when origin and upstream are the same repo.
+    if (originRepo.owner === upstreamRepo.owner && originRepo.repo === upstreamRepo.repo) {
+      return null
+    }
+
+    const repoRef = `${upstreamRepo.owner}/${upstreamRepo.repo}`
+    const headRef = `${originRepo.owner}:${mainBranch}`
+    const existing = await gh(
+      [
+        'pr',
+        'list',
+        '--repo',
+        repoRef,
+        '--head',
+        headRef,
+        '--base',
+        mainBranch,
+        '--state',
+        'open',
+        '--json',
+        'url',
+        '--jq',
+        '.[0].url',
+      ],
+      repoPath
+    ).catch(() => '')
+    const existingUrl = existing.trim()
+    if (existingUrl && existingUrl !== 'null') {
+      return { url: existingUrl, created: false }
+    }
+
+    const createdUrl = await gh(
+      [
+        'pr',
+        'create',
+        '--repo',
+        repoRef,
+        '--head',
+        headRef,
+        '--base',
+        mainBranch,
+        '--fill',
+      ],
+      repoPath
+    )
+    const url = createdUrl.trim()
+    if (!url) throw new Error('Pull request created but URL was not returned')
+    return { url, created: true }
+  }
+
+  static async shipBranchToMain(repoPath: string, sourceBranch: string): Promise<ShipToMainResult> {
+    const source = sourceBranch.trim()
+    if (!source) {
+      throw new Error('Source branch is required')
+    }
+    const startingBranch = (await git(['branch', '--show-current'], repoPath)).trim()
+
+    const defaultRef = await GitService.getDefaultBranch(repoPath)
+    const mainBranch = defaultRef.startsWith('origin/') ? defaultRef.slice('origin/'.length) : defaultRef
+    if (!mainBranch) {
+      throw new Error('Failed to resolve main branch')
+    }
+    if (source === mainBranch) {
+      throw new Error('Source branch is already main')
+    }
+
+    const mainStatus = await git(['status', '--porcelain=v1'], repoPath)
+    if (mainStatus.trim()) {
+      throw new Error('Main repo has local changes. Commit or stash them before shipping.')
+    }
+
+    await git(['fetch', '--prune', 'origin'], repoPath).catch(() => {})
+
+    try {
+      await git(['checkout', mainBranch], repoPath)
+      await git(['pull', '--ff-only', 'origin', mainBranch], repoPath)
+      await git(['merge', '--no-ff', '--no-edit', source], repoPath)
+      await git(['push', 'origin', mainBranch], repoPath)
+    } catch (err) {
+      await git(['merge', '--abort'], repoPath).catch(() => {})
+      const currentBranch = (await git(['branch', '--show-current'], repoPath).catch(() => mainBranch)).trim()
+      if (currentBranch === mainBranch) {
+        await git(['checkout', source], repoPath).catch(async () => {
+          if (startingBranch && startingBranch !== source) {
+            await git(['checkout', startingBranch], repoPath).catch(() => {})
+          }
+        })
+      }
+      throw new Error(friendlyGitError(err, 'Failed to merge source branch into main'))
+    }
+
+    try {
+      const pr = await GitService.openOrCreateMainToUpstreamPr(repoPath, mainBranch)
+      return {
+        mainBranch,
+        prUrl: pr?.url ?? null,
+        prCreated: pr?.created ?? false,
+      }
+    } catch (err) {
+      throw new Error(friendlyGhError(err, 'Merged and pushed main, but failed to open pull request'))
+    }
   }
 
   static async createSnapshot(worktreePath: string, label?: string): Promise<WorkspaceSnapshot | null> {

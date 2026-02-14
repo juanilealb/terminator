@@ -63,6 +63,20 @@ const api = {
       ipcRenderer.invoke(IPC.GIT_DISCARD, worktreePath, paths, untracked),
     commit: (worktreePath: string, message: string) =>
       ipcRenderer.invoke(IPC.GIT_COMMIT, worktreePath, message),
+    pushCurrentBranch: (worktreePath: string) =>
+      ipcRenderer.invoke(IPC.GIT_PUSH_CURRENT_BRANCH, worktreePath) as Promise<{ branch: string }>,
+    openOrCreatePr: (worktreePath: string) =>
+      ipcRenderer.invoke(IPC.GIT_OPEN_OR_CREATE_PR, worktreePath) as Promise<{
+        url: string
+        created: boolean
+        branch: string
+      }>,
+    shipBranchToMain: (repoPath: string, sourceBranch: string) =>
+      ipcRenderer.invoke(IPC.GIT_SHIP_BRANCH_TO_MAIN, repoPath, sourceBranch) as Promise<{
+        mainBranch: string
+        prUrl: string | null
+        prCreated: boolean
+      }>,
     getCurrentBranch: (worktreePath: string) =>
       ipcRenderer.invoke(IPC.GIT_GET_CURRENT_BRANCH, worktreePath) as Promise<string>,
     getDefaultBranch: (repoPath: string) =>
