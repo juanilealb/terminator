@@ -133,6 +133,39 @@ function createWindow(): void {
 }
 
 app.setName('Terminator')
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.terminator.app')
+}
+
+function setupWindowsJumpList(): void {
+  if (process.platform !== 'win32') return
+
+  app.setJumpList([
+    {
+      type: 'tasks',
+      items: [
+        {
+          type: 'task',
+          title: 'New Terminal',
+          description: 'Start Terminator and open a new terminal',
+          program: process.execPath,
+          args: '--jump-new-terminal',
+          iconPath: process.execPath,
+          iconIndex: 0,
+        },
+        {
+          type: 'task',
+          title: 'Open Project',
+          description: 'Start Terminator and open the project picker',
+          program: process.execPath,
+          args: '--jump-open-project',
+          iconPath: process.execPath,
+          iconIndex: 0,
+        },
+      ],
+    },
+  ])
+}
 
 // Isolate test data so e2e tests never touch real app state
 if (process.env.CI_TEST) {
@@ -163,6 +196,7 @@ app.whenReady().then(() => {
   })
 
   Menu.setApplicationMenu(null)
+  setupWindowsJumpList()
 
   registerIpcHandlers({
     onCreateWorktreeProgress: setMainWindowProgress,
