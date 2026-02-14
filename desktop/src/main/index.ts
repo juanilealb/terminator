@@ -28,6 +28,8 @@ let pendingDirectoryToOpen = extractDirectoryFromArgv(process.argv)
 let pendingThemePayload: ThemeChangedPayload | null = null
 let waitingForRendererLoad = false
 let themeUpdatedHandler: (() => void) | null = null
+const allowMultiInstance = process.env.CI_TEST === '1' || process.env.TERMINATOR_ALLOW_MULTI_INSTANCE === '1'
+const customProfileName = process.env.TERMINATOR_PROFILE?.trim()
 
 function setMainWindowProgress(progress: CreateWorktreeProgressEvent): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -232,7 +234,12 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.terminator.app')
 }
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (customProfileName) {
+  const safeProfileName = customProfileName.replace(/[^a-zA-Z0-9_-]/g, '-')
+  app.setPath('userData', join(app.getPath('appData'), `Terminator-${safeProfileName}`))
+}
+
+const hasSingleInstanceLock = allowMultiInstance ? true : app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
   app.quit()
 }
@@ -275,7 +282,7 @@ if (process.env.CI_TEST) {
   app.setPath('userData', testData)
 }
 
-if (hasSingleInstanceLock) {
+if (hasSingleInstanceLock && !allowMultiInstance) {
   app.on('second-instance', (_event, argv) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore()
