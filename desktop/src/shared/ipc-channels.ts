@@ -85,6 +85,8 @@ export const IPC = {
 
   // Clipboard operations
   CLIPBOARD_SAVE_IMAGE: 'clipboard:save-image',
+  CLIPBOARD_READ_TEXT: 'clipboard:read-text',
+  CLIPBOARD_WRITE_TEXT: 'clipboard:write-text',
 
   // State persistence
   STATE_SAVE: 'state:save',

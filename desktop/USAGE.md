@@ -59,6 +59,11 @@ Windows terminal quality of life:
 - `Ctrl+Left` and `Ctrl+Right` move by word
 - `Home` and `End` go to line start/end
 - `Ctrl+Backspace` deletes previous word
+- `Ctrl+Shift+C` and `Ctrl+Insert` copy selected text
+- `Ctrl+Shift+V` and `Shift+Insert` paste clipboard text
+- `Ctrl+F` opens find in terminal scrollback
+- Right click opens terminal menu with Copy, Paste, Find, and Clear
+- In terminal focus, global shortcuts are suppressed (except `Ctrl+Shift+P`)
 
 ### File editor and diff tabs
 
@@ -114,6 +119,8 @@ Use it for:
 Slash commands:
 
 - `/terminal` or `/t`
+- `/terminal-find` or `/find`
+- `/terminal-clear` or `/clear`
 - `/files`
 - `/changes`
 - `/memory`
@@ -207,6 +214,12 @@ These power unread and activity indicators in workspaces.
 - `Ctrl+Enter`: commit staged changes
 - `Ctrl+,`: settings
 - `Ctrl+=`, `Ctrl+-`, `Ctrl+0`: font controls
+
+Terminal local shortcuts:
+
+- `Ctrl+Shift+C`, `Ctrl+Insert`: copy selection
+- `Ctrl+Shift+V`, `Shift+Insert`: paste
+- `Ctrl+F`: find in scrollback
 
 ## 12. Build and installer
 

@@ -226,6 +226,10 @@ const api = {
   clipboard: {
     saveImage: () =>
       ipcRenderer.invoke(IPC.CLIPBOARD_SAVE_IMAGE) as Promise<string | null>,
+    readText: () =>
+      ipcRenderer.invoke(IPC.CLIPBOARD_READ_TEXT) as Promise<string>,
+    writeText: (text: string) =>
+      ipcRenderer.invoke(IPC.CLIPBOARD_WRITE_TEXT, text),
   },
 
   state: {

@@ -64,6 +64,7 @@ export interface Settings {
   restoreWorkspace: boolean
   diffInline: boolean
   terminalFontSize: number
+  terminalCopyOnSelect: boolean
   editorFontSize: number
   promptTemplates: PromptTemplate[]
 }
@@ -77,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
   restoreWorkspace: true,
   diffInline: false,
   terminalFontSize: 14,
+  terminalCopyOnSelect: false,
   editorFontSize: 13,
   promptTemplates: [
     {

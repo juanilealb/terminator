@@ -378,6 +378,13 @@ export function SettingsPanel() {
               onChange={(v) => update('terminalFontSize', v)}
             />
 
+            <ToggleRow
+              label="Terminal copy on select"
+              description="Automatically copy selected terminal text to clipboard"
+              value={settings.terminalCopyOnSelect}
+              onChange={(v) => update('terminalCopyOnSelect', v)}
+            />
+
             <NumberRow
               label="Editor font size"
               description="Font size in pixels for file and diff editors"

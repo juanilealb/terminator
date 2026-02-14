@@ -776,6 +776,14 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
     return filePath
   })
 
+  ipcMain.handle(IPC.CLIPBOARD_READ_TEXT, async () => {
+    return clipboard.readText()
+  })
+
+  ipcMain.handle(IPC.CLIPBOARD_WRITE_TEXT, async (_e, text: string) => {
+    clipboard.writeText(text ?? '')
+  })
+
   // ── State persistence handlers ──
   const stateFilePath = () =>
     join(app.getPath('userData'), 'terminator-state.json')
