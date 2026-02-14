@@ -36,6 +36,26 @@
   letter-spacing: 0.5px;
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: var(--font-ui);
+}
+
+.checkboxRow input {
+  accent-color: var(--accent-blue);
+}
+
+.hint {
+  margin-top: calc(-1 * var(--space-3));
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-family: var(--font-ui);
+}
+
 .input {
   padding: var(--space-3) var(--space-4);
   background: var(--surface-0);
