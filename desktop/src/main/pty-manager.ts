@@ -5,6 +5,7 @@ import { join } from 'path'
 import { WebContents } from 'electron'
 import { IPC } from '../shared/ipc-channels'
 import { basenameSafe, debugLog, defaultShellArgsFor, getTempDir, resolveDefaultShellProfile, toPosixPath } from '@shared/platform'
+import { type AgentPermissionMode } from '@shared/agent-permissions'
 
 interface PtyInstance {
   process: pty.IPty
@@ -211,6 +212,44 @@ function isLikelyCodexProcess(entry: ProcessEntry): boolean {
   return isLikelyCodexCommand(entry.commandLine) || isLikelyCodexCommand(entry.name)
 }
 
+function normalizePermissionMode(value: string | undefined): AgentPermissionMode | undefined {
+  if (value === 'full-permissions' || value === 'default') return value
+  if (value === 'yolo') return 'default'
+  return undefined
+}
+
+function buildAgentBootstrapWrite(shellFile: string, mode: AgentPermissionMode | undefined): string | undefined {
+  if (mode !== 'full-permissions') return undefined
+
+  const shellName = basenameSafe(shellFile.toLowerCase())
+  const isPowerShell = shellName === 'pwsh.exe' || shellName === 'powershell.exe' || shellName === 'pwsh' || shellName === 'powershell'
+  if (isPowerShell) {
+    return [
+      "function global:codex { $cmd = Get-Command codex -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; if ($cmd -and $cmd.Source) { & $cmd.Source --sandbox danger-full-access --ask-for-approval never @args } else { Write-Error 'codex command not found.' } }",
+      "function global:claude { $cmd = Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; if ($cmd -and $cmd.Source) { & $cmd.Source --dangerously-skip-permissions @args } else { Write-Error 'claude command not found.' } }",
+      '',
+    ].join('\r')
+  }
+
+  if (shellName === 'cmd.exe' || shellName === 'cmd') {
+    return [
+      'doskey codex=codex --sandbox danger-full-access --ask-for-approval never $*',
+      'doskey claude=claude --dangerously-skip-permissions $*',
+      '',
+    ].join('\r')
+  }
+
+  if (shellName === 'bash' || shellName === 'zsh' || shellName === 'sh') {
+    return [
+      'codex(){ command codex --sandbox danger-full-access --ask-for-approval never "$@"; }',
+      'claude(){ command claude --dangerously-skip-permissions "$@"; }',
+      '',
+    ].join('\r')
+  }
+
+  return undefined
+}
+
 function normalizePtyEnv(extraEnv?: Record<string, string>): Record<string, string> {
   const merged: Record<string, string | undefined> = {
     ...process.env,
@@ -295,7 +334,9 @@ export class PtyManager {
       codexAwaitingAnswer: false,
     }
 
-    let pendingWrite = initialWrite
+    const permissionMode = normalizePermissionMode(extraEnv?.AGENT_ORCH_PERMISSION_MODE)
+    const bootstrapWrite = buildAgentBootstrapWrite(file, permissionMode)
+    let pendingWrite = `${bootstrapWrite ?? ''}${initialWrite ?? ''}` || undefined
     const flushInitialWrite = (reason: 'first-output' | 'timer') => {
       if (!pendingWrite) return
       const toWrite = pendingWrite
@@ -343,6 +384,7 @@ export class PtyManager {
       useConpty,
       workingDir,
       workspaceId: instance.workspaceId ?? null,
+      agentPermissionMode: permissionMode ?? null,
     })
     return id
   }

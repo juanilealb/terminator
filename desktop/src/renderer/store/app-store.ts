@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import type { AppState, PersistedState, Tab } from './types'
-import { DEFAULT_SETTINGS, DEFAULT_WORKSPACE_TYPE, isWorkspaceType } from './types'
+import {
+  DEFAULT_AGENT_PERMISSION_MODE,
+  DEFAULT_SETTINGS,
+  DEFAULT_WORKSPACE_TYPE,
+  parseAgentPermissionMode,
+  isWorkspaceType,
+} from './types'
 
 const DEFAULT_PR_LINK_PROVIDER = 'github' as const
 
@@ -320,6 +326,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           branch: branch || 'local',
           worktreePath: dirPath,
           projectId: project.id,
+          agentPermissionMode: DEFAULT_AGENT_PERMISSION_MODE,
           memory: '',
         }
         get().addWorkspace(newWorkspace)
@@ -333,7 +340,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!workspaceId || !ws) return
 
     const { shell, args } = shellOverrides(s.settings)
-    const ptyId = await window.api.pty.create(ws.worktreePath, shell, args, { AGENT_ORCH_WS_ID: ws.id })
+    const ptyId = await window.api.pty.create(ws.worktreePath, shell, args, {
+      AGENT_ORCH_WS_ID: ws.id,
+      AGENT_ORCH_PERMISSION_MODE: ws.agentPermissionMode,
+    })
     const wsTabs = s.tabs.filter((t) => t.workspaceId === workspaceId)
     const termCount = wsTabs.filter((t) => t.type === 'terminal').length
 
@@ -393,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         branch: branch || 'local',
         worktreePath: validDirPath,
         projectId: project.id,
+        agentPermissionMode: DEFAULT_AGENT_PERMISSION_MODE,
         memory: '',
       }
       get().addWorkspace(workspace)
@@ -730,6 +741,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const workspaces = (data.workspaces ?? []).map((workspace) => ({
       ...workspace,
       type: isWorkspaceType(workspace.type) ? workspace.type : DEFAULT_WORKSPACE_TYPE,
+      agentPermissionMode: parseAgentPermissionMode(workspace.agentPermissionMode),
     }))
     const saved = data.activeWorkspaceId
     const settings = data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : { ...DEFAULT_SETTINGS }
@@ -852,7 +864,10 @@ export async function hydrateFromDisk(): Promise<void> {
         const ws = store.workspaces.find((w) => w.id === dead.workspaceId)
         if (!ws) continue
         try {
-          const newPtyId = await window.api.pty.create(ws.worktreePath, shell, args, { AGENT_ORCH_WS_ID: ws.id })
+          const newPtyId = await window.api.pty.create(ws.worktreePath, shell, args, {
+            AGENT_ORCH_WS_ID: ws.id,
+            AGENT_ORCH_PERMISSION_MODE: ws.agentPermissionMode,
+          })
           const idx = updatedTabs.findIndex((t) => t.id === dead.id)
           if (idx !== -1) updatedTabs[idx] = { ...dead, ptyId: newPtyId }
         } catch {
@@ -909,6 +924,7 @@ export async function hydrateFromDisk(): Promise<void> {
       worktreePath: worktreePath || project.repoPath,
       projectId,
       automationId,
+      agentPermissionMode: DEFAULT_AGENT_PERMISSION_MODE,
     })
 
     // Create terminal tab for the run

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { basenameSafe, formatShortcut, toPosixPath } from "@shared/platform";
 import { SHORTCUT_MAP } from "@shared/shortcuts";
+import { DEFAULT_AGENT_PERMISSION_MODE, type AgentPermissionMode } from "@shared/agent-permissions";
 import { useAppStore } from "../../store/app-store";
 import { DEFAULT_WORKSPACE_TYPE, type Project, type PrLinkProvider, type WorkspaceType } from "../../store/types";
 import type { CreateWorktreeProgressEvent } from "../../../shared/workspace-creation";
@@ -403,6 +404,7 @@ export function Sidebar() {
       type: WorkspaceType,
       branch: string,
       worktreePath: string,
+      agentPermissionMode: AgentPermissionMode,
     ) => {
       const wsId = crypto.randomUUID();
       addWorkspace({
@@ -412,6 +414,7 @@ export function Sidebar() {
         branch,
         worktreePath,
         projectId: project.id,
+        agentPermissionMode,
       });
 
       const commands = project.startupCommands ?? [];
@@ -425,6 +428,7 @@ export function Sidebar() {
         // Default: one blank terminal
         const ptyId = await window.api.pty.create(worktreePath, undefined, undefined, {
           AGENT_ORCH_WS_ID: wsId,
+          AGENT_ORCH_PERMISSION_MODE: agentPermissionMode,
         });
         addTab({
           id: crypto.randomUUID(),
@@ -438,6 +442,7 @@ export function Sidebar() {
         for (const cmd of commands) {
           const ptyId = await window.api.pty.create(worktreePath, undefined, undefined, {
             AGENT_ORCH_WS_ID: wsId,
+            AGENT_ORCH_PERMISSION_MODE: agentPermissionMode,
           });
           const tabId = crypto.randomUUID();
           if (!firstTabId) firstTabId = tabId;
@@ -467,6 +472,7 @@ export function Sidebar() {
       type: WorkspaceType,
       branch: string,
       newBranch: boolean,
+      agentPermissionMode: AgentPermissionMode,
       force = false,
       baseBranch?: string,
     ) => {
@@ -491,7 +497,7 @@ export function Sidebar() {
           if (!prev || prev.requestId !== requestId) return prev;
           return { ...prev, message: START_TERMINAL_MESSAGE };
         });
-        await finishCreateWorkspace(project, name, type, branch, worktreePath);
+        await finishCreateWorkspace(project, name, type, branch, worktreePath, agentPermissionMode);
         openWorkspaceDialog(null);
       } catch (err) {
         const msg =
@@ -516,7 +522,7 @@ export function Sidebar() {
             destructive: true,
             onConfirm: () => {
               dismissConfirmDialog();
-              handleCreateWorkspace(project, name, type, branch, newBranch, true, baseBranch);
+              handleCreateWorkspace(project, name, type, branch, newBranch, agentPermissionMode, true, baseBranch);
             },
           });
           return;
@@ -639,6 +645,7 @@ export function Sidebar() {
           DEFAULT_WORKSPACE_TYPE,
           branch,
           worktreePath,
+          DEFAULT_AGENT_PERMISSION_MODE,
         );
         closeProjectPrModal();
       } catch (err) {
@@ -1162,13 +1169,14 @@ export function Sidebar() {
       {dialogProject && (
         <WorkspaceDialog
           project={dialogProject}
-          onConfirm={(name, type, branch, newBranch, baseBranch) => {
+          onConfirm={(name, type, branch, newBranch, baseBranch, agentPermissionMode) => {
             handleCreateWorkspace(
               dialogProject,
               name,
               type,
               branch,
               newBranch,
+              agentPermissionMode,
               false,
               baseBranch,
             );

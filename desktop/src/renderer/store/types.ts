@@ -1,5 +1,11 @@
 import type { PrInfo } from '@shared/github-types'
 import type { AgentActivitySnapshot, ThemePreference } from '@shared/ipc-channels'
+import {
+  DEFAULT_AGENT_PERMISSION_MODE,
+  parseAgentPermissionMode,
+  isAgentPermissionMode,
+  type AgentPermissionMode,
+} from '@shared/agent-permissions'
 
 export interface StartupCommand {
   name: string
@@ -41,8 +47,16 @@ export interface Workspace {
   branch: string
   worktreePath: string
   projectId: string
+  agentPermissionMode: AgentPermissionMode
   automationId?: string
   memory?: string
+}
+
+export {
+  DEFAULT_AGENT_PERMISSION_MODE,
+  parseAgentPermissionMode,
+  isAgentPermissionMode,
+  type AgentPermissionMode,
 }
 
 export type Tab = {

@@ -56,11 +56,18 @@ export function App() {
 
   // Listen for workspace notification signals from Claude Code hooks
   useEffect(() => {
-    const unsub = window.api.claude.onNotifyWorkspace(({ workspaceId }) => {
+    const unsub = window.api.claude.onNotifyWorkspace(({ workspaceId, reason }) => {
       const state = useAppStore.getState()
       if (workspaceId !== state.activeWorkspaceId) {
         state.markWorkspaceUnread(workspaceId)
+        return
       }
+
+      const workspaceName = state.workspaces.find((ws) => ws.id === workspaceId)?.name ?? workspaceId
+      const message = reason === 'waiting_input'
+        ? `Agent waiting for your input in ${workspaceName}`
+        : `Agent completed in ${workspaceName}`
+      state.addToast({ id: crypto.randomUUID(), message, type: 'info' })
     })
     return unsub
   }, [])
