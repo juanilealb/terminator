@@ -353,8 +353,8 @@
 
 .prBlockedCi {
   color: var(--accent-red);
-  border-color: rgba(255, 111, 120, 0.5);
-  background: rgba(255, 111, 120, 0.14);
+  border-color: var(--accent-red-dim);
+  background: rgba(247, 118, 142, 0.08);
 }
 
 .prApproved {
