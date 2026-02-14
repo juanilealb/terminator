@@ -2,7 +2,7 @@
 
 A Windows desktop app for running multiple AI coding agents in parallel. Each agent gets its own terminal, code editor, and git worktree â€” all in one window.
 
-> **Fork note:** This is a Windows-only port of [@owengretzinger](https://github.com/owengretzinger), originally built for macOS. All macOS code has been stripped for a leaner, Windows-native experience.
+> **Fork note:** This is a Windows-only fork of [@owengretzinger](https://github.com/owengretzinger), streamlined for a Windows-native experience.
 
 ---
 
@@ -175,8 +175,8 @@ terminator/
 
 ## Credits
 
-- Original macOS app by [@owengretzinger](https://github.com/owengretzinger)
-- Windows port by [@Juanilealb](https://github.com/Juanilealb)
+- Original project by [@owengretzinger](https://github.com/owengretzinger)
+- Terminator Windows fork by [@Juanilealb](https://github.com/Juanilealb)
 
 ---
 

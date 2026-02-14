@@ -94,7 +94,7 @@ export function FileEditor({ tabId, filePath, active }: Props) {
     prevActiveRef.current = active
   }, [active, unsaved, settings.autoSaveOnBlur, handleSave])
 
-  // Ctrl+S / Cmd+S save handler
+  // Ctrl+S save handler
   const handleEditorMount = useCallback((editor: any) => {
     editorRef.current = editor
     editor.addCommand(
