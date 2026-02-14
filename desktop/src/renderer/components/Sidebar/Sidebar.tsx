@@ -171,15 +171,16 @@ function WorkspaceMeta({
   const openPr = hasPr && prInfo!.state === "open";
   const pendingCommentCount = openPr ? Math.max(0, prInfo!.pendingCommentCount || 0) : 0;
   const hasPendingComments = pendingCommentCount > 0;
-  const isBlockedByCi = openPr && !!prInfo!.isBlockedByCi;
+  const isCiPending = openPr && prInfo!.checkStatus === "pending";
+  const isBlockedByCi = openPr && prInfo!.checkStatus === "failing";
   const isApproved = openPr && !!prInfo!.isApproved;
+  const isCiPassing = openPr && prInfo!.checkStatus === "passing";
   const isChangesRequested = openPr && !!prInfo!.isChangesRequested;
   const reviewDecision: "approved" | "changes_requested" | null = isChangesRequested
     ? "changes_requested"
     : isApproved
       ? "approved"
       : null;
-  const isCiPassing = openPr && prInfo!.checkStatus === "passing" && !isBlockedByCi;
 
   return (
     <span className={styles.workspaceMeta}>
@@ -220,10 +221,18 @@ function WorkspaceMeta({
                   <CommentCountIcon count={pendingCommentCount} />
                 </span>
               )}
+              {isCiPending && (
+                <span
+                  className={`${styles.prBadge} ${styles.prCiPending}`}
+                  title="CI checks running"
+                >
+                  CI
+                </span>
+              )}
               {isBlockedByCi && (
                 <span
                   className={`${styles.prBadge} ${styles.prBlockedCi}`}
-                  title="Blocked by CI checks"
+                  title="CI checks failing"
                 >
                   CI
                 </span>
