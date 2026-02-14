@@ -478,7 +478,7 @@ export class GithubService {
           Authorization: `Bearer ${token}`,
           Accept: 'application/vnd.github+json',
           'Content-Type': 'application/json',
-          'User-Agent': 'constellagent-desktop',
+          'User-Agent': 'terminator-desktop',
         },
         body: JSON.stringify({ query, variables }),
         signal: controller.signal,

@@ -4,7 +4,6 @@ import {
   Menu,
   shell,
   type BrowserWindowConstructorOptions,
-  type MenuItemConstructorOptions,
 } from 'electron'
 import { join } from 'path'
 import { arch, platform, release, tmpdir, version as osVersion } from 'os'
@@ -15,55 +14,25 @@ import { NotificationWatcher } from './notification-watcher'
 let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
 
-function buildMenuTemplate(): MenuItemConstructorOptions[] {
-  return [
-    {
-      label: 'File',
-      submenu: [{ role: 'close' }, { type: 'separator' }, { role: 'quit' }],
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'delete' },
-        { role: 'selectAll' },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
-    {
-      label: 'Window',
-      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
-    },
-  ]
-}
-
 function createWindow(): void {
+  const isWindows = process.platform === 'win32'
   const windowOptions: BrowserWindowConstructorOptions = {
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#13141b',
+    backgroundColor: '#121013',
     show: false,
     frame: true,
+    autoHideMenuBar: true,
+    titleBarStyle: isWindows ? 'hidden' : 'default',
+    titleBarOverlay: isWindows
+      ? {
+          color: '#121013',
+          symbolColor: '#f4edf7',
+          height: 38,
+        }
+      : false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
@@ -73,6 +42,8 @@ function createWindow(): void {
   }
 
   mainWindow = new BrowserWindow(windowOptions)
+  mainWindow.removeMenu()
+  mainWindow.setMenuBarVisibility(false)
 
   // Show window when ready to avoid white flash (skip in tests)
   if (!process.env.CI_TEST) {
@@ -95,13 +66,13 @@ function createWindow(): void {
   }
 }
 
-app.setName('Constellagent')
+app.setName('Terminator')
 
 // Isolate test data so e2e tests never touch real app state
 if (process.env.CI_TEST) {
   const { mkdtempSync } = require('fs')
   const { join } = require('path')
-  const testData = mkdtempSync(join(require('os').tmpdir(), 'constellagent-test-'))
+  const testData = mkdtempSync(join(require('os').tmpdir(), 'terminator-test-'))
   app.setPath('userData', testData)
 }
 
@@ -125,8 +96,7 @@ app.whenReady().then(() => {
     },
   })
 
-  const menu = Menu.buildFromTemplate(buildMenuTemplate())
-  Menu.setApplicationMenu(menu)
+  Menu.setApplicationMenu(null)
 
   registerIpcHandlers()
   notificationWatcher.start()

@@ -94,6 +94,11 @@ export function useShortcuts() {
         store.toggleQuickOpen()
         return
       }
+      if (shift && !alt && e.key.toLowerCase() === 'p') {
+        consume()
+        store.toggleCommandPalette()
+        return
+      }
 
       // ── Tab switching: Ctrl+1-9 ──
       if (!shift && !alt && e.key >= '1' && e.key <= '9') {
@@ -170,6 +175,18 @@ export function useShortcuts() {
       if (shift && !alt && e.code === 'KeyG') {
         consume()
         store.setRightPanelMode('changes')
+        if (!store.rightPanelOpen) store.toggleRightPanel()
+        return
+      }
+      if (shift && !alt && e.code === 'KeyM') {
+        consume()
+        store.setRightPanelMode('memory')
+        if (!store.rightPanelOpen) store.toggleRightPanel()
+        return
+      }
+      if (shift && !alt && e.code === 'KeyV') {
+        consume()
+        store.setRightPanelMode('preview')
         if (!store.rightPanelOpen) store.toggleRightPanel()
         return
       }

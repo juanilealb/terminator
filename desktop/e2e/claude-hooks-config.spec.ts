@@ -41,7 +41,7 @@ function ourHookCommands(settings: Record<string, unknown>): string[] {
 
 test.describe('Claude hooks config', () => {
   test('installs node hook commands and uninstalls cleanly', async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'constellagent claude-home-'))
+    const homeDir = mkdtempSync(join(tmpdir(), 'terminator claude-home-'))
     const claudeDir = join(homeDir, '.claude')
     const settingsPath = join(claudeDir, 'settings.json')
     mkdirSync(claudeDir, { recursive: true })

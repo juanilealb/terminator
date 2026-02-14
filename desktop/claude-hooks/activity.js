@@ -7,7 +7,7 @@ const { tmpdir } = require('node:os')
 const workspaceId = process.env.AGENT_ORCH_WS_ID || ''
 if (!workspaceId) process.exit(0)
 
-const activityDir = join(tmpdir(), 'constellagent-activity')
+const activityDir = join(tmpdir(), 'terminator-activity')
 
 try {
   mkdirSync(activityDir, { recursive: true })

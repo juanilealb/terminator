@@ -7,7 +7,7 @@ const STARTUP_BURST_MS = 60_000
 const RESUME_BURST_MS = 30_000
 const EVENT_BURST_MS = 120_000
 const PENDING_BURST_MS = 60_000
-const PR_POLL_HINT_EVENT = 'constellagent:pr-poll-hint'
+const PR_POLL_HINT_EVENT = 'terminator:pr-poll-hint'
 
 export function usePrStatusPoller(): void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

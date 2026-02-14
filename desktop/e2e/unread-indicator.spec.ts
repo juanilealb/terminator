@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
-const NOTIFY_DIR = '/tmp/constellagent-notify'
+const NOTIFY_DIR = '/tmp/terminator-notify'
 
 async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> {
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })

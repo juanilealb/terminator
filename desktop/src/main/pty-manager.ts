@@ -224,7 +224,7 @@ function normalizePtyEnv(extraEnv?: Record<string, string>): Record<string, stri
   return normalized
 }
 
-const ACTIVITY_DIR = join(getTempDir(), 'constellagent-activity')
+const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const CODEX_MARKER_SEGMENT = '.codex.'
 const PROCESS_SNAPSHOT_TTL_MS = 1000
 

@@ -277,7 +277,7 @@ test.describe('Git & Sidebar functionality', () => {
 
       // Welcome message in center
       const welcome = window.locator('[class*="welcomeLogo"]')
-      await expect(welcome).toHaveText('constellagent')
+      await expect(welcome).toHaveText('terminator')
     } finally {
       await app.close()
     }

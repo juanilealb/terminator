@@ -27,6 +27,14 @@ export interface FileDiff {
   hunks: string // raw unified diff text
 }
 
+export interface WorkspaceSnapshot {
+  ref: string
+  label: string
+  createdAt: number
+}
+
+const SNAPSHOT_PREFIX = '[terminator:snapshot]'
+
 async function git(args: string[], cwd: string): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd,
@@ -427,5 +435,48 @@ export class GitService {
 
   static async commit(worktreePath: string, message: string): Promise<void> {
     await git(['commit', '-m', message], worktreePath)
+  }
+
+  static async createSnapshot(worktreePath: string, label?: string): Promise<WorkspaceSnapshot | null> {
+    // `git stash create` returns a commit hash without mutating the working tree.
+    // If there are no local modifications, it returns an empty string.
+    const commit = (await git(['stash', 'create'], worktreePath)).trim()
+    if (!commit) return null
+
+    const normalizedLabel = (label ?? '').trim() || 'Snapshot'
+    const message = `${SNAPSHOT_PREFIX} ${normalizedLabel}`
+    await git(['stash', 'store', '-m', message, commit], worktreePath)
+
+    const snapshots = await GitService.listSnapshots(worktreePath)
+    return snapshots[0] ?? null
+  }
+
+  static async listSnapshots(worktreePath: string): Promise<WorkspaceSnapshot[]> {
+    const output = await git(['stash', 'list', '--format=%gd%x09%ct%x09%s'], worktreePath)
+    if (!output) return []
+
+    const snapshots: WorkspaceSnapshot[] = []
+    for (const line of output.split('\n')) {
+      const [ref, createdAtText, subject] = line.split('\t')
+      if (!ref || !createdAtText || !subject) continue
+      if (!subject.startsWith(SNAPSHOT_PREFIX)) continue
+
+      const createdAt = Number.parseInt(createdAtText, 10)
+      snapshots.push({
+        ref,
+        createdAt: Number.isFinite(createdAt) ? createdAt : Math.floor(Date.now() / 1000),
+        label: subject.slice(SNAPSHOT_PREFIX.length).trim() || 'Snapshot',
+      })
+    }
+
+    return snapshots
+  }
+
+  static async restoreSnapshot(worktreePath: string, ref: string): Promise<void> {
+    await git(['stash', 'apply', '--index', ref], worktreePath)
+  }
+
+  static async dropSnapshot(worktreePath: string, ref: string): Promise<void> {
+    await git(['stash', 'drop', ref], worktreePath)
   }
 }

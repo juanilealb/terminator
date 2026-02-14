@@ -1,41 +1,54 @@
 @import './design-tokens.css';
 
-/* ═══════════════════════════════════════════════════════
-   RESET + BASE
-   ═══════════════════════════════════════════════════════ */
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('../../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
-*, *::before, *::after {
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
-  height: 100%;
+html,
+body,
+#root {
   width: 100%;
+  height: 100%;
   overflow: hidden;
-  background: var(--surface-0);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(72, 209, 138, 0.08) 0%, rgba(18, 16, 19, 0) 42%),
+    radial-gradient(100% 100% at 0% 100%, rgba(115, 200, 255, 0.07) 0%, rgba(18, 16, 19, 0) 38%),
+    var(--bg-app);
   color: var(--text-primary);
-  font-family: var(--font-ui);
-  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
   line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  user-select: none;
 }
 
-/* Electron: make the title bar area draggable */
 body {
   -webkit-app-region: no-drag;
 }
 
-/* ═══════════════════════════════════════════════════════
-   SCROLLBAR — thin, subtle desktop styling
-   ═══════════════════════════════════════════════════════ */
-
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -43,40 +56,41 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-default);
-  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, #4a3c4b 0%, #392f3c 100%);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(22, 17, 24, 0.65);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
+  background: linear-gradient(180deg, #5a4a5b 0%, #453949 100%);
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* ═══════════════════════════════════════════════════════
-   FOCUS — accent ring for keyboard navigation
-   ═══════════════════════════════════════════════════════ */
-
 :focus-visible {
-  outline: 2px solid var(--accent-blue);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -1px;
   border-radius: var(--radius-sm);
 }
 
-/* ═══════════════════════════════════════════════════════
-   SELECTION
-   ═══════════════════════════════════════════════════════ */
-
 ::selection {
-  background: rgba(122, 162, 247, 0.25);
-  color: inherit;
+  background: var(--term-selection);
 }
 
-/* ═══════════════════════════════════════════════════════
-   UTILITY CLASSES
-   ═══════════════════════════════════════════════════════ */
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 -1px 0 var(--border-muted);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+}
 
 .text-mono {
   font-family: var(--font-mono);
@@ -88,17 +102,13 @@ body {
   white-space: nowrap;
 }
 
-/* ═══════════════════════════════════════════════════════
-   ALLOTMENT OVERRIDES — style the split pane sashes
-   ═══════════════════════════════════════════════════════ */
-
 .sash-container .sash {
-  background: var(--border-subtle) !important;
+  background: var(--border-muted) !important;
   transition: background var(--transition-default) !important;
 }
 
 .sash-container .sash:hover,
 .sash-container .sash.active {
-  background: var(--accent-blue) !important;
-  transition-delay: 100ms !important;
+  background: var(--accent-green) !important;
+  transition-delay: 80ms !important;
 }

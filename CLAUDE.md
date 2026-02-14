@@ -1,13 +1,13 @@
 # CLAUDE.md
 
-Constellagent — macOS desktop app for running multiple AI agents in parallel with integrated terminal, editor, git, and automation scheduling.
+Terminator — macOS desktop app for running multiple AI agents in parallel with integrated terminal, editor, git, and automation scheduling.
 
 ## Repo Structure
 
 Monorepo with root package.json delegating to `desktop/`.
 
 ```
-constellagent/
+terminator/
 ├── package.json          # Root scripts (proxy to desktop/)
 └── desktop/              # Electron app (all source code lives here)
     ├── src/main/         # Main process: PTY, git, file services, IPC

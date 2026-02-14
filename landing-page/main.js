@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   Constellagent Landing — main.js
+   Terminator Landing — main.js
    Constellation canvas, scroll animations, nav behavior
    ═══════════════════════════════════════════════════════ */
 

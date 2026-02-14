@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../store/app-store'
 import styles from './TerminalPanel.module.css'
 
-const PR_POLL_HINT_EVENT = 'constellagent:pr-poll-hint'
+const PR_POLL_HINT_EVENT = 'terminator:pr-poll-hint'
 const PR_POLL_HINT_COMMAND_RE =
   /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S+)\s+)*(?:sudo\s+)?(?:(?:git\s+push)|(?:gh\s+pr\s+(?:create|ready|reopen|merge)))(?:\s|$)/
 
@@ -94,26 +94,26 @@ export function TerminalPanel({ ptyId, active }: Props) {
           cursorStyle: 'bar',
           scrollback: 10000,
           theme: {
-            background: '#13141b',
-            foreground: '#c0caf5',
-            cursor: '#c0caf5',
-            selectionBackground: 'rgba(122, 162, 247, 0.2)',
-            black: '#15161e',
-            red: '#f7768e',
-            green: '#9ece6a',
-            yellow: '#e0af68',
-            blue: '#7aa2f7',
-            magenta: '#bb9af7',
-            cyan: '#7dcfff',
-            white: '#a9b1d6',
-            brightBlack: '#414868',
-            brightRed: '#f7768e',
-            brightGreen: '#9ece6a',
-            brightYellow: '#e0af68',
-            brightBlue: '#7aa2f7',
-            brightMagenta: '#bb9af7',
-            brightCyan: '#7dcfff',
-            brightWhite: '#c0caf5',
+            background: '#140f16',
+            foreground: '#f0eaf4',
+            cursor: '#63d4d9',
+            selectionBackground: 'rgba(99, 212, 217, 0.3)',
+            black: '#140f16',
+            red: '#ff6f78',
+            green: '#48d18a',
+            yellow: '#e3b56a',
+            blue: '#58abff',
+            magenta: '#c8a1ff',
+            cyan: '#63d4d9',
+            white: '#f0eaf4',
+            brightBlack: '#87798d',
+            brightRed: '#ff8f96',
+            brightGreen: '#75dfaa',
+            brightYellow: '#efcb90',
+            brightBlue: '#82c2ff',
+            brightMagenta: '#d9bcff',
+            brightCyan: '#8be5e8',
+            brightWhite: '#fff8ff',
           },
         })
 

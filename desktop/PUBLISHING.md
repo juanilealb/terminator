@@ -1,4 +1,4 @@
-# Publishing Constellagent (Windows)
+# Publishing Terminator (Windows)
 
 ## Local Build
 
@@ -6,7 +6,22 @@
 bun run dist:win
 ```
 
-Output: `dist/Constellagent Setup <version>.exe`
+Output: `dist/Terminator Setup <version>.exe`
+
+Recommended release flow:
+
+1. `bun run build` to validate compile first
+2. `bun run dist:win` to package installer
+3. verify artifact:
+   - `dist/Terminator Setup <version>.exe`
+   - `dist/Terminator Setup <version>.exe.blockmap`
+   - `dist/win-unpacked/Terminator.exe`
+
+If the installed app still looks like an old build:
+
+1. close Terminator completely
+2. run the latest `dist/Terminator Setup <version>.exe`
+3. launch again from the updated install
 
 ## GitHub Actions Release
 

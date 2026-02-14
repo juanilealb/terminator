@@ -21,10 +21,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   confirmDialog: null,
   toasts: [],
   quickOpenVisible: false,
+  commandPaletteVisible: false,
   unreadWorkspaceIds: new Set<string>(),
   activeClaudeWorkspaceIds: new Set<string>(),
   prStatusMap: new Map(),
   ghAvailability: new Map(),
+  previewUrlByWorkspace: {},
 
   addProject: (project) =>
     set((s) => ({ projects: [...s.projects, project] })),
@@ -38,12 +40,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       const removedWsIds = new Set(s.workspaces.filter((w) => w.projectId === id).map((w) => w.id))
       const tabMap = { ...s.lastActiveTabByWorkspace }
+      const previewUrlByWorkspace = { ...s.previewUrlByWorkspace }
       for (const wsId of removedWsIds) delete tabMap[wsId]
+      for (const wsId of removedWsIds) delete previewUrlByWorkspace[wsId]
       return {
         projects: s.projects.filter((p) => p.id !== id),
         workspaces: s.workspaces.filter((w) => w.projectId !== id),
         automations: s.automations.filter((a) => a.projectId !== id),
         lastActiveTabByWorkspace: tabMap,
+        previewUrlByWorkspace,
       }
     }),
 
@@ -60,12 +65,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newUnread = new Set(s.unreadWorkspaceIds)
       newUnread.delete(id)
       const tabMap = { ...s.lastActiveTabByWorkspace }
+      const previewUrlByWorkspace = { ...s.previewUrlByWorkspace }
       delete tabMap[id]
+      delete previewUrlByWorkspace[id]
       return {
         workspaces: newWorkspaces,
         tabs: newTabs,
         unreadWorkspaceIds: newUnread,
         lastActiveTabByWorkspace: tabMap,
+        previewUrlByWorkspace,
         activeWorkspaceId:
           s.activeWorkspaceId === id
             ? newWorkspaces[0]?.id ?? null
@@ -85,6 +93,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateWorkspaceBranch: (id, branch) =>
     set((s) => ({
       workspaces: s.workspaces.map((w) => w.id === id ? { ...w, branch } : w),
+    })),
+
+  updateWorkspaceMemory: (id, memory) =>
+    set((s) => ({
+      workspaces: s.workspaces.map((w) => w.id === id ? { ...w, memory } : w),
     })),
 
   setActiveWorkspace: (id) =>
@@ -157,19 +170,68 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   createTerminalForActiveWorkspace: async () => {
-    const s = get()
-    if (!s.activeWorkspaceId) return
-    const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId)
-    if (!ws) return
+    let s = get()
+    let workspaceId = s.activeWorkspaceId
+    let ws = workspaceId ? s.workspaces.find((w) => w.id === workspaceId) : undefined
+
+    // Quick-start path: if there's no active workspace, ask for a folder and create one.
+    if (!ws) {
+      const dirPath = await window.api.app.selectDirectory()
+      if (!dirPath) return
+
+      const existingWorkspace = s.workspaces.find((w) => w.worktreePath === dirPath)
+      if (existingWorkspace) {
+        workspaceId = existingWorkspace.id
+        get().setActiveWorkspace(workspaceId)
+        ws = existingWorkspace
+      } else {
+        const normalizedPath = dirPath.replace(/\\/g, '/')
+        const pathParts = normalizedPath.split('/').filter(Boolean)
+        const baseName = pathParts[pathParts.length - 1] || 'workspace'
+
+        let branch = ''
+        try {
+          branch = await window.api.git.getCurrentBranch(dirPath)
+        } catch {
+          // Non-git directories are still valid for ad-hoc terminals.
+        }
+
+        let project = s.projects.find((p) => p.repoPath === dirPath)
+        if (!project) {
+          project = {
+            id: crypto.randomUUID(),
+            name: baseName,
+            repoPath: dirPath,
+          }
+          get().addProject(project)
+        }
+
+        const newWorkspace = {
+          id: crypto.randomUUID(),
+          name: `${baseName}-quick`,
+          branch: branch || 'local',
+          worktreePath: dirPath,
+          projectId: project.id,
+          memory: '',
+        }
+        get().addWorkspace(newWorkspace)
+        workspaceId = newWorkspace.id
+        ws = newWorkspace
+      }
+
+      s = get()
+    }
+
+    if (!workspaceId || !ws) return
 
     const shell = s.settings.defaultShell || undefined
     const ptyId = await window.api.pty.create(ws.worktreePath, shell, { AGENT_ORCH_WS_ID: ws.id })
-    const wsTabs = s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId)
+    const wsTabs = s.tabs.filter((t) => t.workspaceId === workspaceId)
     const termCount = wsTabs.filter((t) => t.type === 'terminal').length
 
     get().addTab({
       id: crypto.randomUUID(),
-      workspaceId: s.activeWorkspaceId,
+      workspaceId,
       type: 'terminal',
       title: `Terminal ${termCount + 1}`,
       ptyId,
@@ -311,8 +373,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   focusOrCreateTerminal: async () => {
     const s = get()
-    if (!s.activeWorkspaceId) return
-    const wsTabs = s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId)
+    const wsTabs = s.activeWorkspaceId
+      ? s.tabs.filter((t) => t.workspaceId === s.activeWorkspaceId)
+      : []
     const termTab = wsTabs.find((t) => t.type === 'terminal')
     if (termTab) {
       set({ activeTabId: termTab.id })
@@ -395,6 +458,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleQuickOpen: () => set((s) => ({ quickOpenVisible: !s.quickOpenVisible })),
   closeQuickOpen: () => set({ quickOpenVisible: false }),
+  toggleCommandPalette: () => set((s) => ({ commandPaletteVisible: !s.commandPaletteVisible })),
+  openCommandPalette: () => set({ commandPaletteVisible: true }),
+  closeCommandPalette: () => set({ commandPaletteVisible: false }),
+  setPreviewUrl: (workspaceId, url) =>
+    set((s) => ({
+      previewUrlByWorkspace: {
+        ...s.previewUrlByWorkspace,
+        [workspaceId]: url,
+      },
+    })),
 
   markWorkspaceUnread: (workspaceId) =>
     set((s) => {
@@ -477,6 +550,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTabId,
       lastActiveTabByWorkspace: data.lastActiveTabByWorkspace ?? {},
       settings,
+      previewUrlByWorkspace: data.previewUrlByWorkspace ?? {},
     })
   },
 
@@ -504,6 +578,7 @@ function getPersistedSlice(state: AppState): PersistedState {
     activeTabId: state.activeTabId,
     lastActiveTabByWorkspace: state.lastActiveTabByWorkspace,
     settings: state.settings,
+    previewUrlByWorkspace: state.previewUrlByWorkspace,
   }
 }
 
@@ -525,7 +600,8 @@ useAppStore.subscribe((state, prevState) => {
     state.activeTabId !== prevState.activeTabId ||
     state.automations !== prevState.automations ||
     state.activeWorkspaceId !== prevState.activeWorkspaceId ||
-    state.settings !== prevState.settings
+    state.settings !== prevState.settings ||
+    state.previewUrlByWorkspace !== prevState.previewUrlByWorkspace
   ) {
     debouncedSave(state)
   }

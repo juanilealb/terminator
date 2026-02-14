@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process'
 import { tmpdir } from 'os'
 
 export const isWindows = true
-const DEBUG_PREFIX = '[Constellagent]'
+const DEBUG_PREFIX = '[Terminator]'
 let cachedDebugEnabled: boolean | null = null
 let cachedDefaultShell: string | null = null
 let didLogShellResolution = false
@@ -12,7 +12,7 @@ export function isDebugLoggingEnabled(): boolean {
   cachedDebugEnabled =
     typeof process !== 'undefined'
     && !!process.env
-    && process.env.CONSTELLAGENT_DEBUG === '1'
+    && process.env.TERMINATOR_DEBUG === '1'
   return cachedDebugEnabled
 }
 

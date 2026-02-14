@@ -12,7 +12,7 @@ test('Full visual verification: project + workspace + terminal + file tree + cha
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
   mkdirSync(join(repoPath, 'src'), { recursive: true })
-  writeFileSync(join(repoPath, 'README.md'), '# Constellagent\nA Windows app for running AI agents.\n')
+  writeFileSync(join(repoPath, 'README.md'), '# Terminator\nA Windows app for running AI agents.\n')
   writeFileSync(join(repoPath, 'src/index.ts'), 'console.log("hello world")\n')
   writeFileSync(join(repoPath, 'src/utils.ts'), 'export function add(a: number, b: number) { return a + b }\n')
   writeFileSync(join(repoPath, 'package.json'), '{"name":"test","version":"1.0.0"}\n')
@@ -32,7 +32,7 @@ test('Full visual verification: project + workspace + terminal + file tree + cha
       store.hydrateState({ projects: [], workspaces: [] })
 
       const projectId = crypto.randomUUID()
-      store.addProject({ id: projectId, name: 'constellagent', repoPath: repo })
+      store.addProject({ id: projectId, name: 'terminator', repoPath: repo })
 
       const wt = await (window as any).api.git.createWorktree(repo, 'feature-auth', 'feature/auth', true)
       const wsId = crypto.randomUUID()
@@ -60,7 +60,7 @@ test('Full visual verification: project + workspace + terminal + file tree + cha
     })
     if (worktreePath) {
       const realWt = realpathSync(worktreePath as string)
-      writeFileSync(join(realWt, 'README.md'), '# Constellagent\nModified for testing.\n\nNew features added.\n')
+      writeFileSync(join(realWt, 'README.md'), '# Terminator\nModified for testing.\n\nNew features added.\n')
       writeFileSync(join(realWt, 'src/index.ts'), 'console.log("updated")\nimport { add } from "./utils"\n')
     }
 

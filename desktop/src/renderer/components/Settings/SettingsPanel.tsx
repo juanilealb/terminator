@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP, type ShortcutBinding } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
-import type { Settings } from '../../store/types'
+import type { PromptTemplate, Settings } from '../../store/types'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './SettingsPanel.module.css'
 
 const SHORTCUTS: Array<{ action: string; binding: ShortcutBinding }> = [
   { action: 'Quick open file', binding: SHORTCUT_MAP.quickOpenFile },
+  { action: 'Command palette', binding: SHORTCUT_MAP.commandPalette },
   { action: 'New terminal', binding: SHORTCUT_MAP.newTerminal },
   { action: 'Close tab', binding: SHORTCUT_MAP.closeTab },
   { action: 'Close all tabs', binding: SHORTCUT_MAP.closeAllTabs },
@@ -21,6 +22,8 @@ const SHORTCUTS: Array<{ action: string; binding: ShortcutBinding }> = [
   { action: 'Toggle right panel', binding: SHORTCUT_MAP.toggleRightPanel },
   { action: 'Files panel', binding: SHORTCUT_MAP.filesPanel },
   { action: 'Changes panel', binding: SHORTCUT_MAP.changesPanel },
+  { action: 'Memory panel', binding: SHORTCUT_MAP.memoryPanel },
+  { action: 'Preview panel', binding: SHORTCUT_MAP.previewPanel },
   { action: 'Focus terminal', binding: SHORTCUT_MAP.focusTerminal },
   { action: 'Increase font size', binding: SHORTCUT_MAP.increaseFontSize },
   { action: 'Decrease font size', binding: SHORTCUT_MAP.decreaseFontSize },
@@ -130,6 +133,36 @@ function SelectRow({ label, description, value, onChange, options }: {
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
+    </div>
+  )
+}
+
+function TemplateEditorRow({
+  template,
+  onChange,
+  onDelete,
+}: {
+  template: PromptTemplate
+  onChange: (partial: Partial<PromptTemplate>) => void
+  onDelete: () => void
+}) {
+  return (
+    <div className={styles.templateCard}>
+      <div className={styles.templateCardHeader}>
+        <input
+          className={styles.templateNameInput}
+          value={template.name}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder="Template name"
+        />
+        <button className={styles.templateDeleteBtn} onClick={onDelete}>Delete</button>
+      </div>
+      <textarea
+        className={styles.templateContentInput}
+        value={template.content}
+        onChange={(e) => onChange({ content: e.target.value })}
+        placeholder="Template text. Mentions: @workspace @branch @path @memory @file:README.md"
+      />
     </div>
   )
 }
@@ -267,6 +300,27 @@ export function SettingsPanel() {
     updateSettings({ [key]: value })
   }
 
+  const updateTemplate = (id: string, partial: Partial<PromptTemplate>) => {
+    update('promptTemplates', settings.promptTemplates.map((template) =>
+      template.id === id ? { ...template, ...partial } : template
+    ))
+  }
+
+  const addTemplate = () => {
+    update('promptTemplates', [
+      ...settings.promptTemplates,
+      {
+        id: crypto.randomUUID(),
+        name: 'New template',
+        content: '',
+      },
+    ])
+  }
+
+  const removeTemplate = (id: string) => {
+    update('promptTemplates', settings.promptTemplates.filter((template) => template.id !== id))
+  }
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') toggleSettings()
@@ -367,6 +421,23 @@ export function SettingsPanel() {
             <div className={styles.sectionTitle}>Agent Integrations</div>
             <ClaudeHooksSection />
             <CodexNotifySection />
+          </div>
+
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Prompt templates</div>
+            <div className={styles.templateHelp}>
+              Reusable prompts for command palette and workspace memory. Mentions:
+              <code>@workspace</code>, <code>@branch</code>, <code>@path</code>, <code>@memory</code>, <code>@file:&lt;relative-path&gt;</code>.
+            </div>
+            {settings.promptTemplates.map((template) => (
+              <TemplateEditorRow
+                key={template.id}
+                template={template}
+                onChange={(partial) => updateTemplate(template.id, partial)}
+                onDelete={() => removeTemplate(template.id)}
+              />
+            ))}
+            <button className={styles.templateAddBtn} onClick={addTemplate}>Add template</button>
           </div>
 
           <div className={styles.section}>

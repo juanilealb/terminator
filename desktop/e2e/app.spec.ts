@@ -30,7 +30,7 @@ test('Phase 1: app launches with 3-panel layout', async () => {
 
   // Check welcome message renders
   const welcomeText = await window.locator('[class*="welcomeLogo"]').textContent()
-  expect(welcomeText).toContain('constellagent')
+  expect(welcomeText).toContain('terminator')
 
   await app.close()
 })

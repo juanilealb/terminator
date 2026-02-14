@@ -322,3 +322,97 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
 }
+
+.templateHelp {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.templateHelp code {
+  margin: 0 2px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.templateCard {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: rgba(20, 16, 24, 0.6);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.templateCardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.templateNameInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-0);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.templateNameInput:focus {
+  border-color: var(--accent-blue);
+}
+
+.templateContentInput {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-0);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  outline: none;
+}
+
+.templateContentInput:focus {
+  border-color: var(--accent-blue);
+}
+
+.templateDeleteBtn {
+  border: 1px solid var(--accent-red);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-red);
+  font-size: var(--text-xs);
+  padding: 6px var(--space-2);
+  cursor: pointer;
+}
+
+.templateDeleteBtn:hover {
+  background: rgba(255, 111, 120, 0.12);
+}
+
+.templateAddBtn {
+  align-self: flex-start;
+  border: 1px solid var(--accent-green);
+  border-radius: var(--radius-sm);
+  background: rgba(72, 209, 138, 0.12);
+  color: var(--accent-green);
+  font-size: var(--text-xs);
+  padding: 7px var(--space-3);
+  cursor: pointer;
+}
+
+.templateAddBtn:hover {
+  background: rgba(72, 209, 138, 0.18);
+}

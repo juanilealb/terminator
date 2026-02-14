@@ -40,7 +40,7 @@ async function runGitOperation<T>(
   try {
     return await op()
   } catch (error) {
-    console.error('[Constellagent] Git operation failed', {
+    console.error('[Terminator] Git operation failed', {
       operation,
       ...context,
       error: serializeError(error),
@@ -144,6 +144,30 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.GIT_GET_DEFAULT_BRANCH, async (_e, repoPath: string) => {
     return runGitOperation('get-default-branch', { repoPath }, () =>
       GitService.getDefaultBranch(repoPath),
+    )
+  })
+
+  ipcMain.handle(IPC.GIT_CREATE_SNAPSHOT, async (_e, worktreePath: string, label?: string) => {
+    return runGitOperation('create-snapshot', { worktreePath, label }, () =>
+      GitService.createSnapshot(worktreePath, label),
+    )
+  })
+
+  ipcMain.handle(IPC.GIT_LIST_SNAPSHOTS, async (_e, worktreePath: string) => {
+    return runGitOperation('list-snapshots', { worktreePath }, () =>
+      GitService.listSnapshots(worktreePath),
+    )
+  })
+
+  ipcMain.handle(IPC.GIT_RESTORE_SNAPSHOT, async (_e, worktreePath: string, ref: string) => {
+    return runGitOperation('restore-snapshot', { worktreePath, ref }, () =>
+      GitService.restoreSnapshot(worktreePath, ref),
+    )
+  })
+
+  ipcMain.handle(IPC.GIT_DROP_SNAPSHOT, async (_e, worktreePath: string, ref: string) => {
+    return runGitOperation('drop-snapshot', { worktreePath, ref }, () =>
+      GitService.dropSnapshot(worktreePath, ref),
     )
   })
 
@@ -590,14 +614,14 @@ export function registerIpcHandlers(): void {
     const img = clipboard.readImage()
     if (img.isEmpty()) return null
     const buf = img.toPNG()
-    const filePath = join(tmpdir(), `constellagent-paste-${Date.now()}.png`)
+    const filePath = join(tmpdir(), `terminator-paste-${Date.now()}.png`)
     await writeFile(filePath, buf)
     return filePath
   })
 
   // ── State persistence handlers ──
   const stateFilePath = () =>
-    join(app.getPath('userData'), 'constellagent-state.json')
+    join(app.getPath('userData'), 'terminator-state.json')
 
   ipcMain.handle(IPC.STATE_SAVE, async (_e, data: unknown) => {
     await mkdir(app.getPath('userData'), { recursive: true })

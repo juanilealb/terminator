@@ -31,6 +31,7 @@ export interface Workspace {
   worktreePath: string
   projectId: string
   automationId?: string
+  memory?: string
 }
 
 export type Tab = {
@@ -42,9 +43,15 @@ export type Tab = {
   | { type: 'diff' }
 )
 
-export type RightPanelMode = 'files' | 'changes'
+export type RightPanelMode = 'files' | 'changes' | 'memory' | 'preview'
 
 export type PrLinkProvider = 'github' | 'graphite' | 'devinreview'
+
+export interface PromptTemplate {
+  id: string
+  name: string
+  content: string
+}
 
 export interface Settings {
   confirmOnClose: boolean
@@ -55,6 +62,7 @@ export interface Settings {
   terminalFontSize: number
   editorFontSize: number
   prLinkProvider: PrLinkProvider
+  promptTemplates: PromptTemplate[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -66,6 +74,18 @@ export const DEFAULT_SETTINGS: Settings = {
   terminalFontSize: 14,
   editorFontSize: 13,
   prLinkProvider: 'github',
+  promptTemplates: [
+    {
+      id: 'template-plan',
+      name: 'Plan',
+      content: 'Create a practical implementation plan for @workspace on branch @branch. Constraints: keep changes incremental and test after each step.',
+    },
+    {
+      id: 'template-review',
+      name: 'Review',
+      content: 'Review current changes in @workspace for regressions, risky assumptions, and missing tests. Summarize findings by severity.',
+    },
+  ],
 }
 
 export interface Toast {
@@ -102,10 +122,12 @@ export interface AppState {
   confirmDialog: ConfirmDialogState | null
   toasts: Toast[]
   quickOpenVisible: boolean
+  commandPaletteVisible: boolean
   unreadWorkspaceIds: Set<string>
   activeClaudeWorkspaceIds: Set<string>
   prStatusMap: Map<string, PrInfo | null>
   ghAvailability: Map<string, boolean>
+  previewUrlByWorkspace: Record<string, string>
 
   // Actions
   addProject: (project: Project) => void
@@ -135,6 +157,7 @@ export interface AppState {
   openWorkspaceDialog: (projectId: string | null) => void
   renameWorkspace: (id: string, name: string) => void
   updateWorkspaceBranch: (id: string, branch: string) => void
+  updateWorkspaceMemory: (id: string, memory: string) => void
   deleteWorkspace: (workspaceId: string) => Promise<void>
   updateProject: (id: string, partial: Partial<Omit<Project, 'id'>>) => void
   deleteProject: (projectId: string) => Promise<void>
@@ -147,6 +170,10 @@ export interface AppState {
   dismissToast: (id: string) => void
   toggleQuickOpen: () => void
   closeQuickOpen: () => void
+  toggleCommandPalette: () => void
+  openCommandPalette: () => void
+  closeCommandPalette: () => void
+  setPreviewUrl: (workspaceId: string, url: string) => void
 
   // Unread indicator actions
   markWorkspaceUnread: (workspaceId: string) => void
@@ -181,4 +208,5 @@ export interface PersistedState {
   activeTabId?: string | null
   lastActiveTabByWorkspace?: Record<string, string>
   settings?: Settings
+  previewUrlByWorkspace?: Record<string, string>
 }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import { Allotment } from 'allotment'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
@@ -13,6 +13,7 @@ import { RightPanel } from './components/RightPanel/RightPanel'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { AutomationsPanel } from './components/Automations/AutomationsPanel'
 import { QuickOpen } from './components/QuickOpen/QuickOpen'
+import { CommandPalette } from './components/CommandPalette/CommandPalette'
 import { ToastContainer } from './components/Toast/Toast'
 import { useShortcuts } from './hooks/useShortcuts'
 import { usePrStatusPoller } from './hooks/usePrStatusPoller'
@@ -65,17 +66,27 @@ export function App() {
     settingsOpen,
     automationsOpen,
     quickOpenVisible,
+    commandPaletteVisible,
+    activeClaudeWorkspaceIds,
   } = useAppStore()
 
   const wsTabs = activeWorkspaceTabs()
   const activeTab = wsTabs.find((t) => t.id === activeTabId)
   const workspace = workspaces.find((w) => w.id === activeWorkspaceId)
+  const activeAgents = activeClaudeWorkspaceIds.size
+  const isWindows = navigator.userAgent.toLowerCase().includes('windows')
+  const windowControlsWidth = isWindows ? '138px' : '0px'
+  const appStyle = {
+    '--window-controls-width': windowControlsWidth,
+    '--window-controls-width-tabbar': rightPanelOpen ? '0px' : windowControlsWidth,
+    '--window-controls-width-right-panel': rightPanelOpen ? windowControlsWidth : '0px',
+  } as CSSProperties
 
   // All terminal tabs across every workspace — kept alive to preserve PTY state
   const allTerminals = allTabs.filter((t): t is Extract<typeof t, { type: 'terminal' }> => t.type === 'terminal')
 
   return (
-    <div className={styles.app}>
+    <div className={styles.app} style={appStyle}>
       <div className={styles.layout}>
         {settingsOpen ? (
           <SettingsPanel />
@@ -85,7 +96,7 @@ export function App() {
           <Allotment>
             {/* Sidebar */}
             {!sidebarCollapsed && (
-              <Allotment.Pane minSize={160} maxSize={400} preferredSize={220}>
+              <Allotment.Pane minSize={180} maxSize={420} preferredSize={240}>
                 <Sidebar />
               </Allotment.Pane>
             )}
@@ -107,11 +118,11 @@ export function App() {
 
                   {!activeTab ? (
                     <div className={styles.welcome}>
-                      <div className={styles.welcomeLogo}>constellagent</div>
+                      <div className={styles.welcomeLogo}>terminator</div>
                       <div className={styles.welcomeHint}>
                         Add a project to get started, or press
                         <span className={styles.welcomeShortcut}>
-                          {formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}
+                          <kbd>{formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}</kbd>
                         </span>
                         for a new terminal
                       </div>
@@ -151,9 +162,35 @@ export function App() {
           </Allotment>
         )}
       </div>
+      <div className={styles.statusBar}>
+        <div className={styles.statusGroup}>
+          <div className={styles.statusItem}>
+            <span className={`${styles.dot} ${styles.dotConnected}`} />
+            <span>Workspace</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span>{workspace ? workspace.name : 'No workspace selected'}</span>
+          </div>
+          {workspace?.branch && (
+            <div className={styles.statusItem}>
+              <span>{workspace.branch}</span>
+            </div>
+          )}
+        </div>
+        <div className={styles.statusGroup}>
+          <div className={styles.statusItem}>
+            <span>{wsTabs.length} tabs</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span className={`${styles.dot} ${activeAgents > 0 ? styles.dotConnected : styles.dotIdle}`} />
+            <span>{activeAgents > 0 ? `${activeAgents} agents running` : 'Agents idle'}</span>
+          </div>
+        </div>
+      </div>
       {quickOpenVisible && workspace && (
         <QuickOpen worktreePath={workspace.worktreePath} />
       )}
+      {commandPaletteVisible && <CommandPalette />}
       <ToastContainer />
     </div>
   )

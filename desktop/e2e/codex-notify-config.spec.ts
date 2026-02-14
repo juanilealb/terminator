@@ -18,7 +18,7 @@ async function launchAppWithHome(homeDir: string): Promise<{ app: ElectronApplic
 
 test.describe('Codex notify config', () => {
   test('installs top-level notify entry (not nested under table) and uninstalls cleanly', async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'constellagent-codex-home-'))
+    const homeDir = mkdtempSync(join(tmpdir(), 'terminator-codex-home-'))
     const codexDir = join(homeDir, '.codex')
     const configPath = join(codexDir, 'config.toml')
     mkdirSync(codexDir, { recursive: true })

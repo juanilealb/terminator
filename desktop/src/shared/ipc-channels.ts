@@ -16,6 +16,10 @@ export const IPC = {
   GIT_COMMIT: 'git:commit',
   GIT_GET_CURRENT_BRANCH: 'git:get-current-branch',
   GIT_GET_DEFAULT_BRANCH: 'git:get-default-branch',
+  GIT_CREATE_SNAPSHOT: 'git:create-snapshot',
+  GIT_LIST_SNAPSHOTS: 'git:list-snapshots',
+  GIT_RESTORE_SNAPSHOT: 'git:restore-snapshot',
+  GIT_DROP_SNAPSHOT: 'git:drop-snapshot',
 
   // PTY operations
   PTY_CREATE: 'pty:create',

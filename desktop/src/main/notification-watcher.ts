@@ -4,8 +4,8 @@ import { BrowserWindow } from 'electron'
 import { IPC } from '../shared/ipc-channels'
 import { debugLog, getTempDir } from '@shared/platform'
 
-const NOTIFY_DIR = join(getTempDir(), 'constellagent-notify')
-const ACTIVITY_DIR = join(getTempDir(), 'constellagent-activity')
+const NOTIFY_DIR = join(getTempDir(), 'terminator-notify')
+const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const POLL_INTERVAL = 500
 const CLAUDE_MARKER_SUFFIX = '.claude'
 const CODEX_MARKER_SEGMENT = '.codex.'

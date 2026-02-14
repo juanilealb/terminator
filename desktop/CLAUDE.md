@@ -39,7 +39,7 @@ Single Zustand store (`app-store.ts`) with this shape:
 - `projects` → `workspaces` → `tabs` (hierarchical ownership)
 - Tab types: `terminal` (has ptyId), `file` (has filePath), `diff`
 - UI state: activeWorkspaceId, activeTabId, panel visibility, settings
-- Auto-persists to disk via debounced IPC (500ms) to `~/.userData/constellagent-state.json`
+- Auto-persists to disk via debounced IPC (500ms) to `~/.userData/terminator-state.json`
 - Exposed as `window.__store` in dev for e2e testing
 
 ## Key Patterns

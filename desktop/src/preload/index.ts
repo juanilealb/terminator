@@ -37,6 +37,22 @@ const api = {
       ipcRenderer.invoke(IPC.GIT_GET_CURRENT_BRANCH, worktreePath) as Promise<string>,
     getDefaultBranch: (repoPath: string) =>
       ipcRenderer.invoke(IPC.GIT_GET_DEFAULT_BRANCH, repoPath) as Promise<string>,
+    createSnapshot: (worktreePath: string, label?: string) =>
+      ipcRenderer.invoke(IPC.GIT_CREATE_SNAPSHOT, worktreePath, label) as Promise<{
+        ref: string
+        label: string
+        createdAt: number
+      } | null>,
+    listSnapshots: (worktreePath: string) =>
+      ipcRenderer.invoke(IPC.GIT_LIST_SNAPSHOTS, worktreePath) as Promise<Array<{
+        ref: string
+        label: string
+        createdAt: number
+      }>>,
+    restoreSnapshot: (worktreePath: string, ref: string) =>
+      ipcRenderer.invoke(IPC.GIT_RESTORE_SNAPSHOT, worktreePath, ref),
+    dropSnapshot: (worktreePath: string, ref: string) =>
+      ipcRenderer.invoke(IPC.GIT_DROP_SNAPSHOT, worktreePath, ref),
   },
 
   pty: {

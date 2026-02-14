@@ -7,8 +7,8 @@ import { tmpdir } from 'os'
 const appPath = resolve(__dirname, '../out/main/index.js')
 const FAKE_CODEX_BIN = join(tmpdir(), 'codex.exe')
 const TEST_TERMINAL = 'pwsh.exe'
-const NOTIFY_DIR = join(tmpdir(), 'constellagent-notify')
-const ACTIVITY_DIR = join(tmpdir(), 'constellagent-activity')
+const NOTIFY_DIR = join(tmpdir(), 'terminator-notify')
+const ACTIVITY_DIR = join(tmpdir(), 'terminator-activity')
 
 function psQuote(value: string): string {
   return `'${value.replace(/'/g, "''")}'`

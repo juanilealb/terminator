@@ -1,5 +1,5 @@
 {
-  "name": "constellagent-root",
+  "name": "terminator-root",
   "private": true,
   "scripts": {
     "postinstall": "bun install --cwd desktop",

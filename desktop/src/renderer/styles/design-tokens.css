@@ -1,73 +1,90 @@
 /*
- * Constellagent design tokens
- * Conductor-like high-contrast workspace for Windows.
+ * Terminator design tokens
+ * Conductor-inspired dark workspace for Windows.
  */
 
 :root {
-  /* Global surfaces */
-  --surface-0: #101116;
-  --surface-1: #141822;
-  --surface-2: #1c232d;
-  --surface-3: #26303c;
-  --surface-4: #334253;
-
-  /* Panel-specific surfaces for stronger layout contrast */
-  --surface-sidebar: #2a2e34;
-  --surface-center: #151116;
-  --surface-right: #171219;
+  /* Core palette */
+  --bg-app: #121013;
+  --bg-sidebar: #2a2428;
+  --bg-panel: #151218;
+  --bg-surface: #211b21;
+  --bg-surface-hover: #2b232b;
+  --bg-surface-active: #332936;
+  --bg-elevated: #19151b;
+  --bg-input: #16131a;
+  --bg-overlay: #1f1a20;
 
   /* Borders */
-  --border-subtle: #242a35;
-  --border-default: #334051;
-  --border-strong: #4a5e73;
-  --border-accent: #58a4f5;
+  --border-default: #3f3340;
+  --border-muted: #2e2630;
+  --border-emphasis: #544458;
 
   /* Text */
-  --text-primary: #ebeff5;
-  --text-secondary: #bcc6d3;
-  --text-tertiary: #8f9daf;
-  --text-ghost: #5f6c7e;
-  --text-inverse: #0a0f15;
+  --text-primary: #f4edf7;
+  --text-secondary: #b8adb8;
+  --text-tertiary: #7f7380;
+  --text-link: #73c8ff;
 
   /* Accents */
-  --accent-blue: #58a4f5;
-  --accent-blue-dim: #336ca8;
-  --accent-blue-glow: rgba(88, 164, 245, 0.18);
-  --accent-cyan: #5dd7ca;
-  --accent-purple: #b6a4ff;
-  --accent-green: #6ed992;
-  --accent-green-muted: #53ae76;
-  --accent-green-dim: rgba(110, 217, 146, 0.16);
-  --accent-red: #f0727a;
-  --accent-red-dim: rgba(240, 114, 122, 0.16);
-  --accent-orange: #f2b469;
-  --accent-orange-dim: rgba(242, 180, 105, 0.16);
-  --accent-yellow: #e8d27a;
+  --accent-blue: #58abff;
+  --accent-blue-dim: #3e8cd6;
+  --accent-green: #48d18a;
+  --accent-green-muted: #31a96d;
+  --accent-red: #ff6f78;
+  --accent-yellow: #e3b56a;
+  --accent-purple: #c8a1ff;
+  --accent-orange: #f39b62;
+  --accent-cyan: #63d4d9;
+
+  --glow-blue: rgba(88, 171, 255, 0.19);
+  --glow-green: rgba(72, 209, 138, 0.2);
+  --glow-red: rgba(255, 111, 120, 0.2);
+
+  --accent-blue-glow: var(--glow-blue);
+  --accent-green-dim: var(--glow-green);
+  --accent-red-dim: var(--glow-red);
 
   /* Terminal */
-  --term-bg: #0b0f13;
-  --term-fg: #d7dfeb;
-  --term-cursor: #d7dfeb;
-  --term-selection: rgba(88, 164, 245, 0.24);
-  --term-black: #121820;
-  --term-red: #f0727a;
-  --term-green: #6ed992;
-  --term-yellow: #f2b469;
-  --term-blue: #58a4f5;
-  --term-magenta: #b6a4ff;
-  --term-cyan: #5dd7ca;
-  --term-white: #c9d3e0;
+  --term-bg: #140f16;
+  --term-fg: #f0eaf4;
+  --term-cursor: #63d4d9;
+  --term-selection: rgba(99, 212, 217, 0.3);
+  --term-black: #140f16;
+  --term-red: #ff6f78;
+  --term-green: #48d18a;
+  --term-yellow: #e3b56a;
+  --term-blue: #58abff;
+  --term-magenta: #c8a1ff;
+  --term-cyan: #63d4d9;
+  --term-white: #f0eaf4;
+  --term-bright-black: #87798d;
+  --term-bright-red: #ff8f96;
+  --term-bright-green: #75dfaa;
+  --term-bright-yellow: #efcb90;
+  --term-bright-blue: #82c2ff;
+  --term-bright-magenta: #d9bcff;
+  --term-bright-cyan: #8be5e8;
+  --term-bright-white: #fff8ff;
 
   /* Typography */
-  --font-mono: 'Cascadia Code', 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace;
-  --font-ui: 'Segoe UI Variable Text', 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Geist Sans', 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+  --font-ui: var(--font-sans);
 
-  --text-xs: 10px;
-  --text-sm: 11px;
-  --text-base: 12px;
-  --text-md: 13px;
-  --text-lg: 14px;
-  --text-xl: 16px;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  /* Compatibility aliases */
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-md: var(--font-size-md);
+  --text-lg: var(--font-size-lg);
 
   --leading-tight: 1.3;
   --leading-normal: 1.5;
@@ -79,39 +96,57 @@
 
   /* Spacing */
   --space-0: 0px;
-  --space-1: 2px;
-  --space-2: 4px;
-  --space-3: 6px;
-  --space-4: 8px;
-  --space-5: 10px;
-  --space-6: 12px;
-  --space-8: 16px;
-  --space-10: 20px;
-  --space-12: 24px;
-  --space-16: 32px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
 
   /* Radius */
-  --radius-sm: 3px;
-  --radius-md: 5px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
-  --radius-full: 100px;
+  --radius-full: 999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.34);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.56);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   /* Motion */
-  --transition-fast: 80ms ease;
-  --transition-default: 150ms ease;
-  --transition-slow: 250ms ease;
+  --transition-fast: 150ms ease;
+  --transition-default: 200ms ease;
+  --transition-slow: 280ms ease;
 
   /* Layout */
-  --sidebar-width: 220px;
+  --sidebar-width: 240px;
   --right-panel-width: 280px;
-  --tab-height: 35px;
+  --tab-height: 36px;
   --titlebar-height: 38px;
-  --status-bar-height: 22px;
+  --status-bar-height: 24px;
+  --window-controls-width: 0px;
+  --window-controls-width-tabbar: 0px;
+  --window-controls-width-right-panel: 0px;
+
+  /* Legacy panel aliases */
+  --surface-0: var(--bg-app);
+  --surface-1: var(--bg-surface);
+  --surface-2: var(--bg-surface-hover);
+  --surface-3: var(--bg-surface-active);
+  --surface-4: #39414c;
+  --surface-sidebar: var(--bg-sidebar);
+  --surface-center: var(--bg-panel);
+  --surface-right: var(--bg-panel);
+
+  --border-subtle: var(--border-muted);
+  --border-strong: var(--border-emphasis);
+
+  --text-ghost: #6e7681;
 }
