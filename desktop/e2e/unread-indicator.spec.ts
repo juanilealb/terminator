@@ -57,8 +57,9 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
 /** Set up the IPC listener from the test context (mirrors what App.tsx useEffect does) */
 async function setupNotifyListener(window: Page) {
   await window.evaluate(() => {
-    ;(window as any).api.claude.onNotifyWorkspace((wsId: string) => {
+    ;(window as any).api.claude.onNotifyWorkspace((event: { workspaceId: string }) => {
       const state = (window as any).__store.getState()
+      const wsId = event.workspaceId
       if (wsId !== state.activeWorkspaceId) {
         state.markWorkspaceUnread(wsId)
       }

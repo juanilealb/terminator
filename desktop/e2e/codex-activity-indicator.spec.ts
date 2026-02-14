@@ -26,19 +26,26 @@ function spawnFakeCodexCommand(fakeCodexPath: string): string {
 
 function notifyAndClearCodexCommand(workspaceId: string): string {
   const activityPattern = join(ACTIVITY_DIR, `${workspaceId}.codex.*`)
+  const waitingPattern = join(ACTIVITY_DIR, `${workspaceId}.codex-wait.*`)
   return [
     `$notifyDir = ${psQuote(NOTIFY_DIR)}`,
     'New-Item -ItemType Directory -Path $notifyDir -Force | Out-Null',
     '$notifyFile = Join-Path $notifyDir ("test-" + [guid]::NewGuid().ToString())',
     `Set-Content -Path $notifyFile -Value ${psQuote(workspaceId)} -NoNewline`,
     `Remove-Item -Path ${psQuote(activityPattern)} -Force -ErrorAction SilentlyContinue`,
+    `Remove-Item -Path ${psQuote(waitingPattern)} -Force -ErrorAction SilentlyContinue`,
     '',
   ].join('; ') + '\n'
 }
 
 function clearCodexActivityCommand(workspaceId: string): string {
   const activityPattern = join(ACTIVITY_DIR, `${workspaceId}.codex.*`)
-  return `Remove-Item -Path ${psQuote(activityPattern)} -Force -ErrorAction SilentlyContinue\n`
+  const waitingPattern = join(ACTIVITY_DIR, `${workspaceId}.codex-wait.*`)
+  return [
+    `Remove-Item -Path ${psQuote(activityPattern)} -Force -ErrorAction SilentlyContinue`,
+    `Remove-Item -Path ${psQuote(waitingPattern)} -Force -ErrorAction SilentlyContinue`,
+    '',
+  ].join('\n')
 }
 
 function markCodexActivityCommand(workspaceId: string): string {
@@ -375,6 +382,11 @@ test.describe('Codex activity indicator', () => {
       // The question prompt should stop activity and mark unread before process exit.
       await window.waitForFunction(
         (wsId: string) => !(window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
+        workspaceId1,
+        { timeout: 7000 }
+      )
+      await window.waitForFunction(
+        (wsId: string) => (window as any).__store.getState().waitingClaudeWorkspaceIds.has(wsId),
         workspaceId1,
         { timeout: 7000 }
       )
