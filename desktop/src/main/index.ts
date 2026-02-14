@@ -7,6 +7,7 @@ import {
   shell,
   systemPreferences,
   type BrowserWindowConstructorOptions,
+  type TitleBarOverlay,
 } from 'electron'
 import { statSync } from 'fs'
 import { isAbsolute, join, resolve } from 'path'
@@ -144,7 +145,7 @@ function getThemePayload(): ThemeChangedPayload {
   }
 }
 
-function getTitleBarOverlay(dark: boolean): Exclude<BrowserWindowConstructorOptions['titleBarOverlay'], false> {
+function getTitleBarOverlay(dark: boolean): TitleBarOverlay {
   return {
     color: dark ? '#121013' : '#f3f5f7',
     symbolColor: dark ? '#f4edf7' : '#1b1e24',
