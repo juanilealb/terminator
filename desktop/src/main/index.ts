@@ -12,10 +12,12 @@ import { debugLog, resolveDefaultShell } from '@shared/platform'
 import { CREATE_WORKTREE_STAGES, type CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 import { registerIpcHandlers } from './ipc'
 import { NotificationWatcher } from './notification-watcher'
+import { loadWindowState, saveWindowState } from './window-state'
 
 let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
 let unreadWorkspaceCount = 0
+let windowStateTimer: ReturnType<typeof setTimeout> | null = null
 
 function setMainWindowProgress(progress: CreateWorktreeProgressEvent): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -57,11 +59,22 @@ function syncUnreadOverlay(): void {
   )
 }
 
+function scheduleWindowStateSave(): void {
+  if (windowStateTimer) clearTimeout(windowStateTimer)
+  windowStateTimer = setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    saveWindowState(mainWindow)
+  }, 200)
+}
+
 function createWindow(): void {
   const isWindows = process.platform === 'win32'
+  const initialWindowState = loadWindowState()
   const windowOptions: BrowserWindowConstructorOptions = {
-    width: 1400,
-    height: 900,
+    x: initialWindowState.bounds?.x,
+    y: initialWindowState.bounds?.y,
+    width: initialWindowState.bounds?.width ?? 1400,
+    height: initialWindowState.bounds?.height ?? 900,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#121013',
@@ -88,12 +101,21 @@ function createWindow(): void {
   mainWindow.removeMenu()
   mainWindow.setMenuBarVisibility(false)
   syncUnreadOverlay()
+  mainWindow.on('move', scheduleWindowStateSave)
+  mainWindow.on('resize', scheduleWindowStateSave)
+  mainWindow.on('maximize', scheduleWindowStateSave)
+  mainWindow.on('unmaximize', scheduleWindowStateSave)
 
   // Show window when ready to avoid white flash (skip in tests)
   if (!process.env.CI_TEST) {
     mainWindow.on('ready-to-show', () => {
       mainWindow?.show()
+      if (initialWindowState.isMaximized) {
+        mainWindow?.maximize()
+      }
     })
+  } else if (initialWindowState.isMaximized) {
+    mainWindow.maximize()
   }
 
   // Open external links in browser
@@ -159,5 +181,12 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  if (windowStateTimer) {
+    clearTimeout(windowStateTimer)
+    windowStateTimer = null
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    saveWindowState(mainWindow)
+  }
   notificationWatcher.stop()
 })
