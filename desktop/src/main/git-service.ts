@@ -811,6 +811,7 @@ export class GitService {
     if (!source) {
       throw new Error('Source branch is required')
     }
+    const startingBranch = (await git(['branch', '--show-current'], repoPath)).trim()
 
     const defaultRef = await GitService.getDefaultBranch(repoPath)
     const mainBranch = defaultRef.startsWith('origin/') ? defaultRef.slice('origin/'.length) : defaultRef
@@ -835,6 +836,11 @@ export class GitService {
       await git(['push', 'origin', mainBranch], repoPath)
     } catch (err) {
       await git(['merge', '--abort'], repoPath).catch(() => {})
+      await git(['checkout', source], repoPath).catch(async () => {
+        if (startingBranch && startingBranch !== source) {
+          await git(['checkout', startingBranch], repoPath).catch(() => {})
+        }
+      })
       throw new Error(friendlyGitError(err, 'Failed to merge source branch into main'))
     }
 
