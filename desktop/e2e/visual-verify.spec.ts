@@ -8,7 +8,9 @@ const appPath = resolve(__dirname, '../out/main/index.js')
 
 test('Full visual verification: project + workspace + terminal + file tree + changes', async () => {
   // Create test repo
-  const repoPath = join(tmpdir(), `visual-verify-${Date.now()}`)
+  const stamp = `visual-verify-${Date.now()}`
+  const repoPath = join(tmpdir(), stamp)
+  const remotePath = join(tmpdir(), `${stamp}-remote.git`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
@@ -19,6 +21,9 @@ test('Full visual verification: project + workspace + terminal + file tree + cha
   writeFileSync(join(repoPath, 'package.json'), '{"name":"test","version":"1.0.0"}\n')
   execSync('git add .', { cwd: repoPath })
   execSync('git commit -m "initial commit"', { cwd: repoPath })
+  execSync(`git init --bare "${remotePath}"`)
+  execSync(`git remote add origin "${remotePath}"`, { cwd: repoPath })
+  execSync('git -c core.hooksPath=/dev/null push -u origin main', { cwd: repoPath })
 
   const app = await electron.launch({ args: [appPath], env: { ...process.env, CI_TEST: '1' } })
   const window = await app.firstWindow()

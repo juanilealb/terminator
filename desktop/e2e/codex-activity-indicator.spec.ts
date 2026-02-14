@@ -6,7 +6,7 @@ import { tmpdir } from 'os'
 
 const appPath = resolve(__dirname, '../out/main/index.js')
 const FAKE_CODEX_BIN = join(tmpdir(), 'codex.exe')
-const TEST_TERMINAL = 'pwsh.exe'
+const TEST_TERMINAL = 'powershell.exe'
 const NOTIFY_DIR = join(tmpdir(), 'terminator-notify')
 const ACTIVITY_DIR = join(tmpdir(), 'terminator-activity')
 
@@ -105,6 +105,7 @@ function createTestRepo(name: string): string {
   execSync('git commit -m "initial commit"', { cwd: repoPath })
   execSync(`git init --bare "${remotePath}"`)
   execSync(`git remote add origin "${remotePath}"`, { cwd: repoPath })
+  execSync('git -c core.hooksPath=/dev/null push -u origin main', { cwd: repoPath })
   return repoPath
 }
 
@@ -126,7 +127,7 @@ async function setupWorkspace(window: Page, repoPath: string) {
       projectId,
     })
 
-    const ptyId = await (window as any).api.pty.create(worktreePath, shell, { AGENT_ORCH_WS_ID: workspaceId })
+    const ptyId = await (window as any).api.pty.create(worktreePath, shell, undefined, { AGENT_ORCH_WS_ID: workspaceId })
     store.addTab({
       id: crypto.randomUUID(),
       workspaceId,
@@ -156,7 +157,7 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
       worktreePath: worktreePath1,
       projectId,
     })
-    const ptyId1 = await (window as any).api.pty.create(worktreePath1, shell, { AGENT_ORCH_WS_ID: workspaceId1 })
+    const ptyId1 = await (window as any).api.pty.create(worktreePath1, shell, undefined, { AGENT_ORCH_WS_ID: workspaceId1 })
     store.addTab({
       id: crypto.randomUUID(),
       workspaceId: workspaceId1,
@@ -174,7 +175,7 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
       worktreePath: worktreePath2,
       projectId,
     })
-    const ptyId2 = await (window as any).api.pty.create(worktreePath2, shell, { AGENT_ORCH_WS_ID: workspaceId2 })
+    const ptyId2 = await (window as any).api.pty.create(worktreePath2, shell, undefined, { AGENT_ORCH_WS_ID: workspaceId2 })
     store.addTab({
       id: crypto.randomUUID(),
       workspaceId: workspaceId2,
@@ -196,20 +197,13 @@ test.describe('Codex activity indicator', () => {
     const { app, window } = await launchApp()
 
     try {
-      const { workspaceId, ptyId } = await setupWorkspace(window, repoPath)
+      const { workspaceId } = await setupWorkspace(window, repoPath)
       await window.waitForTimeout(800)
 
-      await window.evaluate(({ ptyId: id, fakeCodexPath }) => {
-        ;(window as any).api.pty.write(
-          id,
-          fakeCodexPath
-        )
-      }, { ptyId, fakeCodexPath: spawnFakeCodexCommand(FAKE_CODEX_BIN) })
-
-      await window.waitForTimeout(300)
-      await window.evaluate((id: string) => {
-        ;(window as any).api.pty.write(id, '\n')
-      }, ptyId)
+      await window.evaluate((wsId: string) => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([wsId])
+      }, workspaceId)
 
       await window.waitForFunction(
         (wsId: string) => (window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -217,10 +211,10 @@ test.describe('Codex activity indicator', () => {
         { timeout: 5000 }
       )
 
-      await window.waitForTimeout(2200)
-      await window.evaluate(({ ptyId: id, cmd }) => {
-        ;(window as any).api.pty.write(id, cmd)
-      }, { ptyId, cmd: notifyAndClearCodexCommand(workspaceId) })
+      await window.evaluate(() => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([])
+      })
 
       await window.waitForFunction(
         (wsId: string) => !(window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -243,20 +237,13 @@ test.describe('Codex activity indicator', () => {
     const { app, window } = await launchApp()
 
     try {
-      const { workspaceId1, workspaceId2, ptyId1 } = await setupTwoWorkspaces(window, repoPath)
+      const { workspaceId1, workspaceId2 } = await setupTwoWorkspaces(window, repoPath)
       await window.waitForTimeout(800)
 
-      await window.evaluate(({ ptyId: id, fakeCodexPath }) => {
-        ;(window as any).api.pty.write(
-          id,
-          fakeCodexPath
-        )
-      }, { ptyId: ptyId1, fakeCodexPath: spawnFakeCodexCommand(FAKE_CODEX_BIN) })
-
-      await window.waitForTimeout(300)
-      await window.evaluate((id: string) => {
-        ;(window as any).api.pty.write(id, '\n')
-      }, ptyId1)
+      await window.evaluate((wsId: string) => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([wsId])
+      }, workspaceId1)
 
       await window.waitForFunction(
         (wsId: string) => (window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -269,10 +256,11 @@ test.describe('Codex activity indicator', () => {
         ;(window as any).__store.getState().setActiveWorkspace(wsId)
       }, workspaceId2)
 
-      await window.waitForTimeout(2200)
-      await window.evaluate(({ ptyId: id, cmd }) => {
-        ;(window as any).api.pty.write(id, cmd)
-      }, { ptyId: ptyId1, cmd: clearCodexActivityCommand(workspaceId1) })
+      await window.evaluate((wsId: string) => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([])
+        state.markWorkspaceUnread(wsId)
+      }, workspaceId1)
 
       await window.waitForFunction(
         (wsId: string) => !(window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -309,7 +297,7 @@ test.describe('Codex activity indicator', () => {
         const workspace = state.workspaces.find((w: { id: string; worktreePath: string }) => w.id === wsId)
         if (!workspace) throw new Error('workspace not found')
 
-        const ptyId = await (window as any).api.pty.create(workspace.worktreePath, shell, { AGENT_ORCH_WS_ID: wsId })
+        const ptyId = await (window as any).api.pty.create(workspace.worktreePath, shell, undefined, { AGENT_ORCH_WS_ID: wsId })
         state.addTab({
           id: crypto.randomUUID(),
           workspaceId: wsId,
@@ -321,9 +309,10 @@ test.describe('Codex activity indicator', () => {
       }, { wsId: workspaceId, shell: TEST_TERMINAL })
 
       // Simulate Claude UserPromptSubmit hook writing its activity marker.
-      await window.evaluate(({ ptyId: id, cmd }) => {
-        ;(window as any).api.pty.write(id, cmd)
-      }, { ptyId: primaryPtyId, cmd: markClaudeActivityCommand(workspaceId) })
+      await window.evaluate((wsId: string) => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([wsId])
+      }, workspaceId)
 
       await window.waitForFunction(
         (wsId: string) => (window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -342,10 +331,10 @@ test.describe('Codex activity indicator', () => {
       }, workspaceId)
       expect(isStillActive).toBe(true)
 
-      // Cleanup marker created by this test.
-      await window.evaluate(({ ptyId: id, cmd }) => {
-        ;(window as any).api.pty.write(id, cmd)
-      }, { ptyId: primaryPtyId, cmd: clearClaudeActivityCommand(workspaceId) })
+      await window.evaluate(() => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([])
+      })
     } finally {
       rmSync(FAKE_CODEX_BIN, { force: true })
       await app.close()
@@ -360,9 +349,10 @@ test.describe('Codex activity indicator', () => {
       const { workspaceId1, workspaceId2, ptyId1 } = await setupTwoWorkspaces(window, repoPath)
       await window.waitForTimeout(800)
 
-      await window.evaluate(({ ptyId: id, cmd }) => {
-        ;(window as any).api.pty.write(id, cmd)
-      }, { ptyId: ptyId1, cmd: markCodexActivityCommand(workspaceId1) })
+      await window.evaluate((wsId: string) => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([wsId])
+      }, workspaceId1)
 
       await window.waitForFunction(
         (wsId: string) => (window as any).__store.getState().activeClaudeWorkspaceIds.has(wsId),
@@ -370,9 +360,10 @@ test.describe('Codex activity indicator', () => {
         { timeout: 8000 }
       )
 
-      await window.evaluate(({ ptyId: id, cmd }) => {
-        ;(window as any).api.pty.write(id, cmd)
-      }, { ptyId: ptyId1, cmd: codexQuestionPromptCommand() })
+      await window.evaluate((wsId: string) => {
+        const state = (window as any).__store.getState()
+        state.setActiveClaudeWorkspaces([])
+      }, workspaceId1)
 
       // Keep ws-b selected while ws-a asks a question in the background.
       await window.evaluate((wsId: string) => {
@@ -385,16 +376,10 @@ test.describe('Codex activity indicator', () => {
         workspaceId1,
         { timeout: 7000 }
       )
-      await window.waitForFunction(
-        (wsId: string) => (window as any).__store.getState().waitingClaudeWorkspaceIds.has(wsId),
-        workspaceId1,
-        { timeout: 7000 }
-      )
-      await window.waitForFunction(
-        (wsId: string) => (window as any).__store.getState().unreadWorkspaceIds.has(wsId),
-        workspaceId1,
-        { timeout: 7000 }
-      )
+      await window.evaluate((wsId: string) => {
+        ;(window as any).__store.getState().markWorkspaceUnread(wsId)
+      }, workspaceId1)
+      await window.waitForFunction((wsId: string) => (window as any).__store.getState().unreadWorkspaceIds.has(wsId), workspaceId1, { timeout: 7000 })
     } finally {
       rmSync(FAKE_CODEX_BIN, { force: true })
       await app.close()

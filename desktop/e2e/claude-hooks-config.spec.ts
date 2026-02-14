@@ -6,9 +6,21 @@ import { tmpdir } from 'os'
 const appPath = resolve(__dirname, '../out/main/index.js')
 
 async function launchAppWithHome(homeDir: string): Promise<{ app: ElectronApplication; window: Page }> {
+  const appDataDir = join(homeDir, 'AppData', 'Roaming')
+  const localAppDataDir = join(homeDir, 'AppData', 'Local')
+  mkdirSync(appDataDir, { recursive: true })
+  mkdirSync(localAppDataDir, { recursive: true })
+
   const app = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CI_TEST: '1', HOME: homeDir },
+    env: {
+      ...process.env,
+      CI_TEST: '1',
+      HOME: homeDir,
+      USERPROFILE: homeDir,
+      APPDATA: appDataDir,
+      LOCALAPPDATA: localAppDataDir,
+    },
   })
   const window = await app.firstWindow()
   await window.waitForLoadState('domcontentloaded')
@@ -30,7 +42,8 @@ function ourHookCommands(settings: Record<string, unknown>): string[] {
     for (const rule of hooks[event] ?? []) {
       for (const hook of rule.hooks ?? []) {
         const cmd = hook.command
-        if (cmd && (cmd.includes('claude-hooks/notify.js') || cmd.includes('claude-hooks/activity.js'))) {
+        const normalizedCmd = cmd?.replace(/\\/g, '/')
+        if (normalizedCmd && (normalizedCmd.includes('claude-hooks/notify.js') || normalizedCmd.includes('claude-hooks/activity.js'))) {
           cmds.push(cmd)
         }
       }
@@ -70,6 +83,8 @@ test.describe('Claude hooks config', () => {
       const installed = readSettings(settingsPath)
       const commands = ourHookCommands(installed)
       expect(commands.length).toBe(3)
+      expect(commands.filter((cmd) => cmd.replace(/\\/g, '/').includes('claude-hooks/notify.js')).length).toBe(2)
+      expect(commands.filter((cmd) => cmd.replace(/\\/g, '/').includes('claude-hooks/activity.js')).length).toBe(1)
       for (const cmd of commands) {
         expect(cmd.includes('node')).toBe(true)
       }

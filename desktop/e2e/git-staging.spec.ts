@@ -147,7 +147,7 @@ test.describe('Git staging functionality', () => {
 
       // File should be back to original
       const content = readFileSync(join(realRepo, 'README.md'), 'utf-8')
-      expect(content).toBe('# Test Repo\n')
+      expect(content.replace(/\r\n/g, '\n')).toBe('# Test Repo\n')
 
       // Status should be clean
       const after = await window.evaluate(async (repo: string) => {

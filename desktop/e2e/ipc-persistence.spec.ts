@@ -16,13 +16,18 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
+  const stamp = `${name}-${Date.now()}`
+  const repoPath = join(tmpdir(), `test-repo-${stamp}`)
+  const remotePath = join(tmpdir(), `test-remote-${stamp}.git`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
   writeFileSync(join(repoPath, 'README.md'), '# Test Repo\n')
   execSync('git add .', { cwd: repoPath })
   execSync('git commit -m "initial commit"', { cwd: repoPath })
+  execSync(`git init --bare "${remotePath}"`)
+  execSync(`git remote add origin "${remotePath}"`, { cwd: repoPath })
+  execSync('git -c core.hooksPath=/dev/null push -u origin main', { cwd: repoPath })
   return repoPath
 }
 
@@ -146,15 +151,16 @@ test.describe('IPC handlers & state persistence', () => {
       expect((validatedPath as string).replace('/private', '')).toBe(repoPath.replace('/private', ''))
 
       // Step 2: Add project to store using the validated path
-      await window.evaluate(async (repo: string) => {
+      const validatedRepo = validatedPath as string
+      const projectName = basename(validatedRepo) || validatedRepo
+      await window.evaluate(async ({ repo, name }: { repo: string; name: string }) => {
         const store = (window as any).__store.getState()
-        const name = basename(repo) || repo
         store.addProject({
           id: crypto.randomUUID(),
           name,
           repoPath: repo,
         })
-      }, validatedPath as string)
+      }, { repo: validatedRepo, name: projectName })
 
       // Step 3: Create a worktree via git IPC
       const worktreePath = await window.evaluate(async (repo: string) => {

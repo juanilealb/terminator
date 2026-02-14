@@ -17,13 +17,18 @@ async function launchApp(): Promise<{ app: ElectronApplication; window: Page }> 
 }
 
 function createTestRepo(name: string): string {
-  const repoPath = join(tmpdir(), `test-repo-${name}-${Date.now()}`)
+  const stamp = `${name}-${Date.now()}`
+  const repoPath = join(tmpdir(), `test-repo-${stamp}`)
+  const remotePath = join(tmpdir(), `test-remote-${stamp}.git`)
   mkdirSync(repoPath, { recursive: true })
   execSync('git init', { cwd: repoPath })
   execSync('git checkout -b main', { cwd: repoPath })
   writeFileSync(join(repoPath, 'README.md'), '# Test Repo\n')
   execSync('git add .', { cwd: repoPath })
   execSync('git commit -m "initial commit"', { cwd: repoPath })
+  execSync(`git init --bare "${remotePath}"`)
+  execSync(`git remote add origin "${remotePath}"`, { cwd: repoPath })
+  execSync('git -c core.hooksPath=/dev/null push -u origin main', { cwd: repoPath })
   return repoPath
 }
 
@@ -40,14 +45,14 @@ async function setupTwoWorkspaces(window: Page, repoPath: string) {
     const wt1 = await (window as any).api.git.createWorktree(repo, 'ws-1', 'branch-1', true)
     const ws1Id = crypto.randomUUID()
     store.addWorkspace({ id: ws1Id, name: 'ws-1', branch: 'branch-1', worktreePath: wt1, projectId })
-    const pty1Id = await (window as any).api.pty.create(wt1, undefined, { AGENT_ORCH_WS_ID: ws1Id })
+    const pty1Id = await (window as any).api.pty.create(wt1, undefined, undefined, { AGENT_ORCH_WS_ID: ws1Id })
     store.addTab({ id: crypto.randomUUID(), workspaceId: ws1Id, type: 'terminal', title: 'Terminal', ptyId: pty1Id })
 
     // Workspace 2 (becomes active since addWorkspace sets active)
     const wt2 = await (window as any).api.git.createWorktree(repo, 'ws-2', 'branch-2', true)
     const ws2Id = crypto.randomUUID()
     store.addWorkspace({ id: ws2Id, name: 'ws-2', branch: 'branch-2', worktreePath: wt2, projectId })
-    const pty2Id = await (window as any).api.pty.create(wt2, undefined, { AGENT_ORCH_WS_ID: ws2Id })
+    const pty2Id = await (window as any).api.pty.create(wt2, undefined, undefined, { AGENT_ORCH_WS_ID: ws2Id })
     store.addTab({ id: crypto.randomUUID(), workspaceId: ws2Id, type: 'terminal', title: 'Terminal', ptyId: pty2Id })
 
     return { ws1Id, ws2Id }
