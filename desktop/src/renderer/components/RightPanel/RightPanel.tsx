@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
+import { subscribeGitStatusChanged } from '../../utils/git-status-events'
 import { FileTree } from './FileTree'
 import { ChangedFiles } from './ChangedFiles'
 import { WorkspaceMemoryPanel } from './WorkspaceMemoryPanel'
@@ -19,21 +20,26 @@ export function RightPanel() {
     setPreviewUrl,
   } = useAppStore()
   const [changeCount, setChangeCount] = useState(0)
+  const countSeqRef = useRef(0)
 
   const workspace = workspaces.find((w) => w.id === activeWorkspaceId)
   const worktreePath = workspace?.worktreePath
   const previewUrl = workspace ? (previewUrlByWorkspace[workspace.id] ?? '') : ''
 
-  const refreshChangeCount = useCallback(() => {
+  const refreshChangeCount = useCallback(async () => {
     if (!worktreePath) {
       setChangeCount(0)
       return
     }
-    window.api.git.getStatus(worktreePath).then((statuses) => {
+    const seq = ++countSeqRef.current
+    try {
+      const statuses = await window.api.git.getStatus(worktreePath)
+      if (seq !== countSeqRef.current) return
       setChangeCount(statuses.length)
-    }).catch(() => {
+    } catch {
+      if (seq !== countSeqRef.current) return
       setChangeCount(0)
-    })
+    }
   }, [worktreePath])
 
   useEffect(() => {
@@ -41,18 +47,29 @@ export function RightPanel() {
       setChangeCount(0)
       return
     }
-    refreshChangeCount()
+    void refreshChangeCount()
 
     window.api.fs.watchDir(worktreePath)
     const unsub = window.api.fs.onDirChanged((changedPath: string) => {
-      if (changedPath === worktreePath) refreshChangeCount()
+      if (changedPath === worktreePath) void refreshChangeCount()
+    })
+    const unsubStatus = subscribeGitStatusChanged(worktreePath, (count) => {
+      setChangeCount(count)
     })
 
     return () => {
       unsub()
+      unsubStatus()
       window.api.fs.unwatchDir(worktreePath)
     }
   }, [worktreePath, refreshChangeCount])
+
+  useEffect(() => {
+    // Keep counter fresh when user switches back to Changes.
+    if (rightPanelMode === 'changes') {
+      void refreshChangeCount()
+    }
+  }, [rightPanelMode, refreshChangeCount])
 
   return (
     <div className={styles.rightPanel}>

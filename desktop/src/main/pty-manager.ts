@@ -228,10 +228,13 @@ function normalizePtyEnv(extraEnv?: Record<string, string>): Record<string, stri
 
 const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const CODEX_MARKER_SEGMENT = '.codex.'
+const CODEX_WAITING_MARKER_SEGMENT = '.codex-wait.'
 const PROCESS_SNAPSHOT_TTL_MS = 1000
 const CODEX_PROMPT_BUFFER_MAX = 4096
-const CODEX_QUESTION_HEADER_RE = /Question\s+\d+\s*\/\s*\d+\s*\(\s*\d+\s+unanswered\s*\)/i
-const CODEX_QUESTION_HINT_RE = /enter to submit answer/i
+const CODEX_QUESTION_HEADER_RE = /Question\s+\d+\s*\/\s*\d+/i
+const CODEX_QUESTION_UNANSWERED_RE = /\bunanswered\b/i
+const CODEX_QUESTION_HINT_RE = /\b(?:enter|return)\b.*\b(?:submit|send)\b.*\banswer\b/i
+const CODEX_QUESTION_ALT_HINT_RE = /\b(?:waiting for your input|respond to continue)\b/i
 
 function stripAnsiSequences(data: string): string {
   return data
@@ -352,10 +355,22 @@ export class PtyManager {
   write(ptyId: string, data: string): void {
     const instance = this.ptys.get(ptyId)
     if (!instance) return
+    const isSubmit = /[\r\n]/.test(data)
 
-    // Codex doesn't expose a prompt-submit hook, so mark the workspace active
-    // when Enter is sent while a Codex process is already running in this PTY.
-    if (instance.workspaceId && /[\r\n]/.test(data) && this.isCodexRunningUnder(instance.process.pid)) {
+    if (instance.workspaceId && isSubmit && instance.codexAwaitingAnswer) {
+      instance.codexPromptBuffer = ''
+      instance.codexAwaitingAnswer = false
+      this.clearCodexWorkspaceWaiting(instance.workspaceId, instance.process.pid)
+      if (this.isCodexRunningUnder(instance.process.pid)) {
+        this.markCodexWorkspaceActive(instance.workspaceId, instance.process.pid)
+      }
+    } else if (
+      instance.workspaceId
+      && isSubmit
+      && this.isCodexRunningUnder(instance.process.pid)
+    ) {
+      // Codex doesn't expose a prompt-submit hook, so mark the workspace active
+      // when Enter is sent while a Codex process is already running in this PTY.
       instance.codexPromptBuffer = ''
       instance.codexAwaitingAnswer = false
       this.markCodexWorkspaceActive(instance.workspaceId, instance.process.pid)
@@ -498,7 +513,12 @@ export class PtyManager {
     return join(ACTIVITY_DIR, `${workspaceId}${CODEX_MARKER_SEGMENT}${ptyPid}`)
   }
 
+  private codexWaitingMarkerPath(workspaceId: string, ptyPid: number): string {
+    return join(ACTIVITY_DIR, `${workspaceId}${CODEX_WAITING_MARKER_SEGMENT}${ptyPid}`)
+  }
+
   private markCodexWorkspaceActive(workspaceId: string, ptyPid: number): void {
+    this.clearCodexWorkspaceWaiting(workspaceId, ptyPid)
     const markerPath = this.codexMarkerPath(workspaceId, ptyPid)
     try {
       mkdirSync(ACTIVITY_DIR, { recursive: true })
@@ -509,18 +529,64 @@ export class PtyManager {
     }
   }
 
+  private markCodexWorkspaceWaiting(workspaceId: string, ptyPid: number): void {
+    this.clearCodexWorkspaceRunning(workspaceId, ptyPid)
+    const markerPath = this.codexWaitingMarkerPath(workspaceId, ptyPid)
+    try {
+      mkdirSync(ACTIVITY_DIR, { recursive: true })
+      writeFileSync(markerPath, '')
+      debugLog('Codex waiting marker set', { workspaceId, ptyPid, markerPath })
+    } catch (err) {
+      debugLog('Codex waiting marker write failed', { workspaceId, ptyPid, markerPath, error: err })
+    }
+  }
+
   private clearCodexWorkspaceActivity(workspaceId: string | undefined, ptyPid: number): void {
     if (!workspaceId) return
+    this.clearCodexWorkspaceRunning(workspaceId, ptyPid)
+    this.clearCodexWorkspaceWaiting(workspaceId, ptyPid)
+  }
+
+  private clearCodexWorkspaceRunning(workspaceId: string, ptyPid: number): void {
     const markerPath = this.codexMarkerPath(workspaceId, ptyPid)
+    this.clearMarker(markerPath, 'Codex activity marker cleared', 'Codex activity marker clear failed', { workspaceId, ptyPid })
+  }
+
+  private clearCodexWorkspaceWaiting(workspaceId: string, ptyPid: number): void {
+    const markerPath = this.codexWaitingMarkerPath(workspaceId, ptyPid)
+    this.clearMarker(markerPath, 'Codex waiting marker cleared', 'Codex waiting marker clear failed', { workspaceId, ptyPid })
+  }
+
+  private clearMarker(
+    markerPath: string,
+    okMessage: string,
+    errMessage: string,
+    extra: Record<string, unknown>,
+  ): void {
     try {
       unlinkSync(markerPath)
-      debugLog('Codex activity marker cleared', { workspaceId, ptyPid, markerPath })
+      debugLog(okMessage, { ...extra, markerPath })
     } catch (err) {
       const code = (err as NodeJS.ErrnoException | undefined)?.code
       if (code !== 'ENOENT') {
-        debugLog('Codex activity marker clear failed', { workspaceId, ptyPid, markerPath, error: err })
+        debugLog(errMessage, { ...extra, markerPath, error: err })
       }
     }
+  }
+
+  private isCodexRunningMarked(workspaceId: string, ptyPid: number): boolean {
+    try {
+      return existsSync(this.codexMarkerPath(workspaceId, ptyPid))
+    } catch {
+      return false
+    }
+  }
+
+  private looksLikeCodexQuestionPrompt(buffer: string): boolean {
+    const hasHeader = CODEX_QUESTION_HEADER_RE.test(buffer)
+    const hasUnanswered = CODEX_QUESTION_UNANSWERED_RE.test(buffer)
+    const hasHint = CODEX_QUESTION_HINT_RE.test(buffer) || CODEX_QUESTION_ALT_HINT_RE.test(buffer)
+    return hasHint && (hasHeader || hasUnanswered)
   }
 
   private handleCodexQuestionPrompt(instance: PtyInstance, data: string): void {
@@ -531,25 +597,22 @@ export class PtyManager {
     if (!normalized) return
 
     instance.codexPromptBuffer = `${instance.codexPromptBuffer}${normalized}`.slice(-CODEX_PROMPT_BUFFER_MAX)
-    if (!CODEX_QUESTION_HEADER_RE.test(instance.codexPromptBuffer)) return
-    if (!CODEX_QUESTION_HINT_RE.test(instance.codexPromptBuffer)) return
-    if (!this.isCodexActivityMarked(instance.workspaceId, instance.process.pid)) return
+    if (!this.looksLikeCodexQuestionPrompt(instance.codexPromptBuffer)) return
+
+    const wasRunning = this.isCodexRunningMarked(instance.workspaceId, instance.process.pid)
+      || this.isCodexRunningUnder(instance.process.pid)
+    if (!wasRunning) return
 
     // Codex is explicitly waiting on user input: clear spinner activity and
     // surface unread attention via the existing notify channel.
     instance.codexAwaitingAnswer = true
     instance.codexPromptBuffer = ''
-    this.clearCodexWorkspaceActivity(instance.workspaceId, instance.process.pid)
+    this.markCodexWorkspaceWaiting(instance.workspaceId, instance.process.pid)
     if (!instance.webContents.isDestroyed()) {
-      instance.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, instance.workspaceId)
-    }
-  }
-
-  private isCodexActivityMarked(workspaceId: string, ptyPid: number): boolean {
-    try {
-      return existsSync(this.codexMarkerPath(workspaceId, ptyPid))
-    } catch {
-      return false
+      instance.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, {
+        workspaceId: instance.workspaceId,
+        reason: 'waiting_input',
+      })
     }
   }
 

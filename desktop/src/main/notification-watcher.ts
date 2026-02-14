@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { app, BrowserWindow, nativeImage, Notification } from 'electron'
-import { IPC } from '../shared/ipc-channels'
+import { IPC, type AgentActivitySnapshot, type AgentNotifyReason } from '../shared/ipc-channels'
 import { debugLog, getTempDir } from '@shared/platform'
 import { sendActivateWorkspace } from './ipc'
 
@@ -10,6 +10,12 @@ const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const POLL_INTERVAL = 500
 const CLAUDE_MARKER_SUFFIX = '.claude'
 const CODEX_MARKER_SEGMENT = '.codex.'
+const CODEX_WAITING_MARKER_SEGMENT = '.codex-wait.'
+
+interface MarkerInfo {
+  workspaceId: string
+  kind: 'claude' | 'codex_running' | 'codex_waiting'
+}
 
 function getNotificationIcon() {
   const candidates = [
@@ -28,11 +34,13 @@ function getNotificationIcon() {
 
 export class NotificationWatcher {
   private timer: ReturnType<typeof setInterval> | null = null
-  private lastActiveIds: string = ''
+  private prevSnapshot: AgentActivitySnapshot = this.emptySnapshot()
+  private lastNotifiedAtByKey = new Map<string, number>()
 
   start(): void {
     mkdirSync(NOTIFY_DIR, { recursive: true })
     mkdirSync(ACTIVITY_DIR, { recursive: true })
+    this.cleanupStartupActivityMarkers()
     this.pollOnce()
     this.timer = setInterval(() => this.pollOnce(), POLL_INTERVAL)
   }
@@ -63,43 +71,26 @@ export class NotificationWatcher {
   private pollActivity(): void {
     try {
       const files = readdirSync(ACTIVITY_DIR)
-      const workspaceIds = Array.from(new Set(
-        files
-          .map((name) => {
-            const workspaceId = this.workspaceIdFromMarkerName(name)
-            if (!workspaceId) {
-              this.removeActivityMarker(name)
-              return null
-            }
-            return workspaceId
-          })
-          .filter((id): id is string => !!id)
-      ))
-      const sorted = workspaceIds.sort().join(',')
-      if (sorted !== this.lastActiveIds) {
-        const prevIds = this.lastActiveIds ? this.lastActiveIds.split(',').filter(Boolean) : []
-        const nextIdSet = new Set(workspaceIds)
-        const becameInactive = prevIds.filter((id) => !nextIdSet.has(id))
+      const snapshot = this.buildSnapshot(files)
 
-        this.lastActiveIds = sorted
-        this.sendActivity(workspaceIds)
-        debugLog('Activity markers changed', { activeWorkspaceIds: workspaceIds })
-
-        // Fallback completion signal: if a workspace was active and now is not,
-        // emit a notify event so renderer can show unread attention dots even
-        // when explicit notify files are missed.
-        for (const wsId of becameInactive) {
-          this.notifyRenderer(wsId)
-        }
+      if (!this.sameSnapshot(snapshot, this.prevSnapshot)) {
+        this.notifyTransitions(this.prevSnapshot, snapshot)
+        this.prevSnapshot = snapshot
+        this.sendActivity(snapshot)
+        debugLog('Activity markers changed', {
+          runningWorkspaceIds: snapshot.runningWorkspaceIds,
+          waitingWorkspaceIds: snapshot.waitingWorkspaceIds,
+          runningAgentCount: snapshot.runningAgentCount,
+        })
       }
     } catch {
-      if (this.lastActiveIds !== '') {
-        const prevIds = this.lastActiveIds.split(',').filter(Boolean)
-        this.lastActiveIds = ''
-        this.sendActivity([])
+      if (!this.isSnapshotEmpty(this.prevSnapshot)) {
+        const prevSnapshot = this.prevSnapshot
+        this.prevSnapshot = this.emptySnapshot()
+        this.sendActivity(this.prevSnapshot)
         debugLog('Activity markers cleared (activity dir unavailable)')
-        for (const wsId of prevIds) {
-          this.notifyRenderer(wsId)
+        for (const wsId of prevSnapshot.runningWorkspaceIds) {
+          this.notifyRenderer(wsId, 'completed')
         }
       }
     }
@@ -110,7 +101,7 @@ export class NotificationWatcher {
       const wsId = readFileSync(filePath, 'utf-8').trim()
       if (wsId) {
         debugLog('Notify marker found', { workspaceId: wsId, filePath })
-        this.notifyRenderer(wsId)
+        this.notifyRenderer(wsId, 'completed')
       } else {
         debugLog('Notify marker empty; clearing marker file', { filePath })
       }
@@ -121,17 +112,25 @@ export class NotificationWatcher {
     }
   }
 
-  private workspaceIdFromMarkerName(name: string): string | null {
+  private markerFromName(name: string): MarkerInfo | null {
     const marker = name.trim()
     if (!marker) return null
 
     if (marker.endsWith(CLAUDE_MARKER_SUFFIX)) {
-      return marker.slice(0, -CLAUDE_MARKER_SUFFIX.length) || null
+      const workspaceId = marker.slice(0, -CLAUDE_MARKER_SUFFIX.length)
+      return workspaceId ? { workspaceId, kind: 'claude' } : null
+    }
+
+    const codexWaitingIdx = marker.indexOf(CODEX_WAITING_MARKER_SEGMENT)
+    if (codexWaitingIdx > 0) {
+      const workspaceId = marker.slice(0, codexWaitingIdx)
+      return workspaceId ? { workspaceId, kind: 'codex_waiting' } : null
     }
 
     const codexIdx = marker.indexOf(CODEX_MARKER_SEGMENT)
     if (codexIdx > 0) {
-      return marker.slice(0, codexIdx) || null
+      const workspaceId = marker.slice(0, codexIdx)
+      return workspaceId ? { workspaceId, kind: 'codex_running' } : null
     }
 
     // Legacy format is no longer written. Ignore and clean it up to avoid
@@ -149,22 +148,131 @@ export class NotificationWatcher {
     }
   }
 
-  private notifyRenderer(workspaceId: string): void {
-    this.showNotification(workspaceId)
+  private cleanupStartupActivityMarkers(): void {
+    try {
+      const files = readdirSync(ACTIVITY_DIR)
+      for (const name of files) {
+        const info = this.markerFromName(name)
+        if (!info) {
+          this.removeActivityMarker(name)
+          continue
+        }
+        if (info.kind === 'codex_running' || info.kind === 'codex_waiting') {
+          this.removeActivityMarker(name)
+        }
+      }
+    } catch {
+      // Best effort.
+    }
+  }
+
+  private buildSnapshot(files: string[]): AgentActivitySnapshot {
+    const runningAgentsByWorkspace: Record<string, number> = {}
+    const waitingAgentsByWorkspace: Record<string, number> = {}
+
+    for (const name of files) {
+      const info = this.markerFromName(name)
+      if (!info) {
+        this.removeActivityMarker(name)
+        continue
+      }
+
+      if (info.kind === 'codex_waiting') {
+        waitingAgentsByWorkspace[info.workspaceId] = (waitingAgentsByWorkspace[info.workspaceId] ?? 0) + 1
+        continue
+      }
+
+      runningAgentsByWorkspace[info.workspaceId] = (runningAgentsByWorkspace[info.workspaceId] ?? 0) + 1
+    }
+
+    const runningWorkspaceIds = Object.keys(runningAgentsByWorkspace).sort()
+    const waitingWorkspaceIds = Object.keys(waitingAgentsByWorkspace).sort()
+    const runningAgentCount = Object.values(runningAgentsByWorkspace).reduce((sum, count) => sum + count, 0)
+
+    return {
+      runningWorkspaceIds,
+      waitingWorkspaceIds,
+      runningAgentsByWorkspace,
+      waitingAgentsByWorkspace,
+      runningAgentCount,
+    }
+  }
+
+  private emptySnapshot(): AgentActivitySnapshot {
+    return {
+      runningWorkspaceIds: [],
+      waitingWorkspaceIds: [],
+      runningAgentsByWorkspace: {},
+      waitingAgentsByWorkspace: {},
+      runningAgentCount: 0,
+    }
+  }
+
+  private isSnapshotEmpty(snapshot: AgentActivitySnapshot): boolean {
+    return snapshot.runningWorkspaceIds.length === 0 && snapshot.waitingWorkspaceIds.length === 0
+  }
+
+  private sameSnapshot(a: AgentActivitySnapshot, b: AgentActivitySnapshot): boolean {
+    const normalizeCounts = (counts: Record<string, number>): string =>
+      Object.keys(counts)
+        .sort()
+        .map((key) => `${key}:${counts[key]}`)
+        .join('|')
+
+    return (
+      a.runningAgentCount === b.runningAgentCount
+      && a.runningWorkspaceIds.join('|') === b.runningWorkspaceIds.join('|')
+      && a.waitingWorkspaceIds.join('|') === b.waitingWorkspaceIds.join('|')
+      && normalizeCounts(a.runningAgentsByWorkspace) === normalizeCounts(b.runningAgentsByWorkspace)
+      && normalizeCounts(a.waitingAgentsByWorkspace) === normalizeCounts(b.waitingAgentsByWorkspace)
+    )
+  }
+
+  private notifyTransitions(prev: AgentActivitySnapshot, next: AgentActivitySnapshot): void {
+    const nextRunning = new Set(next.runningWorkspaceIds)
+    const nextWaiting = new Set(next.waitingWorkspaceIds)
+
+    for (const wsId of prev.runningWorkspaceIds) {
+      if (nextRunning.has(wsId)) continue
+      if (nextWaiting.has(wsId)) {
+        this.notifyRenderer(wsId, 'waiting_input')
+        continue
+      }
+      this.notifyRenderer(wsId, 'completed')
+    }
+
+    for (const wsId of prev.waitingWorkspaceIds) {
+      if (nextRunning.has(wsId) || nextWaiting.has(wsId)) continue
+      this.notifyRenderer(wsId, 'completed')
+    }
+  }
+
+  private notifyRenderer(workspaceId: string, reason: AgentNotifyReason): void {
+    const dedupeKey = `${workspaceId}:${reason}`
+    const now = Date.now()
+    const prevNotifyAt = this.lastNotifiedAtByKey.get(dedupeKey) ?? 0
+    if ((now - prevNotifyAt) < 750) return
+    this.lastNotifiedAtByKey.set(dedupeKey, now)
+
+    this.showNotification(workspaceId, reason)
 
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
-        win.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, workspaceId)
+        win.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, { workspaceId, reason })
       }
     }
   }
 
-  private showNotification(workspaceId: string): void {
+  private showNotification(workspaceId: string, reason: AgentNotifyReason): void {
     if (!Notification.isSupported()) return
+
+    const body = reason === 'waiting_input'
+      ? `Agent waiting for your input in workspace ${workspaceId}`
+      : `Agent completed in workspace ${workspaceId}`
 
     const notification = new Notification({
       title: 'Terminator',
-      body: `Agent completed in workspace ${workspaceId}`,
+      body,
       icon: getNotificationIcon(),
     })
 
@@ -181,10 +289,10 @@ export class NotificationWatcher {
     notification.show()
   }
 
-  private sendActivity(workspaceIds: string[]): void {
+  private sendActivity(snapshot: AgentActivitySnapshot): void {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
-        win.webContents.send(IPC.CLAUDE_ACTIVITY_UPDATE, workspaceIds)
+        win.webContents.send(IPC.CLAUDE_ACTIVITY_UPDATE, snapshot)
       }
     }
   }

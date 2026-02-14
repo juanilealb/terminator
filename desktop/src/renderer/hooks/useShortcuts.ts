@@ -4,11 +4,12 @@ import { useAppStore } from '../store/app-store'
 export function useShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Shift+Enter handling when terminal is focused
-      if (e.key === 'Enter' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey
-        && (e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
-        // Write kitty keyboard protocol so CLIs (e.g. Claude Code) can distinguish
-        // Shift+Enter (new line) from Enter (submit).
+      const target = e.target as HTMLElement
+      const inTerminal = !!target?.closest?.('[class*="terminalInner"]')
+
+      // Shift+Enter handling when terminal is focused.
+      if (e.key === 'Enter' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && inTerminal) {
+        // Write kitty keyboard protocol so CLIs can distinguish Shift+Enter from Enter.
         e.preventDefault()
         e.stopPropagation()
         const s = useAppStore.getState()
@@ -20,38 +21,38 @@ export function useShortcuts() {
       }
 
       // Windows terminal line-editing conventions.
-      if ((e.target as HTMLElement)?.closest?.('[class*="terminalInner"]')) {
+      if (inTerminal) {
         const s = useAppStore.getState()
         const tab = s.tabs.find((t) => t.id === s.activeTabId)
         if (tab?.type === 'terminal') {
           if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'ArrowLeft') {
             e.preventDefault()
             e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x1bb') // Alt+B — previous word
+            window.api.pty.write(tab.ptyId, '\x1bb') // Alt+B previous word
             return
           }
           if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'ArrowRight') {
             e.preventDefault()
             e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x1bf') // Alt+F — next word
+            window.api.pty.write(tab.ptyId, '\x1bf') // Alt+F next word
             return
           }
           if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'Home') {
             e.preventDefault()
             e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x01') // Ctrl+A — beginning of line
+            window.api.pty.write(tab.ptyId, '\x01') // Ctrl+A beginning of line
             return
           }
           if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'End') {
             e.preventDefault()
             e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x05') // Ctrl+E — end of line
+            window.api.pty.write(tab.ptyId, '\x05') // Ctrl+E end of line
             return
           }
           if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key === 'Backspace') {
             e.preventDefault()
             e.stopPropagation()
-            window.api.pty.write(tab.ptyId, '\x17') // Ctrl+W — delete previous word
+            window.api.pty.write(tab.ptyId, '\x17') // Ctrl+W delete previous word
             return
           }
         }
@@ -64,13 +65,23 @@ export function useShortcuts() {
 
       const store = useAppStore.getState()
 
-      // Stop event from reaching terminal (capture phase — must stopPropagation)
+      // Stop event from reaching terminal (capture phase).
       function consume() {
         e.preventDefault()
         e.stopPropagation()
       }
 
-      // ── Quick open: Ctrl+P ──
+      // Avoid hijacking terminal shortcuts while focus is inside terminal.
+      // Keep only command palette as a global escape hatch.
+      if (inTerminal) {
+        if (shift && !alt && e.key.toLowerCase() === 'p') {
+          consume()
+          store.toggleCommandPalette()
+        }
+        return
+      }
+
+      // Quick open: Ctrl+P
       if (!shift && !alt && e.key === 'p') {
         consume()
         store.toggleQuickOpen()
@@ -82,14 +93,14 @@ export function useShortcuts() {
         return
       }
 
-      // ── Tab switching: Ctrl+1-9 ──
+      // Tab switching: Ctrl+1-9
       if (!shift && !alt && e.key >= '1' && e.key <= '9') {
         consume()
         store.switchToTabByIndex(parseInt(e.key) - 1)
         return
       }
 
-      // ── Workspace switching: Ctrl+Shift+Up / Ctrl+Shift+Down ──
+      // Workspace switching: Ctrl+Shift+Up / Ctrl+Shift+Down
       if (shift && !alt && e.key === 'ArrowUp') {
         consume()
         store.prevWorkspace()
@@ -101,7 +112,7 @@ export function useShortcuts() {
         return
       }
 
-      // ── Tab management ──
+      // Tab management
       if (!shift && !alt && e.key === 't') {
         consume()
         store.createTerminalForActiveWorkspace()
@@ -133,27 +144,23 @@ export function useShortcuts() {
         return
       }
 
-      // ── Panels ──
-      // Ctrl+B — toggle sidebar (left)
+      // Panels
       if (!shift && !alt && e.key === 'b') {
         consume()
         store.toggleSidebar()
         return
       }
-      // Ctrl+Alt+B — toggle right panel
       if (!shift && alt && e.code === 'KeyB') {
         consume()
         store.toggleRightPanel()
         return
       }
-      // Ctrl+Shift+E — files panel (open if closed)
       if (shift && !alt && e.code === 'KeyE') {
         consume()
         store.setRightPanelMode('files')
         if (!store.rightPanelOpen) store.toggleRightPanel()
         return
       }
-      // Ctrl+Shift+G — changes panel (open if closed)
       if (shift && !alt && e.code === 'KeyG') {
         consume()
         store.setRightPanelMode('changes')
@@ -173,15 +180,14 @@ export function useShortcuts() {
         return
       }
 
-      // ── Focus ──
-      // Ctrl+J — focus terminal (or create one)
+      // Focus
       if (!shift && !alt && e.key === 'j') {
         consume()
         store.focusOrCreateTerminal()
         return
       }
 
-      // ── Font size: Ctrl+= / Ctrl+- / Ctrl+0 ──
+      // Font size: Ctrl+= / Ctrl+- / Ctrl+0
       if (!shift && !alt && (e.key === '=' || e.key === '-' || e.key === '0')) {
         consume()
         const tab = store.tabs.find((t) => t.id === store.activeTabId)
@@ -197,16 +203,14 @@ export function useShortcuts() {
         return
       }
 
-      // ── Settings ──
-      // Ctrl+, — toggle settings
+      // Settings
       if (!shift && !alt && e.key === ',') {
         consume()
         store.toggleSettings()
         return
       }
 
-      // ── Workspace creation ──
-      // Ctrl+N — new workspace dialog
+      // Workspace creation
       if (!shift && !alt && e.key === 'n') {
         consume()
         const project = store.activeProject()
@@ -215,11 +219,10 @@ export function useShortcuts() {
         } else if (store.projects.length === 1) {
           store.openWorkspaceDialog(store.projects[0].id)
         }
-        return
       }
     }
 
-    // Capture phase: runs before terminal handlers on the focused textarea.
+    // Capture phase runs before terminal handlers on the focused textarea.
     window.addEventListener('keydown', handler, true)
     return () => window.removeEventListener('keydown', handler, true)
   }, [])

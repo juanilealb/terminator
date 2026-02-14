@@ -10,6 +10,7 @@ if (!workspaceId) process.exit(0)
 const notifyDir = join(tmpdir(), 'terminator-notify')
 const activityDir = join(tmpdir(), 'terminator-activity')
 const codexMarkerPrefix = `${workspaceId}.codex.`
+const codexWaitingMarkerPrefix = `${workspaceId}.codex-wait.`
 
 try {
   mkdirSync(notifyDir, { recursive: true })
@@ -29,7 +30,9 @@ try {
 
 try {
   const markers = readdirSync(activityDir)
-  const hasCodexMarker = markers.some((name) => name.startsWith(codexMarkerPrefix))
+  const hasCodexMarker = markers.some(
+    (name) => name.startsWith(codexMarkerPrefix) || name.startsWith(codexWaitingMarkerPrefix),
+  )
   if (!hasCodexMarker) {
     rmSync(join(activityDir, workspaceId), { force: true })
   }

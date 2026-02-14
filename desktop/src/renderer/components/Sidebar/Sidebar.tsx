@@ -281,6 +281,7 @@ export function Sidebar() {
   const toggleAutomations = useAppStore((s) => s.toggleAutomations);
   const unreadWorkspaceIds = useAppStore((s) => s.unreadWorkspaceIds);
   const activeClaudeWorkspaceIds = useAppStore((s) => s.activeClaudeWorkspaceIds);
+  const waitingClaudeWorkspaceIds = useAppStore((s) => s.waitingClaudeWorkspaceIds);
   const renameWorkspace = useAppStore((s) => s.renameWorkspace);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const setPrStatuses = useAppStore((s) => s.setPrStatuses);
@@ -836,13 +837,16 @@ export function Sidebar() {
                     const displayName = isAutoName ? ws.branch : ws.name;
                     const showMeta =
                       !isAutoName && ws.branch && ws.branch !== ws.name;
+                    const isRunning = activeClaudeWorkspaceIds.has(ws.id);
+                    const isWaiting = !isRunning && waitingClaudeWorkspaceIds.has(ws.id);
+                    const isUnread = !isRunning && !isWaiting && unreadWorkspaceIds.has(ws.id);
 
                     return (
                       <div
                         key={ws.id}
                         className={`${styles.workspaceItem} ${
                           ws.id === activeWorkspaceId ? styles.active : ""
-                        } ${unreadWorkspaceIds.has(ws.id) ? styles.unread : ""} ${activeClaudeWorkspaceIds.has(ws.id) ? styles.claudeActive : ""}`}
+                        } ${isUnread ? styles.unread : ""} ${isRunning ? styles.claudeActive : ""} ${isWaiting ? styles.waitingInput : ""}`}
                         onClick={() =>
                           !isEditing && handleSelectWorkspace(ws.id)
                         }

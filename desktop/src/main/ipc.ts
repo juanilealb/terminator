@@ -438,6 +438,9 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
           const f = fileNameText.replaceAll('\\', '/')
           const isStateChange =
             f === '.git/index' || f === '.git/HEAD' || f.startsWith('.git/refs/')
+            || f === '.git/packed-refs'
+            || f === '.git/logs/HEAD'
+            || f.startsWith('.git/logs/refs/')
           if (!isStateChange) return
         }
 
@@ -774,6 +777,14 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
     const filePath = join(tmpdir(), `terminator-paste-${Date.now()}.png`)
     await writeFile(filePath, buf)
     return filePath
+  })
+
+  ipcMain.handle(IPC.CLIPBOARD_READ_TEXT, async () => {
+    return clipboard.readText()
+  })
+
+  ipcMain.handle(IPC.CLIPBOARD_WRITE_TEXT, async (_e, text: string) => {
+    clipboard.writeText(text ?? '')
   })
 
   // ── State persistence handlers ──

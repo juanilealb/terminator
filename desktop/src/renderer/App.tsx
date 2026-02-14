@@ -56,7 +56,7 @@ export function App() {
 
   // Listen for workspace notification signals from Claude Code hooks
   useEffect(() => {
-    const unsub = window.api.claude.onNotifyWorkspace((workspaceId: string) => {
+    const unsub = window.api.claude.onNotifyWorkspace(({ workspaceId }) => {
       const state = useAppStore.getState()
       if (workspaceId !== state.activeWorkspaceId) {
         state.markWorkspaceUnread(workspaceId)
@@ -84,21 +84,8 @@ export function App() {
 
   // Listen for agent activity updates (Claude hooks + Codex submit/notify markers)
   useEffect(() => {
-    let prevActive = new Set<string>()
-    const unsub = window.api.claude.onActivityUpdate((workspaceIds: string[]) => {
-      const nextActive = new Set(workspaceIds)
-      const state = useAppStore.getState()
-
-      // Fallback unread signal on activity completion:
-      // if a workspace was active and is now inactive, mark unread unless it's open.
-      for (const wsId of prevActive) {
-        if (!nextActive.has(wsId) && wsId !== state.activeWorkspaceId && state.workspaces.some((w) => w.id === wsId)) {
-          state.markWorkspaceUnread(wsId)
-        }
-      }
-
-      state.setActiveClaudeWorkspaces(workspaceIds)
-      prevActive = nextActive
+    const unsub = window.api.claude.onActivityUpdate((snapshot) => {
+      useAppStore.getState().setClaudeActivitySnapshot(snapshot)
     })
     return unsub
   }, [])
@@ -116,14 +103,16 @@ export function App() {
     automationsOpen,
     quickOpenVisible,
     commandPaletteVisible,
-    activeClaudeWorkspaceIds,
+    runningAgentCount,
+    waitingAgentCount,
   } = useAppStore()
   const unreadWorkspaceCount = useAppStore((s) => s.unreadWorkspaceIds.size)
 
   const wsTabs = activeWorkspaceTabs()
   const activeTab = wsTabs.find((t) => t.id === activeTabId)
   const workspace = workspaces.find((w) => w.id === activeWorkspaceId)
-  const activeAgents = activeClaudeWorkspaceIds.size
+  const activeAgents = runningAgentCount
+  const waitingAgents = waitingAgentCount
   const isWindows = navigator.userAgent.toLowerCase().includes('windows')
   const windowControlsWidth = isWindows ? '138px' : '0px'
   const appStyle = {
@@ -252,7 +241,13 @@ export function App() {
           </div>
           <div className={styles.statusItem}>
             <span className={`${styles.dot} ${activeAgents > 0 ? styles.dotConnected : styles.dotIdle}`} />
-            <span>{activeAgents > 0 ? `${activeAgents} agents running` : 'Agents idle'}</span>
+            <span>
+              {activeAgents > 0
+                ? `${activeAgents} agents running`
+                : waitingAgents > 0
+                  ? `${waitingAgents} waiting for input`
+                  : 'Agents idle'}
+            </span>
           </div>
         </div>
       </div>

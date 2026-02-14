@@ -1,5 +1,5 @@
 import type { PrInfo } from '@shared/github-types'
-import type { ThemePreference } from '@shared/ipc-channels'
+import type { AgentActivitySnapshot, ThemePreference } from '@shared/ipc-channels'
 
 export interface StartupCommand {
   name: string
@@ -64,6 +64,7 @@ export interface Settings {
   restoreWorkspace: boolean
   diffInline: boolean
   terminalFontSize: number
+  terminalCopyOnSelect: boolean
   editorFontSize: number
   promptTemplates: PromptTemplate[]
 }
@@ -77,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
   restoreWorkspace: true,
   diffInline: false,
   terminalFontSize: 14,
+  terminalCopyOnSelect: false,
   editorFontSize: 13,
   promptTemplates: [
     {
@@ -129,6 +131,9 @@ export interface AppState {
   commandPaletteVisible: boolean
   unreadWorkspaceIds: Set<string>
   activeClaudeWorkspaceIds: Set<string>
+  waitingClaudeWorkspaceIds: Set<string>
+  runningAgentCount: number
+  waitingAgentCount: number
   prStatusMap: Map<string, PrInfo | null>
   ghAvailability: Map<string, boolean>
   previewUrlByWorkspace: Record<string, string>
@@ -186,6 +191,7 @@ export interface AppState {
 
   // Agent activity actions (Claude + Codex)
   setActiveClaudeWorkspaces: (workspaceIds: string[]) => void
+  setClaudeActivitySnapshot: (snapshot: AgentActivitySnapshot) => void
 
   // PR status actions
   setPrStatuses: (projectId: string, statuses: Record<string, PrInfo | null>) => void
