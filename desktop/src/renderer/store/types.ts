@@ -145,6 +145,7 @@ export interface AppState {
   nextTab: () => void
   prevTab: () => void
   createTerminalForActiveWorkspace: () => Promise<void>
+  openDirectory: (dirPath: string) => Promise<void>
   closeActiveTab: () => void
   setTabUnsaved: (tabId: string, unsaved: boolean) => void
   notifyTabSaved: (tabId: string) => void

@@ -44,6 +44,13 @@ export function App() {
     return unsub
   }, [])
 
+  useEffect(() => {
+    const unsub = window.api.app.onOpenDirectory((dirPath: string) => {
+      void useAppStore.getState().openDirectory(dirPath)
+    })
+    return unsub
+  }, [])
+
   // Listen for agent activity updates (Claude hooks + Codex submit/notify markers)
   useEffect(() => {
     let prevActive = new Set<string>()

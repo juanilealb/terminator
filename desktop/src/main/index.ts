@@ -6,8 +6,10 @@ import {
   shell,
   type BrowserWindowConstructorOptions,
 } from 'electron'
-import { join } from 'path'
+import { statSync } from 'fs'
+import { isAbsolute, join, resolve } from 'path'
 import { arch, platform, release, tmpdir, version as osVersion } from 'os'
+import { IPC } from '../shared/ipc-channels'
 import { debugLog, resolveDefaultShell } from '@shared/platform'
 import { CREATE_WORKTREE_STAGES, type CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 import { registerIpcHandlers } from './ipc'
@@ -18,6 +20,8 @@ let mainWindow: BrowserWindow | null = null
 const notificationWatcher = new NotificationWatcher()
 let unreadWorkspaceCount = 0
 let windowStateTimer: ReturnType<typeof setTimeout> | null = null
+let pendingDirectoryToOpen = extractDirectoryFromArgv(process.argv)
+let waitingForRendererLoad = false
 
 function setMainWindowProgress(progress: CreateWorktreeProgressEvent): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -65,6 +69,56 @@ function scheduleWindowStateSave(): void {
     if (!mainWindow || mainWindow.isDestroyed()) return
     saveWindowState(mainWindow)
   }, 200)
+}
+
+function extractDirectoryFromArgv(argv: string[]): string | null {
+  for (let i = argv.length - 1; i >= 1; i -= 1) {
+    const rawArg = argv[i]?.trim()
+    if (!rawArg) continue
+    if (rawArg === '--') continue
+    if (rawArg.startsWith('-')) continue
+    if (/\.(js|cjs|mjs|asar)$/i.test(rawArg)) continue
+
+    const candidate = rawArg.replace(/^"+|"+$/g, '')
+    if (!isAbsolute(candidate)) continue
+
+    try {
+      const resolvedPath = resolve(candidate)
+      if (statSync(resolvedPath).isDirectory()) {
+        return resolvedPath
+      }
+    } catch {
+      // Not an accessible directory argument.
+    }
+  }
+  return null
+}
+
+function flushPendingWindowCommands(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (pendingDirectoryToOpen) {
+    mainWindow.webContents.send(IPC.APP_OPEN_DIRECTORY, pendingDirectoryToOpen)
+    pendingDirectoryToOpen = null
+  }
+}
+
+function schedulePendingWindowCommandFlush(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (!mainWindow.webContents.isLoadingMainFrame()) {
+    flushPendingWindowCommands()
+    return
+  }
+  if (waitingForRendererLoad) return
+  waitingForRendererLoad = true
+  mainWindow.webContents.once('did-finish-load', () => {
+    waitingForRendererLoad = false
+    flushPendingWindowCommands()
+  })
+}
+
+function requestOpenDirectory(dirPath: string): void {
+  pendingDirectoryToOpen = dirPath
+  schedulePendingWindowCommandFlush()
 }
 
 function createWindow(): void {
@@ -130,11 +184,18 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  schedulePendingWindowCommandFlush()
 }
 
 app.setName('Terminator')
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.terminator.app')
+}
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) {
+  app.quit()
 }
 
 function setupWindowsJumpList(): void {
@@ -175,40 +236,59 @@ if (process.env.CI_TEST) {
   app.setPath('userData', testData)
 }
 
-app.whenReady().then(() => {
-  const detectedShell = resolveDefaultShell()
-  debugLog('Startup info', {
-    platform: platform(),
-    release: release(),
-    version: osVersion(),
-    arch: arch(),
-    detectedShell,
-    tempDir: tmpdir(),
-    appPaths: {
-      appPath: app.getAppPath(),
-      exe: app.getPath('exe'),
-      home: app.getPath('home'),
-      appData: app.getPath('appData'),
-      userData: app.getPath('userData'),
-      temp: app.getPath('temp'),
-      logs: app.getPath('logs'),
-    },
+if (hasSingleInstanceLock) {
+  app.on('second-instance', (_event, argv) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+
+    const requestedDirectory = extractDirectoryFromArgv(argv)
+    if (requestedDirectory) {
+      requestOpenDirectory(requestedDirectory)
+    }
   })
 
-  Menu.setApplicationMenu(null)
-  setupWindowsJumpList()
+  app.whenReady().then(() => {
+    const detectedShell = resolveDefaultShell()
+    debugLog('Startup info', {
+      platform: platform(),
+      release: release(),
+      version: osVersion(),
+      arch: arch(),
+      detectedShell,
+      tempDir: tmpdir(),
+      appPaths: {
+        appPath: app.getAppPath(),
+        exe: app.getPath('exe'),
+        home: app.getPath('home'),
+        appData: app.getPath('appData'),
+        userData: app.getPath('userData'),
+        temp: app.getPath('temp'),
+        logs: app.getPath('logs'),
+      },
+    })
 
-  registerIpcHandlers({
-    onCreateWorktreeProgress: setMainWindowProgress,
-    onCreateWorktreeComplete: clearMainWindowProgress,
-    onUnreadCountChanged: (count) => {
-      unreadWorkspaceCount = count
-      syncUnreadOverlay()
-    },
+    Menu.setApplicationMenu(null)
+    setupWindowsJumpList()
+
+    registerIpcHandlers({
+      onCreateWorktreeProgress: setMainWindowProgress,
+      onCreateWorktreeComplete: clearMainWindowProgress,
+      onUnreadCountChanged: (count) => {
+        unreadWorkspaceCount = count
+        syncUnreadOverlay()
+      },
+    })
+    notificationWatcher.start()
+    createWindow()
+
+    if (pendingDirectoryToOpen) {
+      requestOpenDirectory(pendingDirectoryToOpen)
+    }
   })
-  notificationWatcher.start()
-  createWindow()
-})
+}
 
 app.on('window-all-closed', () => {
   app.quit()

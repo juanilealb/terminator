@@ -2,6 +2,19 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels'
 import type { CreateWorktreeProgressEvent } from '../shared/workspace-creation'
 
+const openDirectoryListeners = new Set<(dirPath: string) => void>()
+const pendingDirectoryPaths: string[] = []
+
+ipcRenderer.on(IPC.APP_OPEN_DIRECTORY, (_event, dirPath: string) => {
+  if (openDirectoryListeners.size === 0) {
+    pendingDirectoryPaths.push(dirPath)
+    return
+  }
+  for (const listener of openDirectoryListeners) {
+    listener(dirPath)
+  }
+})
+
 const api = {
   git: {
     listWorktrees: (repoPath: string) =>
@@ -111,6 +124,16 @@ const api = {
       ipcRenderer.invoke(IPC.APP_GET_DATA_PATH),
     setUnreadCount: (count: number) =>
       ipcRenderer.send(IPC.APP_SET_UNREAD_COUNT, count),
+    onOpenDirectory: (callback: (dirPath: string) => void) => {
+      openDirectoryListeners.add(callback)
+      while (pendingDirectoryPaths.length > 0) {
+        const next = pendingDirectoryPaths.shift()
+        if (next) callback(next)
+      }
+      return () => {
+        openDirectoryListeners.delete(callback)
+      }
+    },
     onActivateWorkspace: (callback: (workspaceId: string) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, workspaceId: string) => callback(workspaceId)
       ipcRenderer.on(IPC.ACTIVATE_WORKSPACE, listener)

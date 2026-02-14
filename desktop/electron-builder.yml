@@ -13,6 +13,8 @@ win:
   signAndEditExecutable: false
   target:
     - nsis
+nsis:
+  include: build/installer.nsh
 extraResources:
   - from: claude-hooks
     to: claude-hooks
@@ -23,4 +25,3 @@ extraResources:
     filter:
       - '*.js'
 npmRebuild: true
-
