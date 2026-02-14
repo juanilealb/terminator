@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { basenameSafe, formatShortcut, toPosixPath } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
+import { DEFAULT_WORKSPACE_TYPE, type WorkspaceType } from '../../store/types'
 import { dispatchGitStatusChanged } from '../../utils/git-status-events'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './RightPanel.module.css'
@@ -26,13 +27,83 @@ const STATUS_LABELS: Record<string, string> = {
   untracked: 'U',
 }
 
+type CommitFlowAction = 'commit' | 'ship-main' | 'ship-main-close'
+
+interface CommitFlowOption {
+  id: CommitFlowAction
+  label: string
+  tooltip: string
+}
+
+const COMMIT_FLOW_OPTIONS: CommitFlowOption[] = [
+  {
+    id: 'commit',
+    label: 'Commit',
+    tooltip: 'Commit changes',
+  },
+  {
+    id: 'ship-main',
+    label: 'Ship to main',
+    tooltip: 'Commit, merge to main, and push',
+  },
+  {
+    id: 'ship-main-close',
+    label: 'Ship to main and close workspace',
+    tooltip: 'Commit, merge to main, push, and close workspace',
+  },
+]
+
+const COMMIT_PREFIX_BY_TYPE: Record<WorkspaceType, string> = {
+  bug: 'fix: ',
+  feature: 'feat: ',
+  chore: 'chore: ',
+  refactor: 'refactor: ',
+  docs: 'docs: ',
+  test: 'test: ',
+  spike: 'spike: ',
+}
+
+function commitPrefixForType(workspaceType?: WorkspaceType): string {
+  return COMMIT_PREFIX_BY_TYPE[workspaceType ?? DEFAULT_WORKSPACE_TYPE]
+}
+
+function formatUserError(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback
+  const invokePrefix = /^Error invoking remote method '[^']+': Error:\s*/i
+  return err.message.replace(invokePrefix, '') || fallback
+}
+
 export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
   const [files, setFiles] = useState<FileStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
+  const [commitFlow, setCommitFlow] = useState<CommitFlowAction>('commit')
+  const [commitMenuOpen, setCommitMenuOpen] = useState(false)
   const refreshSeqRef = useRef(0)
-  const { openDiffTab } = useAppStore()
+  const lastAutofilledCommitMsgRef = useRef<string>('')
+  const commitMenuRef = useRef<HTMLDivElement | null>(null)
+  const {
+    openDiffTab,
+    addToast,
+    deleteWorkspace,
+    workspaces,
+    projects,
+  } = useAppStore()
+
+  const workspace = workspaces.find((w) => w.id === workspaceId)
+  const project = workspace ? projects.find((p) => p.id === workspace.projectId) : undefined
+  const defaultCommitPrefix = commitPrefixForType(workspace?.type)
+
+  useEffect(() => {
+    setCommitMsg((prev) => {
+      if (prev.trim().length === 0 || prev === lastAutofilledCommitMsgRef.current) {
+        lastAutofilledCommitMsgRef.current = defaultCommitPrefix
+        return defaultCommitPrefix
+      }
+      return prev
+    })
+  }, [defaultCommitPrefix, workspaceId])
 
   const refresh = useCallback(async (showLoading = false) => {
     const seq = ++refreshSeqRef.current
@@ -81,6 +152,28 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     }
   }, [isActive, refresh])
 
+  useEffect(() => {
+    if (!commitMenuOpen) return
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!commitMenuRef.current?.contains(event.target as Node)) {
+        setCommitMenuOpen(false)
+      }
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCommitMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('mousedown', handlePointerDown, true)
+    window.addEventListener('keydown', handleEscape)
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown, true)
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [commitMenuOpen])
+
   const staged = files.filter((f) => f.staged)
   const unstaged = files.filter((f) => !f.staged)
 
@@ -89,12 +182,13 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     try {
       await op()
     } catch (err) {
-      console.error('[ChangedFiles] git operation failed:', err)
+      const msg = formatUserError(err, 'Git operation failed')
+      addToast({ id: crypto.randomUUID(), message: msg, type: 'error' })
     } finally {
       await refresh()
       setBusy(false)
     }
-  }, [refresh])
+  }, [refresh, addToast])
 
   const stageFiles = useCallback((paths: string[]) => {
     runGitOp(() => window.api.git.stage(worktreePath, paths))
@@ -112,13 +206,82 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     }
   }, [worktreePath, runGitOp])
 
-  const handleCommit = useCallback(() => {
-    if (!commitMsg.trim() || staged.length === 0) return
-    runGitOp(async () => {
-      await window.api.git.commit(worktreePath, commitMsg.trim())
-      setCommitMsg('')
+  const handleCommitFlow = useCallback(() => {
+    const message = commitMsg.trim()
+    if (!message) return
+
+    setCommitMenuOpen(false)
+    const shouldStageAllFirst = staged.length === 0 && unstaged.length > 0
+    if (staged.length === 0 && !shouldStageAllFirst) return
+
+    void runGitOp(async () => {
+      if (shouldStageAllFirst) {
+        await window.api.git.stage(worktreePath, unstaged.map((f) => f.path))
+      }
+      await window.api.git.commit(worktreePath, message)
+      lastAutofilledCommitMsgRef.current = defaultCommitPrefix
+      setCommitMsg(defaultCommitPrefix)
+
+      if (commitFlow === 'ship-main' || commitFlow === 'ship-main-close') {
+        if (!project) {
+          throw new Error('Project not found for this workspace')
+        }
+        const sourceBranch = await window.api.git.getCurrentBranch(worktreePath)
+        if (!sourceBranch || sourceBranch === 'HEAD') {
+          throw new Error('Cannot ship workspace from detached HEAD')
+        }
+        const result = await window.api.git.shipBranchToMain(project.repoPath, sourceBranch)
+        const closesWorkspace = commitFlow === 'ship-main-close'
+        if (closesWorkspace) {
+          await deleteWorkspace(workspaceId)
+        }
+
+        if (result.prUrl) {
+          const prMsg = result.prCreated ? 'PR created from main.' : 'PR from main already exists.'
+          addToast({
+            id: crypto.randomUUID(),
+            message: closesWorkspace
+              ? `Merged to ${result.mainBranch}, pushed, and closed workspace. ${prMsg}`
+              : `Merged to ${result.mainBranch} and pushed. ${prMsg}`,
+            type: 'info',
+          })
+          window.open(result.prUrl)
+        } else {
+          addToast({
+            id: crypto.randomUUID(),
+            message: closesWorkspace
+              ? `Merged to ${result.mainBranch}, pushed, and closed workspace.`
+              : `Merged to ${result.mainBranch} and pushed.`,
+            type: 'info',
+          })
+        }
+        return
+      }
+
+      addToast({
+        id: crypto.randomUUID(),
+        message: 'Commit created',
+        type: 'info',
+      })
     })
-  }, [worktreePath, commitMsg, staged.length, runGitOp])
+  }, [
+    commitMsg,
+    staged.length,
+    unstaged,
+    runGitOp,
+    worktreePath,
+    commitFlow,
+    defaultCommitPrefix,
+    project,
+    deleteWorkspace,
+    workspaceId,
+    addToast,
+  ])
+
+  const handleCommitFlowSelect = useCallback((flow: CommitFlowAction) => {
+    setCommitFlow(flow)
+    setCommitMenuOpen(false)
+  }, [])
 
   const openDiff = useCallback((path: string) => {
     openDiffTab(workspaceId)
@@ -147,9 +310,12 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
-      handleCommit()
+      handleCommitFlow()
     }
   }
+
+  const canCommit = !busy && !!commitMsg.trim() && (staged.length > 0 || unstaged.length > 0)
+  const commitFlowOption = COMMIT_FLOW_OPTIONS.find((option) => option.id === commitFlow) ?? COMMIT_FLOW_OPTIONS[0]
 
   return (
     <div className={styles.changedFilesList}>
@@ -163,21 +329,45 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        <Tooltip
-          label="Commit staged changes"
-          shortcut={formatShortcut(
-            SHORTCUT_MAP.commitStagedChanges.mac,
-            SHORTCUT_MAP.commitStagedChanges.win
-          )}
-        >
-          <button
-            className={styles.commitButton}
-            disabled={busy || !commitMsg.trim() || staged.length === 0}
-            onClick={handleCommit}
+        <div className={styles.commitActions} ref={commitMenuRef}>
+          <Tooltip
+            label={commitFlowOption.tooltip}
+            shortcut={formatShortcut(
+              SHORTCUT_MAP.commitStagedChanges.mac,
+              SHORTCUT_MAP.commitStagedChanges.win
+            )}
           >
-            Commit
+            <button
+              className={styles.commitButton}
+              disabled={!canCommit}
+              onClick={handleCommitFlow}
+            >
+              {commitFlowOption.label}
+            </button>
+          </Tooltip>
+          <button
+            className={styles.commitMenuToggle}
+            aria-label="Commit flow options"
+            aria-expanded={commitMenuOpen}
+            disabled={busy}
+            onClick={() => setCommitMenuOpen((open) => !open)}
+          >
+            ▾
           </button>
-        </Tooltip>
+          {commitMenuOpen && (
+            <div className={styles.commitMenu}>
+              {COMMIT_FLOW_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  className={`${styles.commitMenuItem} ${commitFlow === option.id ? styles.activeCommitMenuItem : ''}`}
+                  onClick={() => handleCommitFlowSelect(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Staged section */}
