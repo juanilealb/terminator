@@ -836,11 +836,14 @@ export class GitService {
       await git(['push', 'origin', mainBranch], repoPath)
     } catch (err) {
       await git(['merge', '--abort'], repoPath).catch(() => {})
-      await git(['checkout', source], repoPath).catch(async () => {
-        if (startingBranch && startingBranch !== source) {
-          await git(['checkout', startingBranch], repoPath).catch(() => {})
-        }
-      })
+      const currentBranch = (await git(['branch', '--show-current'], repoPath).catch(() => mainBranch)).trim()
+      if (currentBranch === mainBranch) {
+        await git(['checkout', source], repoPath).catch(async () => {
+          if (startingBranch && startingBranch !== source) {
+            await git(['checkout', startingBranch], repoPath).catch(() => {})
+          }
+        })
+      }
       throw new Error(friendlyGitError(err, 'Failed to merge source branch into main'))
     }
 
