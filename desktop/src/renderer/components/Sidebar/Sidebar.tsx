@@ -420,7 +420,7 @@ export function Sidebar() {
 
       if (commands.length === 0) {
         // Default: one blank terminal
-        const ptyId = await window.api.pty.create(worktreePath, undefined, {
+        const ptyId = await window.api.pty.create(worktreePath, undefined, undefined, {
           AGENT_ORCH_WS_ID: wsId,
         });
         addTab({
@@ -433,7 +433,7 @@ export function Sidebar() {
       } else {
         let firstTabId: string | null = null;
         for (const cmd of commands) {
-          const ptyId = await window.api.pty.create(worktreePath, undefined, {
+          const ptyId = await window.api.pty.create(worktreePath, undefined, undefined, {
             AGENT_ORCH_WS_ID: wsId,
           });
           const tabId = crypto.randomUUID();

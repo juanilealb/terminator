@@ -377,6 +377,14 @@ export function SettingsPanel() {
               placeholder="e.g., pwsh.exe, powershell.exe, cmd.exe"
             />
 
+            <TextRow
+              label="Default shell args"
+              description="Optional startup arguments for the default shell"
+              value={settings.defaultShellArgs}
+              onChange={(v) => update('defaultShellArgs', v)}
+              placeholder='e.g., -NoLogo or /K "chcp 65001>nul"'
+            />
+
           <div className={styles.row}>
             <div className={styles.rowText}>
               <div className={styles.rowLabel}>PR link provider</div>

@@ -58,8 +58,8 @@ const api = {
   },
 
   pty: {
-    create: (workingDir: string, shell?: string, extraEnv?: Record<string, string>) =>
-      ipcRenderer.invoke(IPC.PTY_CREATE, workingDir, shell, extraEnv),
+    create: (workingDir: string, shell?: string, shellArgs?: string[], extraEnv?: Record<string, string>) =>
+      ipcRenderer.invoke(IPC.PTY_CREATE, workingDir, shell, shellArgs, extraEnv),
     write: (ptyId: string, data: string) =>
       ipcRenderer.send(IPC.PTY_WRITE, ptyId, data),
     resize: (ptyId: string, cols: number, rows: number) =>

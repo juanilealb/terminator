@@ -4,7 +4,7 @@ import { IPC } from '../shared/ipc-channels'
 import { PtyManager } from './pty-manager'
 import { GitService } from './git-service'
 import { trustPathForClaude } from './claude-config'
-import { basenameSafe, resolveDefaultShell } from '@shared/platform'
+import { basenameSafe, resolveDefaultShellProfile } from '@shared/platform'
 
 export interface AutomationConfig {
   id: string
@@ -111,12 +111,14 @@ export class AutomationScheduler {
 
     // Spawn a shell with initialWrite — writes the claude command as soon as
     // the shell emits its first output (ready), no manual timeout needed.
-    const shell = resolveDefaultShell()
+    const shellProfile = resolveDefaultShellProfile()
+    const shell = shellProfile.shell
     const command = buildClaudePromptCommand(shell, config.prompt)
     const ptyId = this.ptyManager.create(
       worktreePath,
       win.webContents,
       shell,
+      shellProfile.args,
       undefined,
       command,
     )

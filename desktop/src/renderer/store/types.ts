@@ -58,6 +58,7 @@ export interface Settings {
   confirmOnClose: boolean
   autoSaveOnBlur: boolean
   defaultShell: string
+  defaultShellArgs: string
   restoreWorkspace: boolean
   diffInline: boolean
   terminalFontSize: number
@@ -69,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   confirmOnClose: true,
   autoSaveOnBlur: false,
   defaultShell: '',
+  defaultShellArgs: '',
   restoreWorkspace: true,
   diffInline: false,
   terminalFontSize: 14,

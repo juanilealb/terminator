@@ -4,6 +4,66 @@ import { DEFAULT_SETTINGS } from './types'
 
 const DEFAULT_PR_LINK_PROVIDER = 'github' as const
 
+function parseShellArgs(raw: string): string[] | undefined {
+  const input = raw.trim()
+  if (!input) return undefined
+
+  const args: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+  let escaping = false
+
+  for (const ch of input) {
+    if (escaping) {
+      current += ch
+      escaping = false
+      continue
+    }
+
+    if (ch === '\\' && quote === '"') {
+      escaping = true
+      continue
+    }
+
+    if (quote) {
+      if (ch === quote) {
+        quote = null
+      } else {
+        current += ch
+      }
+      continue
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+
+    if (/\s/.test(ch)) {
+      if (current) {
+        args.push(current)
+        current = ''
+      }
+      continue
+    }
+
+    current += ch
+  }
+
+  if (escaping) current += '\\'
+  if (current) args.push(current)
+  return args.length > 0 ? args : undefined
+}
+
+function shellOverrides(settings: { defaultShell: string; defaultShellArgs: string }): {
+  shell?: string
+  args?: string[]
+} {
+  const shell = settings.defaultShell.trim() || undefined
+  const args = parseShellArgs(settings.defaultShellArgs)
+  return { shell, args }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [],
   workspaces: [],
@@ -234,8 +294,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (!workspaceId || !ws) return
 
-    const shell = s.settings.defaultShell || undefined
-    const ptyId = await window.api.pty.create(ws.worktreePath, shell, { AGENT_ORCH_WS_ID: ws.id })
+    const { shell, args } = shellOverrides(s.settings)
+    const ptyId = await window.api.pty.create(ws.worktreePath, shell, args, { AGENT_ORCH_WS_ID: ws.id })
     const wsTabs = s.tabs.filter((t) => t.workspaceId === workspaceId)
     const termCount = wsTabs.filter((t) => t.type === 'terminal').length
 
@@ -662,13 +722,13 @@ export async function hydrateFromDisk(): Promise<void> {
         t.type === 'terminal' && !livePtyIds.has(t.ptyId)
     )
     if (deadTabs.length > 0) {
-      const shell = store.settings.defaultShell || undefined
+      const { shell, args } = shellOverrides(store.settings)
       const updatedTabs = [...tabs]
       for (const dead of deadTabs) {
         const ws = store.workspaces.find((w) => w.id === dead.workspaceId)
         if (!ws) continue
         try {
-          const newPtyId = await window.api.pty.create(ws.worktreePath, shell, { AGENT_ORCH_WS_ID: ws.id })
+          const newPtyId = await window.api.pty.create(ws.worktreePath, shell, args, { AGENT_ORCH_WS_ID: ws.id })
           const idx = updatedTabs.findIndex((t) => t.id === dead.id)
           if (idx !== -1) updatedTabs[idx] = { ...dead, ptyId: newPtyId }
         } catch {

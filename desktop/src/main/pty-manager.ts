@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { WebContents } from 'electron'
 import { IPC } from '../shared/ipc-channels'
-import { basenameSafe, debugLog, getTempDir, resolveDefaultShell, toPosixPath } from '@shared/platform'
+import { basenameSafe, debugLog, defaultShellArgsFor, getTempDir, resolveDefaultShellProfile, toPosixPath } from '@shared/platform'
 
 interface PtyInstance {
   process: pty.IPty
@@ -245,7 +245,15 @@ export class PtyManager {
   private nextId = 0
   private processSnapshotCache: ProcessSnapshot | null = null
 
-  create(workingDir: string, webContents: WebContents, shell?: string, command?: string[], initialWrite?: string, extraEnv?: Record<string, string>): string {
+  create(
+    workingDir: string,
+    webContents: WebContents,
+    shell?: string,
+    shellArgs?: string[],
+    command?: string[],
+    initialWrite?: string,
+    extraEnv?: Record<string, string>,
+  ): string {
     const id = `pty-${++this.nextId}`
 
     let file: string
@@ -254,8 +262,12 @@ export class PtyManager {
       file = command[0]
       args = command.slice(1)
     } else {
-      file = (shell && shell.trim()) || resolveDefaultShell()
-      args = []
+      if (shell && shell.trim()) {
+        file = shell.trim()
+      } else {
+        file = resolveDefaultShellProfile().shell
+      }
+      args = shellArgs ?? defaultShellArgsFor(file)
     }
 
     const proc = pty.spawn(file, args, {
@@ -264,6 +276,8 @@ export class PtyManager {
       rows: 24,
       cwd: workingDir,
       env: normalizePtyEnv(extraEnv),
+      useConpty: true,
+      conptyInheritCursor: true,
     })
 
     const instance: PtyInstance = {
