@@ -270,14 +270,15 @@ export class PtyManager {
       args = shellArgs ?? defaultShellArgsFor(file)
     }
 
+    const useConpty = process.env.TERMINATOR_USE_CONPTY === '1'
     const proc = pty.spawn(file, args, {
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
       cwd: workingDir,
       env: normalizePtyEnv(extraEnv),
-      useConpty: true,
-      conptyInheritCursor: true,
+      useConpty,
+      conptyInheritCursor: useConpty,
     })
 
     const instance: PtyInstance = {
@@ -336,6 +337,7 @@ export class PtyManager {
       pid: proc.pid,
       shell: file,
       args,
+      useConpty,
       workingDir,
       workspaceId: instance.workspaceId ?? null,
     })
