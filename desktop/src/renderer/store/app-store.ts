@@ -64,6 +64,12 @@ function shellOverrides(settings: { defaultShell: string; defaultShellArgs: stri
   return { shell, args }
 }
 
+function basenameFromPath(dirPath: string): string {
+  const normalized = dirPath.replace(/\\/g, '/').replace(/\/+$/, '')
+  const parts = normalized.split('/').filter(Boolean)
+  return parts[parts.length - 1] ?? dirPath
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [],
   workspaces: [],
@@ -306,6 +312,69 @@ export const useAppStore = create<AppState>((set, get) => ({
       title: `Terminal ${termCount + 1}`,
       ptyId,
     })
+  },
+
+  openDirectory: async (dirPath) => {
+    const validDirPath = await window.api.app.addProjectPath(dirPath)
+    if (!validDirPath) return
+
+    const existingWorkspace = get().workspaces.find((w) => w.worktreePath === validDirPath)
+    if (existingWorkspace) {
+      get().setActiveWorkspace(existingWorkspace.id)
+      const latest = get()
+      const wsTabs = latest.tabs.filter((t) => t.workspaceId === existingWorkspace.id)
+      if (wsTabs.length === 0) {
+        await latest.createTerminalForActiveWorkspace()
+      } else {
+        latest.setActiveTab(wsTabs[wsTabs.length - 1].id)
+      }
+      return
+    }
+
+    const baseName = basenameFromPath(validDirPath) || validDirPath
+    let project = get().projects.find((p) => p.repoPath === validDirPath)
+    if (!project) {
+      project = {
+        id: crypto.randomUUID(),
+        name: baseName,
+        repoPath: validDirPath,
+      }
+      get().addProject(project)
+    }
+
+    const currentState = get()
+    let workspace = currentState.workspaces.find(
+      (w) => w.projectId === project.id && w.worktreePath === validDirPath
+    )
+    if (!workspace) {
+      let branch = ''
+      try {
+        branch = await window.api.git.getCurrentBranch(validDirPath)
+      } catch {
+        // Non-git directories are valid for ad-hoc terminals.
+      }
+
+      workspace = {
+        id: crypto.randomUUID(),
+        name: `${baseName}-quick`,
+        branch: branch || 'local',
+        worktreePath: validDirPath,
+        projectId: project.id,
+        memory: '',
+      }
+      get().addWorkspace(workspace)
+    } else {
+      get().setActiveWorkspace(workspace.id)
+    }
+
+    const latest = get()
+    const workspaceTabs = latest.tabs.filter((t) => t.workspaceId === workspace.id)
+    if (workspaceTabs.length === 0) {
+      await latest.createTerminalForActiveWorkspace()
+      return
+    }
+    const terminalTab = workspaceTabs.find((t) => t.type === 'terminal')
+    latest.setActiveTab((terminalTab ?? workspaceTabs[0]).id)
   },
 
   closeActiveTab: () => {

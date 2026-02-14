@@ -3,6 +3,7 @@ import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP, type ShortcutBinding } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
 import type { PromptTemplate, Settings } from '../../store/types'
+import type { ThemePreference } from '@shared/ipc-channels'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './SettingsPanel.module.css'
 
@@ -72,6 +73,40 @@ function TextRow({ label, description, value, onChange, placeholder }: {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
       />
+    </div>
+  )
+}
+
+function SelectRow<T extends string>({
+  label,
+  description,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  description: string
+  value: T
+  onChange: (v: T) => void
+  options: Array<{ value: T; label: string }>
+}) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowText}>
+        <div className={styles.rowLabel}>{label}</div>
+        <div className={styles.rowDescription}>{description}</div>
+      </div>
+      <select
+        className={styles.selectInput}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }
@@ -268,6 +303,11 @@ function CodexNotifySection() {
 
 export function SettingsPanel() {
   const { settings, updateSettings, toggleSettings } = useAppStore()
+  const themeOptions: Array<{ value: ThemePreference; label: string }> = [
+    { value: 'system', label: 'Follow system' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'light', label: 'Light' },
+  ]
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     updateSettings({ [key]: value })
@@ -322,6 +362,14 @@ export function SettingsPanel() {
         <div className={styles.inner}>
           <div className={styles.section}>
             <div className={styles.sectionTitle}>Appearance</div>
+
+            <SelectRow
+              label="Theme"
+              description="Follow Windows theme, or force dark/light mode"
+              value={settings.themePreference}
+              onChange={(v) => update('themePreference', v)}
+              options={themeOptions}
+            />
 
             <NumberRow
               label="Terminal font size"

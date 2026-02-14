@@ -1,5 +1,6 @@
-import { useEffect, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Allotment } from 'allotment'
+import type { ThemeChangedPayload, ThemePreference } from '@shared/ipc-channels'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import 'allotment/dist/style.css'
@@ -19,9 +20,39 @@ import { useShortcuts } from './hooks/useShortcuts'
 import { usePrStatusPoller } from './hooks/usePrStatusPoller'
 import styles from './App.module.css'
 
+const DEFAULT_THEME: ThemeChangedPayload = {
+  dark: true,
+  accentColor: '#58abff',
+}
+
+function hexToRgba(hex: string, alpha: number): string | null {
+  const cleaned = hex.trim().replace(/^#/, '')
+  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null
+  const r = Number.parseInt(cleaned.slice(0, 2), 16)
+  const g = Number.parseInt(cleaned.slice(2, 4), 16)
+  const b = Number.parseInt(cleaned.slice(4, 6), 16)
+  if ([r, g, b].some((value) => Number.isNaN(value))) return null
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function applyThemeToDocument(theme: ThemeChangedPayload, preference: ThemePreference): void {
+  const isDark = preference === 'system' ? theme.dark : preference === 'dark'
+  const root = document.documentElement
+  root.dataset.theme = isDark ? 'dark' : 'light'
+
+  root.style.setProperty('--accent-system', theme.accentColor)
+  root.style.setProperty('--accent-blue', theme.accentColor)
+
+  const accentDim = hexToRgba(theme.accentColor, 0.22)
+  const accentGlow = hexToRgba(theme.accentColor, 0.26)
+  if (accentDim) root.style.setProperty('--accent-blue-dim', accentDim)
+  if (accentGlow) root.style.setProperty('--accent-blue-glow', accentGlow)
+}
+
 export function App() {
   useShortcuts()
   usePrStatusPoller()
+  const [osTheme, setOsTheme] = useState<ThemeChangedPayload>(DEFAULT_THEME)
 
   // Listen for workspace notification signals from Claude Code hooks
   useEffect(() => {
@@ -40,6 +71,13 @@ export function App() {
       if (state.workspaces.some((w) => w.id === workspaceId)) {
         state.setActiveWorkspace(workspaceId)
       }
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    const unsub = window.api.app.onOpenDirectory((dirPath: string) => {
+      void useAppStore.getState().openDirectory(dirPath)
     })
     return unsub
   }, [])
@@ -73,6 +111,7 @@ export function App() {
     activeWorkspaceTabs,
     workspaces,
     activeWorkspaceId,
+    settings,
     settingsOpen,
     automationsOpen,
     quickOpenVisible,
@@ -99,6 +138,21 @@ export function App() {
   useEffect(() => {
     window.api.app.setUnreadCount(unreadWorkspaceCount)
   }, [unreadWorkspaceCount])
+
+  useEffect(() => {
+    const unsub = window.api.app.onThemeChanged((payload) => {
+      setOsTheme(payload)
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    window.api.app.setThemePreference(settings.themePreference)
+  }, [settings.themePreference])
+
+  useEffect(() => {
+    applyThemeToDocument(osTheme, settings.themePreference)
+  }, [osTheme, settings.themePreference])
 
   return (
     <div className={styles.app} style={appStyle}>
