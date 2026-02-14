@@ -2,7 +2,7 @@ import { execFile } from 'child_process'
 import { existsSync } from 'fs'
 import { copyFile, mkdir, readdir, rm } from 'fs/promises'
 import { promisify } from 'util'
-import { basename, dirname, join, resolve } from 'path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'path'
 import type { CreateWorktreeProgress } from '../shared/workspace-creation'
 
 const execFileAsync = promisify(execFile)
@@ -105,6 +105,27 @@ function reportCreateWorktreeProgress(
   onProgress?.(progress)
 }
 
+function sanitizeWorktreeName(name: string): string {
+  const safe = name
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.-]+/, '')
+    .replace(/[.-]+$/, '')
+  return safe || 'worktree'
+}
+
+function ensureWithinParent(parentDir: string, candidatePath: string): void {
+  const parent = resolve(parentDir)
+  const candidate = resolve(candidatePath)
+  const relPath = relative(parent, candidate)
+  const withinParent = relPath === '' || (!relPath.startsWith('..') && !isAbsolute(relPath))
+  if (!withinParent) {
+    throw new Error('Invalid worktree path')
+  }
+}
+
 export class GitService {
   static async listWorktrees(repoPath: string): Promise<WorktreeInfo[]> {
     const output = await git(['worktree', 'list', '--porcelain'], repoPath)
@@ -163,6 +184,13 @@ export class GitService {
     if (local && local !== 'HEAD') return local.startsWith('origin/') ? local : `origin/${local}`
 
     return 'origin/main'
+  }
+
+  static async hasRemote(repoPath: string, remoteName: string): Promise<boolean> {
+    return git(['remote', 'get-url', remoteName], repoPath).then(
+      () => true,
+      () => false
+    )
   }
 
   static async createWorktree(

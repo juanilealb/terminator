@@ -61,17 +61,23 @@ interface GraphqlOpenPrListResponse {
   errors?: Array<{ message?: string }>
 }
 
+interface GraphqlReviewThreadNode {
+  isResolved?: boolean
+}
+
+interface GraphqlReviewThreadConnection {
+  nodes?: GraphqlReviewThreadNode[]
+  pageInfo?: {
+    hasNextPage?: boolean
+    endCursor?: string | null
+  }
+}
+
 interface GraphqlReviewThreadsResponse {
   data?: {
     repository?: {
       pullRequest?: {
-        reviewThreads?: {
-          nodes?: Array<{ isResolved?: boolean }>
-          pageInfo?: {
-            hasNextPage?: boolean
-            endCursor?: string | null
-          }
-        }
+        reviewThreads?: GraphqlReviewThreadConnection
       }
     }
   }
@@ -604,18 +610,18 @@ export class GithubService {
         }
       `
 
-      const payload = await this.fetchGraphqlJson<GraphqlReviewThreadsResponse>(query, {
+      const payload: GraphqlReviewThreadsResponse = await this.fetchGraphqlJson<GraphqlReviewThreadsResponse>(query, {
         owner: repoInfo.owner,
         name: repoInfo.name,
         number,
         cursor,
       }, token)
 
-      const threads = payload.data?.repository?.pullRequest?.reviewThreads
+      const threads: GraphqlReviewThreadConnection | undefined = payload.data?.repository?.pullRequest?.reviewThreads
       if (!threads) return 0
 
-      const nodes = Array.isArray(threads.nodes) ? threads.nodes : []
-      unresolvedCount += nodes.filter((thread) => !thread.isResolved).length
+      const nodes: GraphqlReviewThreadNode[] = Array.isArray(threads.nodes) ? threads.nodes : []
+      unresolvedCount += nodes.filter((thread: GraphqlReviewThreadNode) => !thread.isResolved).length
 
       if (!threads.pageInfo?.hasNextPage) {
         return unresolvedCount

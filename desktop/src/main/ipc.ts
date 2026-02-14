@@ -412,9 +412,7 @@ export function registerIpcHandlers(): void {
       const watcher = watch(dirPath, { recursive: true }, (_eventType, filename) => {
         const fileNameText = typeof filename === 'string'
           ? filename
-          : Buffer.isBuffer(filename)
-            ? filename.toString('utf-8')
-            : ''
+          : ''
 
         // For .git/ changes, only notify on meaningful state changes (commit, stage, branch switch)
         // Ignore noisy internals like objects/, logs/, COMMIT_EDITMSG
