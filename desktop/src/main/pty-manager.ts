@@ -1,6 +1,6 @@
 import * as pty from 'node-pty'
 import { execFileSync } from 'child_process'
-import { mkdirSync, unlinkSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { WebContents } from 'electron'
 import { IPC } from '../shared/ipc-channels'
@@ -13,6 +13,8 @@ interface PtyInstance {
   cols: number
   rows: number
   workspaceId?: string
+  codexPromptBuffer: string
+  codexAwaitingAnswer: boolean
 }
 
 interface ProcessEntry {
@@ -227,6 +229,16 @@ function normalizePtyEnv(extraEnv?: Record<string, string>): Record<string, stri
 const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const CODEX_MARKER_SEGMENT = '.codex.'
 const PROCESS_SNAPSHOT_TTL_MS = 1000
+const CODEX_PROMPT_BUFFER_MAX = 4096
+const CODEX_QUESTION_HEADER_RE = /Question\s+\d+\s*\/\s*\d+\s*\(\s*\d+\s+unanswered\s*\)/i
+const CODEX_QUESTION_HINT_RE = /enter to submit answer/i
+
+function stripAnsiSequences(data: string): string {
+  return data
+    .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b\].*?(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1bP.*?\x1b\\/g, '')
+}
 
 export class PtyManager {
   private ptys = new Map<string, PtyInstance>()
@@ -261,6 +273,8 @@ export class PtyManager {
       cols: 80,
       rows: 24,
       workspaceId: extraEnv?.AGENT_ORCH_WS_ID,
+      codexPromptBuffer: '',
+      codexAwaitingAnswer: false,
     }
 
     let pendingWrite = initialWrite
@@ -284,6 +298,7 @@ export class PtyManager {
       if (!instance.webContents.isDestroyed()) {
         instance.webContents.send(`${IPC.PTY_DATA}:${id}`, data)
       }
+      this.handleCodexQuestionPrompt(instance, data)
       flushInitialWrite('first-output')
     })
 
@@ -325,6 +340,8 @@ export class PtyManager {
     // Codex doesn't expose a prompt-submit hook, so mark the workspace active
     // when Enter is sent while a Codex process is already running in this PTY.
     if (instance.workspaceId && /[\r\n]/.test(data) && this.isCodexRunningUnder(instance.process.pid)) {
+      instance.codexPromptBuffer = ''
+      instance.codexAwaitingAnswer = false
       this.markCodexWorkspaceActive(instance.workspaceId, instance.process.pid)
     }
 
@@ -487,6 +504,36 @@ export class PtyManager {
       if (code !== 'ENOENT') {
         debugLog('Codex activity marker clear failed', { workspaceId, ptyPid, markerPath, error: err })
       }
+    }
+  }
+
+  private handleCodexQuestionPrompt(instance: PtyInstance, data: string): void {
+    if (!instance.workspaceId) return
+    if (instance.codexAwaitingAnswer) return
+
+    const normalized = stripAnsiSequences(data)
+    if (!normalized) return
+
+    instance.codexPromptBuffer = `${instance.codexPromptBuffer}${normalized}`.slice(-CODEX_PROMPT_BUFFER_MAX)
+    if (!CODEX_QUESTION_HEADER_RE.test(instance.codexPromptBuffer)) return
+    if (!CODEX_QUESTION_HINT_RE.test(instance.codexPromptBuffer)) return
+    if (!this.isCodexActivityMarked(instance.workspaceId, instance.process.pid)) return
+
+    // Codex is explicitly waiting on user input: clear spinner activity and
+    // surface unread attention via the existing notify channel.
+    instance.codexAwaitingAnswer = true
+    instance.codexPromptBuffer = ''
+    this.clearCodexWorkspaceActivity(instance.workspaceId, instance.process.pid)
+    if (!instance.webContents.isDestroyed()) {
+      instance.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, instance.workspaceId)
+    }
+  }
+
+  private isCodexActivityMarked(workspaceId: string, ptyPid: number): boolean {
+    try {
+      return existsSync(this.codexMarkerPath(workspaceId, ptyPid))
+    } catch {
+      return false
     }
   }
 
