@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useAppStore } from '../../store/app-store'
 import type { Tab } from '../../store/types'
+import { dispatchTerminalUiAction, type TerminalUiAction } from '../../utils/terminal-actions'
 import { expandPromptTemplate, normalizePreviewUrl } from '../../utils/prompt-template'
 import styles from './CommandPalette.module.css'
 
@@ -36,6 +37,7 @@ export function CommandPalette() {
     tabs,
     activeTabId,
     setActiveWorkspace,
+    setActiveTab,
     setRightPanelMode,
     toggleRightPanel,
     toggleSidebar,
@@ -55,6 +57,23 @@ export function CommandPalette() {
   const ensureRightPanelMode = (mode: 'files' | 'changes' | 'memory' | 'preview') => {
     setRightPanelMode(mode)
     if (!rightPanelOpen) toggleRightPanel()
+  }
+
+  const triggerTerminalAction = (action: TerminalUiAction): boolean => {
+    let terminalTab = tabs.find((t): t is TerminalTab => t.id === activeTabId && t.type === 'terminal')
+
+    if (!terminalTab && workspace) {
+      terminalTab = tabs.find((t): t is TerminalTab => t.type === 'terminal' && t.workspaceId === workspace.id)
+      if (terminalTab) setActiveTab(terminalTab.id)
+    }
+
+    if (!terminalTab) {
+      addToast({ id: crypto.randomUUID(), message: 'No terminal available', type: 'info' })
+      return false
+    }
+
+    dispatchTerminalUiAction(terminalTab.ptyId, action)
+    return true
   }
 
   const insertTemplateIntoTerminal = async (templateContent: string, templateName: string) => {
@@ -104,6 +123,24 @@ export function CommandPalette() {
         description: 'Focus first terminal tab or create one',
         keywords: ['terminal', 'focus', '/focus'],
         run: async () => focusOrCreateTerminal(),
+      },
+      {
+        id: 'find-terminal',
+        title: 'Find in terminal',
+        description: 'Search text in the active terminal scrollback',
+        keywords: ['terminal', 'find', '/terminal-find'],
+        run: () => {
+          triggerTerminalAction('find')
+        },
+      },
+      {
+        id: 'clear-terminal',
+        title: 'Clear terminal',
+        description: 'Clear active terminal viewport and scrollback',
+        keywords: ['terminal', 'clear', '/terminal-clear'],
+        run: () => {
+          triggerTerminalAction('clear')
+        },
       },
       {
         id: 'quick-open',
@@ -268,6 +305,14 @@ export function CommandPalette() {
       ensureRightPanelMode('files')
       return true
     }
+    if (command === 'terminal-find' || command === 'find') {
+      triggerTerminalAction('find')
+      return true
+    }
+    if (command === 'terminal-clear' || command === 'clear') {
+      triggerTerminalAction('clear')
+      return true
+    }
     if (command === 'changes') {
       ensureRightPanelMode('changes')
       return true
@@ -338,7 +383,7 @@ export function CommandPalette() {
     if (command === 'help') {
       addToast({
         id: crypto.randomUUID(),
-        message: 'Slash commands: /terminal /files /changes /memory /preview /preview-url /snapshot /restore-latest /template',
+        message: 'Slash commands: /terminal /terminal-find /terminal-clear /files /changes /memory /preview /preview-url /snapshot /restore-latest /template',
         type: 'info',
       })
       return true
