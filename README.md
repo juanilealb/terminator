@@ -9,7 +9,7 @@ A Windows desktop app for running multiple AI coding agents in parallel. Each ag
 ## Features
 
 - **Parallel agents** â€” Run separate Claude Code / Codex sessions side-by-side, each in its own isolated workspace
-- **Full terminal emulator** â€” Ghostty-web + node-pty with PowerShell/cmd support
+- **Full terminal emulator** â€” `xterm.js` + node-pty with PowerShell/cmd support
 - **Monaco code editor** â€” Syntax highlighting, diffs, and file editing
 - **Git integration** â€” Staging, committing, branching, and worktree management
 - **File tree navigation** â€” Browse project files with git status indicators
@@ -138,7 +138,7 @@ This logs platform info, PTY lifecycle, hook operations, git status, and path no
 | UI | React 19 + TypeScript (strict) |
 | State | Zustand |
 | Editor | Monaco Editor |
-| Terminal | ghostty-web + node-pty (ConPTY) |
+| Terminal | xterm.js + node-pty (ConPTY) |
 | Build | electron-vite + Bun |
 | Packaging | electron-builder (NSIS) |
 | Tests | Playwright |
@@ -183,5 +183,3 @@ terminator/
 ## License
 
 ISC
-
-
