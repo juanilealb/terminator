@@ -12,8 +12,8 @@
 
 /* Monaco overrides — match our theme */
 .editorContainer :global(.monaco-editor) {
-  --vscode-editor-background: var(--surface-1);
-  --vscode-editorGutter-background: var(--surface-0);
+  --vscode-editor-background: var(--bg-surface);
+  --vscode-editorGutter-background: var(--bg-app);
 }
 
 /* Diff editor controls */
@@ -22,8 +22,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-2) var(--space-6);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface-hover);
+  border-bottom: 1px solid var(--border-muted);
   height: 30px;
   flex-shrink: 0;
 }
@@ -37,7 +37,7 @@
 .diffToggle {
   display: flex;
   align-items: center;
-  background: var(--surface-0);
+  background: var(--bg-app);
   border-radius: var(--radius-full);
   padding: 1px;
   gap: 1px;
@@ -60,7 +60,7 @@
 }
 
 .diffToggleOption.active {
-  background: var(--surface-3);
+  background: var(--bg-surface-active);
   color: var(--text-primary);
 }
 
@@ -99,8 +99,8 @@
   align-items: center;
   gap: 2px;
   padding: var(--space-2) var(--space-6);
-  background: var(--surface-1);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-muted);
   overflow-x: auto;
   flex-shrink: 0;
 }
@@ -120,17 +120,17 @@
 
 .fileStripItem:hover {
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-surface-hover);
 }
 
 .fileStripItem.active {
-  background: var(--surface-3);
+  background: var(--bg-surface-active);
   color: var(--text-primary);
 }
 
 /* Per-file diff section */
 .diffFileSection {
-  border-bottom: 2px solid var(--border-subtle);
+  border-bottom: 2px solid var(--border-muted);
 }
 
 .fileHeader {
@@ -138,8 +138,8 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-6);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface-hover);
+  border-bottom: 1px solid var(--border-muted);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -148,7 +148,7 @@
 }
 
 .fileHeader:hover {
-  background: var(--surface-3);
+  background: var(--bg-surface-active);
 }
 
 .fileHeaderPath {

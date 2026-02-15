@@ -81,19 +81,19 @@ test.describe('File tree & editor integration', () => {
       await setupWorkspace(window, repoPath, 'ftree')
       await window.waitForTimeout(1000)
 
-      // Right panel should show file tree by default
+      // Right panel should show file tree by default (Fluent UI Tab uses aria-selected)
       const filesBtn = window.locator('button', { hasText: 'Files' })
-      const filesBtnClass = await filesBtn.getAttribute('class')
-      expect(filesBtnClass).toContain('active')
+      expect(await filesBtn.getAttribute('aria-selected')).toBe('true')
 
       // Wait for tree to load
       await window.waitForTimeout(1000)
 
-      // Should see src directory and README.md
-      const readmeItem = window.locator('[class*="treeNode"]', { hasText: 'README.md' })
+      // Should see src directory and README.md (Fluent UI TreeItem uses role="treeitem")
+      // Use leaf items only (no aria-expanded) to avoid matching parent directories
+      const readmeItem = window.locator('[role="treeitem"]:not([aria-expanded])', { hasText: 'README.md' })
       await expect(readmeItem).toBeVisible()
 
-      const srcItem = window.locator('[class*="treeNode"]', { hasText: 'src' })
+      const srcItem = window.locator('[role="treeitem"][aria-level="2"]', { hasText: 'src' })
       await expect(srcItem).toBeVisible()
 
       await window.screenshot({
@@ -116,8 +116,8 @@ test.describe('File tree & editor integration', () => {
       // Wait for file tree to load
       await window.waitForTimeout(2000)
 
-      // Click README.md in file tree
-      const readmeItem = window.locator('[class*="treeNode"]', { hasText: 'README.md' }).first()
+      // Click README.md in file tree (Fluent UI TreeItem, leaf items only)
+      const readmeItem = window.locator('[role="treeitem"]:not([aria-expanded])', { hasText: 'README.md' }).first()
       await expect(readmeItem).toBeVisible({ timeout: 5000 })
       await readmeItem.click()
       await window.waitForTimeout(3000)

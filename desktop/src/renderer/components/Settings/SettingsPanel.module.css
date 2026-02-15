@@ -4,14 +4,14 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: var(--surface-1);
+  background: var(--bg-panel);
   overflow: hidden;
 }
 
 .header {
   padding: 0 48px;
   padding-top: var(--titlebar-height);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-muted);
   flex-shrink: 0;
   -webkit-app-region: drag;
 }
@@ -48,7 +48,7 @@
 }
 
 .backBtn:hover {
-  background: var(--surface-3);
+  background: var(--bg-surface-hover);
   color: var(--text-primary);
 }
 
@@ -80,13 +80,14 @@
 /* Fluent Card override — Windows 11 settings card style */
 .card {
   padding: 4px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-muted);
   border-radius: 6px;
 }
 
 [data-theme='light'] .card {
   background: rgba(255, 255, 255, 0.7);
+  border-color: var(--border-subtle);
 }
 
 /* Setting rows inside cards */
@@ -98,18 +99,19 @@
 }
 
 .settingRow + .settingRow {
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-muted);
 }
 
 .settingText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
 .settingDescription {
-  display: block;
   color: var(--text-tertiary);
-  margin-top: 2px;
 }
 
 /* Form control widths */
@@ -139,10 +141,10 @@
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
-  background: var(--surface-3);
+  background: var(--bg-surface-hover);
   padding: 2px 8px;
   border-radius: 4px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-muted);
 }
 
 /* Template cards */
@@ -163,8 +165,8 @@
 .templateCard {
   margin: 8px 0;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-muted);
   border-radius: 6px;
 }
 
@@ -190,4 +192,30 @@
 
 .addTemplateBtn {
   margin-top: 8px;
+}
+
+/* Fluent UI control overrides for dark theme */
+.card :global(.fui-Dropdown) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+.card :global(.fui-SpinButton) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+.card :global(.fui-Input) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+.card :global(.fui-Textarea) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+/* Unchecked toggle track — dark gray instead of light */
+.card :global(.fui-Switch__indicator) {
+  border-color: var(--border-default);
 }

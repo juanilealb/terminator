@@ -68,12 +68,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
   const pasteFromClipboard = async () => {
     const text = await window.api.clipboard.readText()
     if (!text) return
-    const term = termRef.current
-    if (term) {
-      term.paste(text)
-    } else {
-      window.api.pty.write(ptyId, text)
-    }
+    window.api.pty.write(ptyId, text)
   }
 
   const clearTerminalView = () => {
@@ -363,6 +358,15 @@ export function TerminalPanel({ ptyId, active }: Props) {
           event.preventDefault()
           event.stopPropagation()
           openSearch(term.getSelection())
+          return false
+        }
+
+        // Ctrl+Enter → send CSI u escape sequence so CLIs like Claude Code
+        // can distinguish it from a plain Enter (newline vs submit).
+        if (hasCtrl && !hasShift && !hasAlt && key === 'enter') {
+          event.preventDefault()
+          event.stopPropagation()
+          window.api.pty.write(ptyId, '\x1b[13;5u')
           return false
         }
 

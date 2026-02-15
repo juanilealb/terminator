@@ -3,6 +3,8 @@ import {
   Tree,
   TreeItem,
   TreeItemLayout,
+  type TreeOpenChangeData,
+  type TreeOpenChangeEvent,
 } from '@fluentui/react-components'
 import {
   FolderRegular,
@@ -142,26 +144,27 @@ export function FileTree({ worktreePath, isActive }: Props) {
     if (isActive) fetchTree()
   }, [isActive, fetchTree])
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleOpenChange = useCallback((event: any, data: any) => {
-    const isAlt = event.altKey === true
+  const handleOpenChange = useCallback((_event: TreeOpenChangeEvent, data: TreeOpenChangeData) => {
+    const isAlt = (_event.nativeEvent as KeyboardEvent | MouseEvent).altKey === true
     if (isAlt && tree) {
       const targetPath = data.value as string
       const node = findNode(tree, targetPath)
       if (node) {
         const descendants = collectDescendantPaths(node)
-        const newOpen = new Set(openItems)
-        if (data.open) {
-          for (const p of descendants) newOpen.add(p)
-        } else {
-          for (const p of descendants) newOpen.delete(p)
-        }
-        setOpenItems(newOpen)
+        setOpenItems((prev) => {
+          const newOpen = new Set(prev)
+          if (data.open) {
+            for (const p of descendants) newOpen.add(p)
+          } else {
+            for (const p of descendants) newOpen.delete(p)
+          }
+          return newOpen
+        })
       }
     } else {
-      setOpenItems(new Set(data.openItems as Iterable<string>))
+      setOpenItems(new Set(data.openItems))
     }
-  }, [tree, openItems])
+  }, [tree])
 
   if (!tree) {
     return (

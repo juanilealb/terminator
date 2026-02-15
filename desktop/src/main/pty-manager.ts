@@ -286,6 +286,7 @@ const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const CODEX_MARKER_SEGMENT = '.codex.'
 const CODEX_WAITING_MARKER_SEGMENT = '.codex-wait.'
 const PROCESS_SNAPSHOT_TTL_MS = 1000
+const CODEX_MONITOR_INTERVAL_MS = 3000
 const PTY_DATA_FLUSH_INTERVAL_MS = 8
 const CODEX_PROMPT_BUFFER_MAX = 4096
 const CODEX_QUESTION_HEADER_RE = /Question\s+\d+\s*\/\s*\d+/i
@@ -304,6 +305,7 @@ export class PtyManager {
   private ptys = new Map<string, PtyInstance>()
   private nextId = 0
   private processSnapshotCache: ProcessSnapshot | null = null
+  private codexMonitorTimer: ReturnType<typeof setInterval> | null = null
 
   create(
     workingDir: string,
@@ -454,7 +456,20 @@ export class PtyManager {
       this.markCodexWorkspaceActive(instance.workspaceId, instance.process.pid)
     }
 
-    instance.process.write(data)
+    const CHUNK_SIZE = 512
+    if (data.length <= CHUNK_SIZE) {
+      instance.process.write(data)
+      return
+    }
+
+    // Chunked write for large pastes to avoid ConPTY buffer overflow
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+      const chunk = data.slice(i, i + CHUNK_SIZE)
+      instance.process.write(chunk)
+      if (i + CHUNK_SIZE < data.length) {
+        await new Promise(resolve => setTimeout(resolve, 5))
+      }
+    }
   }
 
   resize(ptyId: string, cols: number, rows: number): void {
@@ -601,6 +616,7 @@ export class PtyManager {
     try {
       mkdirSync(ACTIVITY_DIR, { recursive: true })
       writeFileSync(markerPath, '')
+      this.startCodexMonitorIfNeeded()
       debugLog('Codex activity marker set', { workspaceId, ptyPid, markerPath })
     } catch (err) {
       debugLog('Codex activity marker write failed', { workspaceId, ptyPid, markerPath, error: err })
@@ -613,6 +629,7 @@ export class PtyManager {
     try {
       mkdirSync(ACTIVITY_DIR, { recursive: true })
       writeFileSync(markerPath, '')
+      this.startCodexMonitorIfNeeded()
       debugLog('Codex waiting marker set', { workspaceId, ptyPid, markerPath })
     } catch (err) {
       debugLog('Codex waiting marker write failed', { workspaceId, ptyPid, markerPath, error: err })
@@ -655,6 +672,14 @@ export class PtyManager {
   private isCodexRunningMarked(workspaceId: string, ptyPid: number): boolean {
     try {
       return existsSync(this.codexMarkerPath(workspaceId, ptyPid))
+    } catch {
+      return false
+    }
+  }
+
+  private isCodexWaitingMarked(workspaceId: string, ptyPid: number): boolean {
+    try {
+      return existsSync(this.codexWaitingMarkerPath(workspaceId, ptyPid))
     } catch {
       return false
     }
@@ -710,7 +735,49 @@ export class PtyManager {
     return true
   }
 
+  private startCodexMonitorIfNeeded(): void {
+    if (this.codexMonitorTimer) return
+    this.codexMonitorTimer = setInterval(() => {
+      void this.checkStaleCodexMarkers()
+    }, CODEX_MONITOR_INTERVAL_MS)
+  }
+
+  private stopCodexMonitor(): void {
+    if (this.codexMonitorTimer) {
+      clearInterval(this.codexMonitorTimer)
+      this.codexMonitorTimer = null
+    }
+  }
+
+  private async checkStaleCodexMarkers(): Promise<void> {
+    let anyMarked = false
+    for (const instance of this.ptys.values()) {
+      if (!instance.workspaceId) continue
+      const pid = instance.process.pid
+      const hasRunning = this.isCodexRunningMarked(instance.workspaceId, pid)
+      const hasWaiting = this.isCodexWaitingMarked(instance.workspaceId, pid)
+      if (!hasRunning && !hasWaiting) continue
+      anyMarked = true
+
+      const isRunning = await this.isCodexRunningUnder(pid)
+      if (!isRunning) {
+        this.clearCodexWorkspaceActivity(instance.workspaceId, pid)
+        instance.codexAwaitingAnswer = false
+        instance.codexPromptBuffer = ''
+        debugLog('Stale codex marker cleared (process exited)', {
+          workspaceId: instance.workspaceId,
+          ptyPid: pid,
+        })
+      }
+    }
+
+    if (!anyMarked) {
+      this.stopCodexMonitor()
+    }
+  }
+
   destroyAll(): void {
+    this.stopCodexMonitor()
     for (const [id] of this.ptys) {
       this.destroy(id)
     }

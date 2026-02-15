@@ -109,7 +109,7 @@ export function WorkspaceMemoryPanel({ workspace }: Props) {
       }
 
       const expanded = await expandPromptTemplate(templateContent, workspace)
-      window.api.pty.write(terminal.ptyId, `\x1b[200~${expanded}\x1b[201~`)
+      window.api.pty.write(terminal.ptyId, expanded)
       addToast({
         id: crypto.randomUUID(),
         message: `Template "${templateName}" inserted into terminal`,
