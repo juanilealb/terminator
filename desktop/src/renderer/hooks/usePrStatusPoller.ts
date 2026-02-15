@@ -69,12 +69,13 @@ export function usePrStatusPoller(): void {
         async ([projectId, { repoPath, branches }]) => {
           try {
             const result = await window.api.github.getPrStatuses(repoPath, branches) as PrLookupResult
-            setGhAvailability(projectId, result.available)
+            setGhAvailability(projectId, result.available, result.error)
             if (result.available) {
               setPrStatuses(projectId, result.data)
               const prs: Array<PrInfo | null> = Object.values(result.data)
               return prs.some((pr) => pr?.state === 'open' && pr?.checkStatus === 'pending')
             }
+            console.warn(`[PrPoller] PR lookup unavailable for project ${projectId}: ${result.error ?? 'unknown'}`)
             return false
           } catch {
             // PR status is nice-to-have — silently ignore errors
