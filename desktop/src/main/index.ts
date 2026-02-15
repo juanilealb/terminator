@@ -303,7 +303,9 @@ if (hasSingleInstanceLock && !allowMultiInstance) {
       requestOpenDirectory(requestedDirectory)
     }
   })
+}
 
+if (hasSingleInstanceLock || allowMultiInstance) {
   app.whenReady().then(() => {
     const detectedShell = resolveDefaultShell()
     debugLog('Startup info', {

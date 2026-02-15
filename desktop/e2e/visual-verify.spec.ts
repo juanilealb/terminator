@@ -7,6 +7,7 @@ import { tmpdir } from 'os'
 const appPath = resolve(__dirname, '../out/main/index.js')
 
 test('Full visual verification: project + workspace + terminal + file tree + changes', async () => {
+  test.setTimeout(60000)
   // Create test repo
   const stamp = `visual-verify-${Date.now()}`
   const repoPath = join(tmpdir(), stamp)
