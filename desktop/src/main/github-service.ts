@@ -117,10 +117,12 @@ export class GithubService {
   static async isGhAvailable(): Promise<boolean> {
     if (this.ghAvailable !== null) return this.ghAvailable
     try {
-      await execFileAsync('gh', ['--version'], { timeout: 5000 })
+      const { stdout } = await execFileAsync('gh', ['--version'], { timeout: 5000 })
       this.ghAvailable = true
-    } catch {
+      console.log('[GithubService] gh CLI available:', stdout.trim().split('\n')[0])
+    } catch (err) {
       this.ghAvailable = false
+      console.warn('[GithubService] gh CLI not available — PR features disabled.', (err as Error)?.message)
     }
     return this.ghAvailable
   }
@@ -245,8 +247,12 @@ export class GithubService {
       const { stdout } = await execFileAsync('gh', ['auth', 'token'], { timeout: 5000 })
       const token = stdout.trim()
       this.authToken = token || null
-    } catch {
+      if (!this.authToken) {
+        console.warn('[GithubService] gh auth token returned empty — not authenticated')
+      }
+    } catch (err) {
       this.authToken = null
+      console.warn('[GithubService] gh auth token failed — not authenticated.', (err as Error)?.message)
     }
     return this.authToken
   }

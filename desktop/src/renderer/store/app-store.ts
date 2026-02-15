@@ -109,6 +109,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   waitingAgentCount: 0,
   prStatusMap: new Map(),
   ghAvailability: new Map(),
+  ghErrorMap: new Map(),
   previewUrlByWorkspace: {},
 
   addProject: (project) =>
@@ -699,11 +700,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { prStatusMap: newMap }
     }),
 
-  setGhAvailability: (projectId, available) =>
+  setGhAvailability: (projectId, available, error) =>
     set((s) => {
-      const newMap = new Map(s.ghAvailability)
-      newMap.set(projectId, available)
-      return { ghAvailability: newMap }
+      const newAvail = new Map(s.ghAvailability)
+      newAvail.set(projectId, available)
+      const newErrors = new Map(s.ghErrorMap)
+      newErrors.set(projectId, error)
+      return { ghAvailability: newAvail, ghErrorMap: newErrors }
     }),
 
   addAutomation: (automation) =>
