@@ -104,6 +104,31 @@ function extractPrNumberFromBranch(branch: string): number | null {
   return null;
 }
 
+function ghStatusHintMessage(error?: GithubLookupError): string | null {
+  if (error === "gh_not_installed") return "Install GitHub CLI (gh) to show PR status";
+  if (error === "not_authenticated") return "Run \u201Cgh auth login\u201D to show PR status";
+  if (error === "not_github_repo") return null; // not worth showing
+  return null;
+}
+
+function GhStatusHint({ projectId }: { projectId: string }) {
+  const ghAvailable = useAppStore((s) => s.ghAvailability.get(projectId));
+  const ghError = useAppStore((s) => s.ghErrorMap.get(projectId));
+
+  // Don't show anything if we haven't checked yet or gh is available
+  if (ghAvailable === undefined || ghAvailable === true) return null;
+
+  const message = ghStatusHintMessage(ghError);
+  if (!message) return null;
+
+  return (
+    <div className={styles.ghStatusHint} title={message}>
+      <span className={styles.ghStatusHintIcon}>&#x26A0;</span>
+      <span className={styles.ghStatusHintText}>{message}</span>
+    </div>
+  );
+}
+
 interface WorkspaceCreationState {
   requestId: string;
   message: string;
@@ -644,7 +669,7 @@ export function Sidebar() {
 
       try {
         const result = await window.api.github.listOpenPrs(project.repoPath);
-        setGhAvailability(project.id, result.available);
+        setGhAvailability(project.id, result.available, result.error);
         if (!result.available) {
           setProjectOpenPrs((prev) => ({ ...prev, [project.id]: [] }));
           setProjectPrError((prev) => ({
@@ -1023,6 +1048,8 @@ export function Sidebar() {
                       </div>
                     );
                   })}
+
+                  <GhStatusHint projectId={project.id} />
 
                   <Tooltip
                     label="New workspace"

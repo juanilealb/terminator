@@ -1,4 +1,4 @@
-import type { PrInfo } from '@shared/github-types'
+import type { PrInfo, GithubLookupError } from '@shared/github-types'
 import type { AgentActivitySnapshot, ThemePreference } from '@shared/ipc-channels'
 import {
   DEFAULT_AGENT_PERMISSION_MODE,
@@ -159,6 +159,7 @@ export interface AppState {
   waitingAgentCount: number
   prStatusMap: Map<string, PrInfo | null>
   ghAvailability: Map<string, boolean>
+  ghErrorMap: Map<string, GithubLookupError | undefined>
   previewUrlByWorkspace: Record<string, string>
 
   // Actions
@@ -218,7 +219,7 @@ export interface AppState {
 
   // PR status actions
   setPrStatuses: (projectId: string, statuses: Record<string, PrInfo | null>) => void
-  setGhAvailability: (projectId: string, available: boolean) => void
+  setGhAvailability: (projectId: string, available: boolean, error?: GithubLookupError) => void
 
   // Automation actions
   addAutomation: (automation: Automation) => void
