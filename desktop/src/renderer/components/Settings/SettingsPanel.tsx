@@ -1,4 +1,23 @@
 import { useEffect, useState } from 'react'
+import {
+  Card,
+  Switch,
+  Dropdown,
+  Option,
+  SpinButton,
+  Input,
+  Textarea,
+  Button,
+  Body1Strong,
+  Caption1,
+  Subtitle2,
+  Table,
+  TableHeader,
+  TableRow,
+  TableBody,
+  TableCell,
+  TableHeaderCell,
+} from '@fluentui/react-components'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP, type ShortcutBinding } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
@@ -32,116 +51,24 @@ const SHORTCUTS: Array<{ action: string; binding: ShortcutBinding }> = [
   { action: 'Settings', binding: SHORTCUT_MAP.settings },
 ]
 
-function ToggleRow({ label, description, value, onChange }: {
-  label: string
-  description: string
-  value: boolean
-  onChange: (v: boolean) => void
-}) {
-  return (
-    <div className={styles.row} onClick={() => onChange(!value)}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>{label}</div>
-        <div className={styles.rowDescription}>{description}</div>
-      </div>
-      <button
-        className={`${styles.toggle} ${value ? styles.toggleOn : ''}`}
-        onClick={(e) => { e.stopPropagation(); onChange(!value) }}
-      >
-        <span className={styles.toggleKnob} />
-      </button>
-    </div>
-  )
-}
+const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
+  { value: 'system', label: 'Follow system' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' },
+]
 
-function TextRow({ label, description, value, onChange, placeholder }: {
+function SettingRow({ label, description, children }: {
   label: string
   description: string
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
+  children: React.ReactNode
 }) {
   return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>{label}</div>
-        <div className={styles.rowDescription}>{description}</div>
+    <div className={styles.settingRow}>
+      <div className={styles.settingText}>
+        <Body1Strong>{label}</Body1Strong>
+        <Caption1 className={styles.settingDescription}>{description}</Caption1>
       </div>
-      <input
-        className={styles.textInput}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-    </div>
-  )
-}
-
-function SelectRow<T extends string>({
-  label,
-  description,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  description: string
-  value: T
-  onChange: (v: T) => void
-  options: Array<{ value: T; label: string }>
-}) {
-  return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>{label}</div>
-        <div className={styles.rowDescription}>{description}</div>
-      </div>
-      <select
-        className={styles.selectInput}
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-function NumberRow({ label, description, value, onChange, min = 8, max = 32 }: {
-  label: string
-  description: string
-  value: number
-  onChange: (v: number) => void
-  min?: number
-  max?: number
-}) {
-  return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>{label}</div>
-        <div className={styles.rowDescription}>{description}</div>
-      </div>
-      <div className={styles.stepper}>
-        <button
-          className={styles.stepperBtn}
-          onClick={() => onChange(Math.max(min, value - 1))}
-          disabled={value <= min}
-        >
-          −
-        </button>
-        <span className={styles.stepperValue}>{value}</span>
-        <button
-          className={styles.stepperBtn}
-          onClick={() => onChange(Math.min(max, value + 1))}
-          disabled={value >= max}
-        >
-          +
-        </button>
-      </div>
+      {children}
     </div>
   )
 }
@@ -156,25 +83,31 @@ function TemplateEditorRow({
   onDelete: () => void
 }) {
   return (
-    <div className={styles.templateCard}>
+    <Card className={styles.templateCard}>
       <div className={styles.templateCardHeader}>
-        <input
+        <Input
           className={styles.templateNameInput}
           value={template.name}
-          onChange={(e) => onChange({ name: e.target.value })}
+          onChange={(_, data) => onChange({ name: data.value })}
           placeholder="Template name"
+          size="small"
         />
-        <button className={styles.templateDeleteBtn} onClick={onDelete}>Delete</button>
+        <Button appearance="subtle" size="small" className={styles.templateDeleteBtn} onClick={onDelete}>
+          Delete
+        </Button>
       </div>
-      <textarea
+      <Textarea
         className={styles.templateContentInput}
         value={template.content}
-        onChange={(e) => onChange({ content: e.target.value })}
+        onChange={(_, data) => onChange({ content: data.value })}
         placeholder="Template text. Mentions: @workspace @branch @path @memory @file:README.md"
+        resize="vertical"
+        size="small"
       />
-    </div>
+    </Card>
   )
 }
+
 function ClaudeHooksSection() {
   const [installed, setInstalled] = useState<boolean | null>(null)
   const [installing, setInstalling] = useState(false)
@@ -210,31 +143,31 @@ function ClaudeHooksSection() {
   }
 
   return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>Claude Code hooks</div>
-        <div className={styles.rowDescription}>
-          Show an unread indicator when Claude Code finishes responding in a workspace
-        </div>
-      </div>
+    <SettingRow
+      label="Claude Code hooks"
+      description="Show an unread indicator when Claude Code finishes responding in a workspace"
+    >
       {installed === true ? (
-        <button
-          className={styles.actionBtnDanger}
+        <Button
+          appearance="subtle"
+          size="small"
+          className={styles.dangerBtn}
           onClick={handleUninstall}
           disabled={installing}
         >
           {installing ? 'Removing...' : 'Uninstall'}
-        </button>
+        </Button>
       ) : (
-        <button
-          className={styles.actionBtn}
+        <Button
+          appearance="primary"
+          size="small"
           onClick={handleInstall}
           disabled={installing || installed === null}
         >
           {installing ? 'Installing...' : 'Install'}
-        </button>
+        </Button>
       )}
-    </div>
+    </SettingRow>
   )
 }
 
@@ -273,41 +206,41 @@ function CodexNotifySection() {
   }
 
   return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowLabel}>Codex notify hook</div>
-        <div className={styles.rowDescription}>
-          Show done/unread state for Codex turns and clear active state when a turn completes
-        </div>
-      </div>
+    <SettingRow
+      label="Codex notify hook"
+      description="Show done/unread state for Codex turns and clear active state when a turn completes"
+    >
       {installed === true ? (
-        <button
-          className={styles.actionBtnDanger}
+        <Button
+          appearance="subtle"
+          size="small"
+          className={styles.dangerBtn}
           onClick={handleUninstall}
           disabled={installing}
         >
           {installing ? 'Removing...' : 'Uninstall'}
-        </button>
+        </Button>
       ) : (
-        <button
-          className={styles.actionBtn}
+        <Button
+          appearance="primary"
+          size="small"
           onClick={handleInstall}
           disabled={installing || installed === null}
         >
           {installing ? 'Installing...' : 'Install'}
-        </button>
+        </Button>
       )}
-    </div>
+    </SettingRow>
   )
 }
 
+const shortcutColumns = [
+  { columnKey: 'action', label: 'Action' },
+  { columnKey: 'shortcut', label: 'Shortcut' },
+]
+
 export function SettingsPanel() {
   const { settings, updateSettings, toggleSettings } = useAppStore()
-  const themeOptions: Array<{ value: ThemePreference; label: string }> = [
-    { value: 'system', label: 'Follow system' },
-    { value: 'dark', label: 'Dark' },
-    { value: 'light', label: 'Light' },
-  ]
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     updateSettings({ [key]: value })
@@ -351,137 +284,229 @@ export function SettingsPanel() {
               label="Back"
               shortcut={formatShortcut(SHORTCUT_MAP.settings.mac, SHORTCUT_MAP.settings.win)}
             >
-              <button aria-label="Back to workspace" className={styles.backBtn} onClick={toggleSettings}>‹</button>
+              <button aria-label="Back to workspace" className={styles.backBtn} onClick={toggleSettings}>&#x2190;</button>
             </Tooltip>
-            <h2 className={styles.title}>Settings</h2>
+            <Subtitle2>Settings</Subtitle2>
           </div>
         </div>
       </div>
 
       <div className={styles.content}>
         <div className={styles.inner}>
+          {/* Appearance */}
           <div className={styles.section}>
-            <div className={styles.sectionTitle}>Appearance</div>
+            <Caption1 className={styles.sectionLabel}>Appearance</Caption1>
+            <Card className={styles.card}>
+              <SettingRow
+                label="Theme"
+                description="Follow Windows theme, or force dark/light mode"
+              >
+                <Dropdown
+                  className={styles.dropdown}
+                  value={THEME_OPTIONS.find((o) => o.value === settings.themePreference)?.label ?? 'Follow system'}
+                  selectedOptions={[settings.themePreference]}
+                  onOptionSelect={(_, data) => update('themePreference', data.optionValue as ThemePreference)}
+                  size="small"
+                >
+                  {THEME_OPTIONS.map((option) => (
+                    <Option key={option.value} value={option.value}>
+                      {option.label}
+                    </Option>
+                  ))}
+                </Dropdown>
+              </SettingRow>
 
-            <SelectRow
-              label="Theme"
-              description="Follow Windows theme, or force dark/light mode"
-              value={settings.themePreference}
-              onChange={(v) => update('themePreference', v)}
-              options={themeOptions}
-            />
+              <SettingRow
+                label="Terminal font size"
+                description="Font size in pixels for terminal tabs"
+              >
+                <SpinButton
+                  className={styles.spinButton}
+                  value={settings.terminalFontSize}
+                  min={8}
+                  max={32}
+                  onChange={(_, data) => {
+                    if (data.value !== undefined && data.value !== null) {
+                      update('terminalFontSize', data.value)
+                    }
+                  }}
+                  size="small"
+                />
+              </SettingRow>
 
-            <NumberRow
-              label="Terminal font size"
-              description="Font size in pixels for terminal tabs"
-              value={settings.terminalFontSize}
-              onChange={(v) => update('terminalFontSize', v)}
-            />
+              <SettingRow
+                label="Terminal copy on select"
+                description="Automatically copy selected terminal text to clipboard"
+              >
+                <Switch
+                  checked={settings.terminalCopyOnSelect}
+                  onChange={(_, data) => update('terminalCopyOnSelect', data.checked)}
+                />
+              </SettingRow>
 
-            <ToggleRow
-              label="Terminal copy on select"
-              description="Automatically copy selected terminal text to clipboard"
-              value={settings.terminalCopyOnSelect}
-              onChange={(v) => update('terminalCopyOnSelect', v)}
-            />
-
-            <NumberRow
-              label="Editor font size"
-              description="Font size in pixels for file and diff editors"
-              value={settings.editorFontSize}
-              onChange={(v) => update('editorFontSize', v)}
-            />
+              <SettingRow
+                label="Editor font size"
+                description="Font size in pixels for file and diff editors"
+              >
+                <SpinButton
+                  className={styles.spinButton}
+                  value={settings.editorFontSize}
+                  min={8}
+                  max={32}
+                  onChange={(_, data) => {
+                    if (data.value !== undefined && data.value !== null) {
+                      update('editorFontSize', data.value)
+                    }
+                  }}
+                  size="small"
+                />
+              </SettingRow>
+            </Card>
           </div>
 
+          {/* General */}
           <div className={styles.section}>
-            <div className={styles.sectionTitle}>General</div>
+            <Caption1 className={styles.sectionLabel}>General</Caption1>
+            <Card className={styles.card}>
+              <SettingRow
+                label="Confirm on close"
+                description="Show confirmation when closing tabs with unsaved changes"
+              >
+                <Switch
+                  checked={settings.confirmOnClose}
+                  onChange={(_, data) => update('confirmOnClose', data.checked)}
+                />
+              </SettingRow>
 
-            <ToggleRow
-              label="Confirm on close"
-              description="Show confirmation when closing tabs with unsaved changes"
-              value={settings.confirmOnClose}
-              onChange={(v) => update('confirmOnClose', v)}
-            />
+              <SettingRow
+                label="Auto-save on blur"
+                description="Automatically save files when switching away from a tab"
+              >
+                <Switch
+                  checked={settings.autoSaveOnBlur}
+                  onChange={(_, data) => update('autoSaveOnBlur', data.checked)}
+                />
+              </SettingRow>
 
-            <ToggleRow
-              label="Auto-save on blur"
-              description="Automatically save files when switching away from a tab"
-              value={settings.autoSaveOnBlur}
-              onChange={(v) => update('autoSaveOnBlur', v)}
-            />
+              <SettingRow
+                label="Restore workspace"
+                description="Restore the last active workspace when the app starts"
+              >
+                <Switch
+                  checked={settings.restoreWorkspace}
+                  onChange={(_, data) => update('restoreWorkspace', data.checked)}
+                />
+              </SettingRow>
 
-            <ToggleRow
-              label="Restore workspace"
-              description="Restore the last active workspace when the app starts"
-              value={settings.restoreWorkspace}
-              onChange={(v) => update('restoreWorkspace', v)}
-            />
+              <SettingRow
+                label="Inline diffs"
+                description="Show diffs inline instead of side-by-side"
+              >
+                <Switch
+                  checked={settings.diffInline}
+                  onChange={(_, data) => update('diffInline', data.checked)}
+                />
+              </SettingRow>
 
-            <ToggleRow
-              label="Inline diffs"
-              description="Show diffs inline instead of side-by-side"
-              value={settings.diffInline}
-              onChange={(v) => update('diffInline', v)}
-            />
+              <SettingRow
+                label="Default shell"
+                description="Path to shell executable (leave empty for system default)"
+              >
+                <Input
+                  className={styles.textInput}
+                  value={settings.defaultShell}
+                  onChange={(_, data) => update('defaultShell', data.value)}
+                  placeholder="e.g., pwsh.exe, powershell.exe, cmd.exe"
+                  size="small"
+                />
+              </SettingRow>
 
-            <TextRow
-              label="Default shell"
-              description="Path to shell executable (leave empty for system default)"
-              value={settings.defaultShell}
-              onChange={(v) => update('defaultShell', v)}
-              placeholder="e.g., pwsh.exe, powershell.exe, cmd.exe"
-            />
+              <SettingRow
+                label="Default shell args"
+                description="Optional startup arguments for the default shell"
+              >
+                <Input
+                  className={styles.textInput}
+                  value={settings.defaultShellArgs}
+                  onChange={(_, data) => update('defaultShellArgs', data.value)}
+                  placeholder='e.g., -NoLogo or /K "chcp 65001>nul"'
+                  size="small"
+                />
+              </SettingRow>
 
-            <TextRow
-              label="Default shell args"
-              description="Optional startup arguments for the default shell"
-              value={settings.defaultShellArgs}
-              onChange={(v) => update('defaultShellArgs', v)}
-              placeholder='e.g., -NoLogo or /K "chcp 65001>nul"'
-            />
-
-          <div className={styles.row}>
-            <div className={styles.rowText}>
-              <div className={styles.rowLabel}>PR link provider</div>
-              <div className={styles.rowDescription}>
-                Set per project in Project Settings (gear icon in the sidebar).
-              </div>
-            </div>
+              <SettingRow
+                label="PR link provider"
+                description="Set per project in Project Settings (gear icon in the sidebar)."
+              >
+                <span />
+              </SettingRow>
+            </Card>
           </div>
-        </div>
 
+          {/* Agent Integrations */}
           <div className={styles.section}>
-            <div className={styles.sectionTitle}>Agent Integrations</div>
-            <ClaudeHooksSection />
-            <CodexNotifySection />
+            <Caption1 className={styles.sectionLabel}>Agent Integrations</Caption1>
+            <Card className={styles.card}>
+              <ClaudeHooksSection />
+              <CodexNotifySection />
+            </Card>
           </div>
 
+          {/* Prompt Templates */}
           <div className={styles.section}>
-            <div className={styles.sectionTitle}>Prompt templates</div>
-            <div className={styles.templateHelp}>
-              Reusable prompts for command palette and workspace memory. Mentions:
-              <code>@workspace</code>, <code>@branch</code>, <code>@path</code>, <code>@memory</code>, <code>@file:&lt;relative-path&gt;</code>.
-            </div>
-            {settings.promptTemplates.map((template) => (
-              <TemplateEditorRow
-                key={template.id}
-                template={template}
-                onChange={(partial) => updateTemplate(template.id, partial)}
-                onDelete={() => removeTemplate(template.id)}
-              />
-            ))}
-            <button className={styles.templateAddBtn} onClick={addTemplate}>Add template</button>
+            <Caption1 className={styles.sectionLabel}>Prompt templates</Caption1>
+            <Card className={styles.card}>
+              <Caption1 className={styles.templateHelp}>
+                Reusable prompts for command palette and workspace memory. Mentions:{' '}
+                <code>@workspace</code>, <code>@branch</code>, <code>@path</code>, <code>@memory</code>, <code>@file:&lt;relative-path&gt;</code>.
+              </Caption1>
+              {settings.promptTemplates.map((template) => (
+                <TemplateEditorRow
+                  key={template.id}
+                  template={template}
+                  onChange={(partial) => updateTemplate(template.id, partial)}
+                  onDelete={() => removeTemplate(template.id)}
+                />
+              ))}
+              <Button
+                appearance="primary"
+                size="small"
+                className={styles.addTemplateBtn}
+                onClick={addTemplate}
+              >
+                Add template
+              </Button>
+            </Card>
           </div>
 
+          {/* Keyboard Shortcuts */}
           <div className={styles.section}>
-            <div className={styles.sectionTitle}>Keyboard Shortcuts</div>
-
-            {SHORTCUTS.map((s) => (
-              <div key={s.action} className={styles.shortcutRow}>
-                <span className={styles.shortcutAction}>{s.action}</span>
-                <kbd className={styles.kbd}>{formatShortcut(s.binding.mac, s.binding.win)}</kbd>
-              </div>
-            ))}
+            <Caption1 className={styles.sectionLabel}>Keyboard Shortcuts</Caption1>
+            <Card className={styles.card}>
+              <Table size="small" className={styles.shortcutTable}>
+                <TableHeader>
+                  <TableRow>
+                    {shortcutColumns.map((col) => (
+                      <TableHeaderCell key={col.columnKey}>
+                        <Caption1>{col.label}</Caption1>
+                      </TableHeaderCell>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {SHORTCUTS.map((s) => (
+                    <TableRow key={s.action}>
+                      <TableCell>
+                        <Caption1>{s.action}</Caption1>
+                      </TableCell>
+                      <TableCell>
+                        <kbd className={styles.kbd}>{formatShortcut(s.binding.mac, s.binding.win)}</kbd>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           </div>
         </div>
       </div>
