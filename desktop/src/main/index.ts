@@ -179,6 +179,7 @@ function createWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false, // needed for node-pty IPC
+      backgroundThrottling: false,
     },
   }
 
@@ -234,6 +235,11 @@ app.setName('Terminator')
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.terminator.app')
 }
+
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+app.commandLine.appendSwitch('disable-renderer-backgrounding')
 
 if (customProfileName) {
   const safeProfileName = customProfileName.replace(/[^a-zA-Z0-9_-]/g, '-')
