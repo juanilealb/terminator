@@ -268,7 +268,7 @@ export class NotificationWatcher {
     const dedupeKey = `${workspaceId}:${reason}`
     const now = Date.now()
     const prevNotifyAt = this.lastNotifiedAtByKey.get(dedupeKey) ?? 0
-    if ((now - prevNotifyAt) < 750) return
+    if ((now - prevNotifyAt) < 10_000) return
     this.lastNotifiedAtByKey.set(dedupeKey, now)
 
     this.showNotification(workspaceId, reason)
