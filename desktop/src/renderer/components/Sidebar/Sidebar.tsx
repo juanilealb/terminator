@@ -306,35 +306,45 @@ function WindowControls() {
 
   return (
     <div className={styles.windowControls}>
-      <Tooltip label="Close window">
-        <button
-          aria-label="Close window"
-          className={`${styles.windowControlButton} ${styles.windowControlClose}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            window.api.app.closeWindow();
-          }}
-        />
-      </Tooltip>
       <Tooltip label="Minimize window">
         <button
           aria-label="Minimize window"
-          className={`${styles.windowControlButton} ${styles.windowControlMinimize}`}
+          className={styles.windowControlButton}
           onClick={(e) => {
             e.stopPropagation();
             window.api.app.minimizeWindow();
           }}
-        />
+        >
+          <span className={`${styles.windowControlGlyph} ${styles.windowControlGlyphMinimize}`} />
+        </button>
       </Tooltip>
       <Tooltip label={maximized ? "Restore window" : "Maximize window"}>
         <button
           aria-label={maximized ? "Restore window" : "Maximize window"}
-          className={`${styles.windowControlButton} ${styles.windowControlMaximize}`}
+          className={styles.windowControlButton}
           onClick={(e) => {
             e.stopPropagation();
             window.api.app.toggleMaximizeWindow();
           }}
-        />
+        >
+          <span
+            className={`${styles.windowControlGlyph} ${
+              maximized ? styles.windowControlGlyphRestore : styles.windowControlGlyphMaximize
+            }`}
+          />
+        </button>
+      </Tooltip>
+      <Tooltip label="Close window">
+        <button
+          aria-label="Close window"
+          className={`${styles.windowControlButton} ${styles.windowControlButtonClose}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.api.app.closeWindow();
+          }}
+        >
+          <span className={`${styles.windowControlGlyph} ${styles.windowControlGlyphClose}`} />
+        </button>
       </Tooltip>
     </div>
   );

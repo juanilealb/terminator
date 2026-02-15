@@ -1,0 +1,145 @@
+.rail {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-default);
+  background:
+    linear-gradient(180deg, rgba(47, 41, 45, 0.99) 0%, rgba(40, 35, 39, 0.99) 100%),
+    var(--bg-sidebar);
+}
+
+.railHeader {
+  height: var(--titlebar-height);
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: drag;
+}
+
+.expandButton {
+  width: 28px;
+  height: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  -webkit-app-region: no-drag;
+}
+
+.expandButton:hover {
+  background: rgba(66, 54, 70, 0.46);
+  border-color: rgba(143, 120, 146, 0.35);
+  color: var(--text-primary);
+}
+
+.expandGlyph {
+  width: 8px;
+  height: 8px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-right: 1px;
+}
+
+.workspaceList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.workspaceButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(23, 19, 26, 0.52);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.workspaceButton:hover {
+  background: rgba(70, 58, 74, 0.48);
+  border-color: rgba(143, 120, 146, 0.35);
+  color: var(--text-primary);
+  transform: translateX(1px);
+}
+
+.workspaceButton.active {
+  border-color: rgba(72, 209, 138, 0.56);
+  background: rgba(72, 209, 138, 0.15);
+  color: var(--text-primary);
+}
+
+.workspaceInitial {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.workspaceButton.unread::after,
+.workspaceButton.running::after,
+.workspaceButton.waiting::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.workspaceButton.unread::after {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(99, 212, 217, 0.42);
+}
+
+.workspaceButton.running::after {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid transparent;
+  border-top-color: var(--accent-cyan);
+  border-right-color: var(--accent-cyan);
+  background: transparent;
+  animation: railSpin 0.9s linear infinite;
+}
+
+.workspaceButton.waiting::after {
+  background: var(--accent-orange);
+  box-shadow: 0 0 8px rgba(255, 158, 100, 0.45);
+}
+
+.emptyMarker {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-default);
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+@keyframes railSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
