@@ -569,7 +569,7 @@ export class GitService {
 
   static async getStatus(worktreePath: string): Promise<FileStatus[]> {
     const output = await git(
-      ['status', '--porcelain=v1', '-uall'],
+      ['status', '--porcelain=v1', '-unormal'],
       worktreePath
     )
     if (!output) return []
