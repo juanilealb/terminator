@@ -456,7 +456,20 @@ export class PtyManager {
       this.markCodexWorkspaceActive(instance.workspaceId, instance.process.pid)
     }
 
-    instance.process.write(data)
+    const CHUNK_SIZE = 512
+    if (data.length <= CHUNK_SIZE) {
+      instance.process.write(data)
+      return
+    }
+
+    // Chunked write for large pastes to avoid ConPTY buffer overflow
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+      const chunk = data.slice(i, i + CHUNK_SIZE)
+      instance.process.write(chunk)
+      if (i + CHUNK_SIZE < data.length) {
+        await new Promise(resolve => setTimeout(resolve, 5))
+      }
+    }
   }
 
   resize(ptyId: string, cols: number, rows: number): void {
