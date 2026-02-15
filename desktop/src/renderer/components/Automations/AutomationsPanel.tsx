@@ -13,7 +13,6 @@ import {
   Title3,
   Body1,
   Subtitle2,
-  tokens,
   ToggleButton,
 } from '@fluentui/react-components'
 import {
@@ -25,6 +24,7 @@ import {
 import { useAppStore } from '../../store/app-store'
 import type { Automation } from '../../store/types'
 import { Tooltip } from '../Tooltip/Tooltip'
+import styles from './AutomationsPanel.module.css'
 
 const SCHEDULE_PRESETS = [
   { label: 'Every hour', cron: '0 * * * *' },
@@ -108,8 +108,8 @@ function AutomationList({
 
   if (automations.length === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '64px 32px' }}>
-        <Body1 style={{ color: tokens.colorNeutralForeground3 }}>No automations yet</Body1>
+      <div className={styles.emptyState}>
+        <Body1 className={styles.emptyText}>No automations yet</Body1>
         <Button appearance="outline" icon={<AddRegular />} onClick={onNew}>
           Create your first automation
         </Button>
@@ -118,27 +118,28 @@ function AutomationList({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className={styles.list}>
       {automations.map((automation) => {
         const project = projects.find((p) => p.id === automation.projectId)
         return (
           <Card
             key={automation.id}
             size="small"
-            style={{ opacity: automation.enabled ? 1 : 0.5, cursor: 'pointer' }}
+            className={automation.enabled ? undefined : styles.cardDisabled}
+            style={{ cursor: 'pointer' }}
             onClick={() => onEdit(automation)}
           >
             <CardHeader
               image={statusBadge(automation.lastRunStatus)}
               header={<Subtitle2>{automation.name}</Subtitle2>}
               description={
-                <Caption1 style={{ color: tokens.colorNeutralForeground3 }}>
+                <Caption1 className={styles.description}>
                   {project?.name ?? 'Unknown project'} &middot; {automation.cronExpression} &middot; {formatLastRun(automation.lastRunAt)}
                 </Caption1>
               }
               action={
                 <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                  className={styles.cardActions}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Tooltip label="Run now">
@@ -257,15 +258,15 @@ function AutomationForm({
         appearance="subtle"
         icon={<ArrowLeftRegular />}
         onClick={onBack}
-        style={{ marginBottom: 16, alignSelf: 'flex-start' }}
+        className={styles.backBtn}
       >
         Back
       </Button>
-      <Title3 style={{ marginBottom: 20 }}>{isEditing ? 'Edit Automation' : 'New Automation'}</Title3>
+      <Title3 className={styles.formTitle}>{isEditing ? 'Edit Automation' : 'New Automation'}</Title3>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Name</Caption1>
+      <div className={styles.form}>
+        <div className={styles.fieldGroup}>
+          <Caption1 className={styles.fieldLabel}>Name</Caption1>
           <Input
             value={name}
             onChange={(_e, data) => { setName(data.value); setNameManuallySet(true) }}
@@ -274,8 +275,8 @@ function AutomationForm({
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Project</Caption1>
+        <div className={styles.fieldGroup}>
+          <Caption1 className={styles.fieldLabel}>Project</Caption1>
           <Dropdown
             value={selectedProject?.name ?? ''}
             selectedOptions={[projectId]}
@@ -287,8 +288,8 @@ function AutomationForm({
           </Dropdown>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Prompt</Caption1>
+        <div className={styles.fieldGroup}>
+          <Caption1 className={styles.fieldLabel}>Prompt</Caption1>
           <Textarea
             value={prompt}
             onChange={(_e, data) => setPrompt(data.value)}
@@ -298,9 +299,9 @@ function AutomationForm({
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Schedule</Caption1>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div className={styles.fieldGroup}>
+          <Caption1 className={styles.fieldLabel}>Schedule</Caption1>
+          <div className={styles.presetRow}>
             {SCHEDULE_PRESETS.map((preset, i) => (
               <ToggleButton
                 key={preset.label}
@@ -316,11 +317,11 @@ function AutomationForm({
             value={selectedPreset === SCHEDULE_PRESETS.length - 1 ? customCron : SCHEDULE_PRESETS[selectedPreset].cron}
             onChange={(_e, data) => { setCustomCron(data.value); setSelectedPreset(SCHEDULE_PRESETS.length - 1) }}
             placeholder="*/5 * * * *"
-            style={{ marginTop: 4 }}
+            className={styles.cronInput}
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <div className={styles.formActions}>
           <Button appearance="secondary" onClick={onBack}>Cancel</Button>
           <Button appearance="primary" onClick={handleSubmit} disabled={!isValid}>
             {isEditing ? 'Save' : 'Create'}
@@ -368,10 +369,10 @@ export function AutomationsPanel() {
   }, [view, handleBack, toggleAutomations])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: tokens.colorNeutralBackground1, overflow: 'hidden' }}>
-      <div style={{ padding: '0 48px', paddingTop: 'var(--titlebar-height)', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, flexShrink: 0, WebkitAppRegion: 'drag' as unknown as string }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 560, margin: '0 auto', padding: '12px 0', WebkitAppRegion: 'no-drag' as unknown as string }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className={styles.panel}>
+      <div className={styles.header}>
+        <div className={styles.headerInner}>
+          <div className={styles.headerLeft}>
             <Tooltip label="Back">
               <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={toggleAutomations} />
             </Tooltip>
@@ -385,8 +386,8 @@ export function AutomationsPanel() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px' }}>
-        <div style={{ maxWidth: 560, margin: '0 auto' }}>
+      <div className={styles.content}>
+        <div className={styles.inner}>
           {view === 'list' ? (
             <AutomationList onNew={handleNew} onEdit={handleEdit} />
           ) : (
