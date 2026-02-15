@@ -447,7 +447,11 @@ export function TerminalPanel({ ptyId, active }: Props) {
     if (isRestoringRef.current || termRef.current) return
     isRestoringRef.current = true
 
+    // Freeze buffered state before taking the restore snapshot.
+    stopPtyDataListener()
     const snapshot = serializedBufferRef.current
+    // Reconnect immediately; while term is null incoming data is buffered in-memory.
+    startPtyLiveListener()
     createTerminal(snapshot)
     const term = termRef.current
     if (!term) {
@@ -455,10 +459,8 @@ export function TerminalPanel({ ptyId, active }: Props) {
       return
     }
 
-    // Preserve output received during restore, then switch to live writes.
-    stopPtyDataListener()
+    // Replay PTY output that arrived after snapshot capture.
     const backlog = serializedBufferRef.current.slice(snapshot.length)
-    startPtyLiveListener()
     if (backlog) term.write(backlog)
     serializedBufferRef.current = ''
     isRestoringRef.current = false
@@ -506,7 +508,6 @@ export function TerminalPanel({ ptyId, active }: Props) {
     }
 
     inactiveDisposeTimerRef.current = setTimeout(() => {
-      if (activeRef.current) return
       serializeAndDisposeTerminal()
     }, INACTIVE_SERIALIZE_DELAY_MS)
 
