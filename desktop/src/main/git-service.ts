@@ -112,10 +112,19 @@ function friendlyGhError(err: unknown, fallback: string): string {
 
   const lower = stderr.toLowerCase()
   if (lower.includes('not logged into any github hosts')) {
-    return 'GitHub CLI is not authenticated'
+    return 'GitHub CLI is not authenticated. Run "gh auth login".'
   }
   if (lower.includes('authentication failed')) {
-    return 'GitHub CLI authentication failed'
+    return 'GitHub CLI authentication failed. Run "gh auth login".'
+  }
+  if (lower.includes('failed to log in')) {
+    return 'GitHub CLI authentication failed. Run "gh auth login".'
+  }
+  if (lower.includes('token in') && lower.includes('is invalid')) {
+    return 'GitHub CLI token is invalid. Run "gh auth login".'
+  }
+  if (lower.includes('none of the git remotes configured for this repository point to a known github host')) {
+    return 'GitHub remote host is not recognized by gh. Use a GitHub remote or pass --repo explicitly.'
   }
   if (lower.includes('could not resolve to a repository')) {
     return 'Repository is not available in GitHub CLI'
@@ -698,11 +707,59 @@ export class GitService {
     return { branch }
   }
 
-  private static async findOpenPrUrl(worktreePath: string, branch: string): Promise<string | null> {
+  private static async ensureGhAuthenticated(repoPath: string): Promise<void> {
     try {
+      await gh(['auth', 'status'], repoPath)
+    } catch (err) {
+      throw new Error(friendlyGhError(err, 'GitHub CLI is not authenticated. Run "gh auth login".'))
+    }
+  }
+
+  private static async resolvePrTarget(
+    repoPath: string,
+    sourceBranch: string
+  ): Promise<{ repoRef?: string; headRef: string }> {
+    const originUrl = await git(['remote', 'get-url', 'origin'], repoPath).catch(() => '')
+    const originRepo = parseGithubRemote(originUrl)
+    if (!originRepo) {
+      return { headRef: sourceBranch }
+    }
+
+    let targetRepo = originRepo
+    let headRef = sourceBranch
+    if (await GitService.hasRemote(repoPath, 'upstream')) {
+      const upstreamUrl = await git(['remote', 'get-url', 'upstream'], repoPath).catch(() => '')
+      const upstreamRepo = parseGithubRemote(upstreamUrl)
+      if (
+        upstreamRepo &&
+        (upstreamRepo.owner !== originRepo.owner || upstreamRepo.repo !== originRepo.repo)
+      ) {
+        targetRepo = upstreamRepo
+        headRef = `${originRepo.owner}:${sourceBranch}`
+      }
+    }
+
+    return {
+      repoRef: `${targetRepo.owner}/${targetRepo.repo}`,
+      headRef,
+    }
+  }
+
+  private static async findOpenPrUrl(
+    repoPath: string,
+    headRef: string,
+    baseBranch?: string,
+    repoRef?: string
+  ): Promise<string | null> {
+    try {
+      const args = ['pr', 'list']
+      if (repoRef) args.push('--repo', repoRef)
+      args.push('--head', headRef)
+      if (baseBranch) args.push('--base', baseBranch)
+      args.push('--state', 'open', '--json', 'url', '--jq', '.[0].url')
       const out = await gh(
-        ['pr', 'list', '--head', branch, '--state', 'open', '--json', 'url', '--jq', '.[0].url'],
-        worktreePath
+        args,
+        repoPath
       )
       const url = out.trim()
       if (!url || url === 'null') return null
@@ -721,21 +778,27 @@ export class GitService {
       throw new Error(`Cannot open pull request from ${branch}`)
     }
 
-    const existing = await GitService.findOpenPrUrl(worktreePath, branch)
+    await GitService.ensureGhAuthenticated(worktreePath)
+    const { repoRef, headRef } = await GitService.resolvePrTarget(worktreePath, branch)
+
+    const existing = await GitService.findOpenPrUrl(worktreePath, headRef, undefined, repoRef)
     if (existing) {
       return { url: existing, created: false, branch }
     }
 
     try {
+      const createArgs = ['pr', 'create']
+      if (repoRef) createArgs.push('--repo', repoRef)
+      createArgs.push('--fill', '--head', headRef)
       const createdUrl = await gh(
-        ['pr', 'create', '--fill', '--head', branch],
+        createArgs,
         worktreePath
       )
       const url = createdUrl.trim()
       if (!url) throw new Error('Pull request created but URL was not returned')
       return { url, created: true, branch }
     } catch (err) {
-      const maybeExisting = await GitService.findOpenPrUrl(worktreePath, branch)
+      const maybeExisting = await GitService.findOpenPrUrl(worktreePath, headRef, undefined, repoRef)
       if (maybeExisting) {
         return { url: maybeExisting, created: false, branch }
       }
@@ -748,93 +811,19 @@ export class GitService {
     sourceBranch: string,
     mainBranch: string
   ): Promise<{ url: string; created: boolean }> {
-    const originUrl = await git(['remote', 'get-url', 'origin'], repoPath).catch(() => '')
-    const originRepo = parseGithubRemote(originUrl)
-
-    /** Fallback path when we cannot parse remotes: rely on gh current-repo resolution. */
-    if (!originRepo) {
-      const existing = await gh(
-        [
-          'pr',
-          'list',
-          '--head',
-          sourceBranch,
-          '--base',
-          mainBranch,
-          '--state',
-          'open',
-          '--json',
-          'url',
-          '--jq',
-          '.[0].url',
-        ],
-        repoPath
-      ).catch(() => '')
-      const existingUrl = existing.trim()
-      if (existingUrl && existingUrl !== 'null') {
-        return { url: existingUrl, created: false }
-      }
-
-      const createdUrl = await gh(
-        ['pr', 'create', '--head', sourceBranch, '--base', mainBranch, '--fill'],
-        repoPath
-      )
-      const url = createdUrl.trim()
-      if (!url) throw new Error('Pull request created but URL was not returned')
-      return { url, created: true }
-    }
-
-    let targetRepo = originRepo
-    let headRef = sourceBranch
-    if (await GitService.hasRemote(repoPath, 'upstream')) {
-      const upstreamUrl = await git(['remote', 'get-url', 'upstream'], repoPath).catch(() => '')
-      const upstreamRepo = parseGithubRemote(upstreamUrl)
-      if (
-        upstreamRepo &&
-        (upstreamRepo.owner !== originRepo.owner || upstreamRepo.repo !== originRepo.repo)
-      ) {
-        targetRepo = upstreamRepo
-        headRef = `${originRepo.owner}:${sourceBranch}`
-      }
-    }
-
-    const repoRef = `${targetRepo.owner}/${targetRepo.repo}`
-    const existing = await gh(
-      [
-        'pr',
-        'list',
-        '--repo',
-        repoRef,
-        '--head',
-        headRef,
-        '--base',
-        mainBranch,
-        '--state',
-        'open',
-        '--json',
-        'url',
-        '--jq',
-        '.[0].url',
-      ],
-      repoPath
-    ).catch(() => '')
-    const existingUrl = existing.trim()
-    if (existingUrl && existingUrl !== 'null') {
+    await GitService.ensureGhAuthenticated(repoPath)
+    const { repoRef, headRef } = await GitService.resolvePrTarget(repoPath, sourceBranch)
+    const existingUrl = await GitService.findOpenPrUrl(repoPath, headRef, mainBranch, repoRef)
+    if (existingUrl) {
       return { url: existingUrl, created: false }
     }
 
+    const createArgs = ['pr', 'create']
+    if (repoRef) createArgs.push('--repo', repoRef)
+    createArgs.push('--head', headRef, '--base', mainBranch, '--fill')
+
     const createdUrl = await gh(
-      [
-        'pr',
-        'create',
-        '--repo',
-        repoRef,
-        '--head',
-        headRef,
-        '--base',
-        mainBranch,
-        '--fill',
-      ],
+      createArgs,
       repoPath
     )
     const url = createdUrl.trim()
@@ -865,7 +854,11 @@ export class GitService {
       throw new Error(`Branch "${source}" not found`)
     }
 
-    await git(['fetch', '--prune', 'origin'], repoPath).catch(() => {})
+    try {
+      await git(['fetch', '--prune', 'origin'], repoPath)
+    } catch (err) {
+      throw new Error(friendlyGitError(err, 'Failed to fetch origin before shipping branch'))
+    }
 
     const remoteSourceRef = `refs/remotes/origin/${source}`
     const remoteBranchExists = await git(['rev-parse', '--verify', remoteSourceRef], repoPath).then(
@@ -913,6 +906,9 @@ export class GitService {
         prCreated: pr.created,
       }
     } catch (err) {
+      if (err instanceof Error && err.message) {
+        throw new Error(err.message)
+      }
       throw new Error(friendlyGhError(err, `Pushed ${source}, but failed to open pull request`))
     }
   }

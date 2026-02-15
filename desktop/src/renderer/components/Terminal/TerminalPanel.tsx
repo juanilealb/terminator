@@ -12,7 +12,8 @@ import styles from './TerminalPanel.module.css'
 
 const PR_POLL_HINT_EVENT = 'terminator:pr-poll-hint'
 const INACTIVE_SERIALIZE_DELAY_MS = 30_000
-const SERIALIZED_SCROLLBACK_LINES = 10_000
+const SERIALIZED_SCROLLBACK_LINES = 1_000
+const MAX_BUFFERED_PTY_OUTPUT_CHARS = 2_000_000
 const PR_POLL_HINT_COMMAND_RE =
   /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S+)\s+)*(?:sudo\s+)?(?:(?:git\s+push)|(?:gh\s+pr\s+(?:create|ready|reopen|merge)))(?:\s|$)/
 
@@ -195,10 +196,27 @@ export function TerminalPanel({ ptyId, active }: Props) {
     ptyDataUnsubRef.current = null
   }
 
+  const appendToSerializedBuffer = (chunk: string) => {
+    if (!chunk) return
+    if (chunk.length >= MAX_BUFFERED_PTY_OUTPUT_CHARS) {
+      serializedBufferRef.current = chunk.slice(-MAX_BUFFERED_PTY_OUTPUT_CHARS)
+      return
+    }
+
+    const overflow =
+      serializedBufferRef.current.length + chunk.length - MAX_BUFFERED_PTY_OUTPUT_CHARS
+    if (overflow > 0) {
+      serializedBufferRef.current = serializedBufferRef.current.slice(overflow) + chunk
+      return
+    }
+
+    serializedBufferRef.current += chunk
+  }
+
   const startPtyBufferListener = () => {
     stopPtyDataListener()
     ptyDataUnsubRef.current = window.api.pty.onData(ptyId, (data: string) => {
-      serializedBufferRef.current += data
+      appendToSerializedBuffer(data)
     })
   }
 
@@ -207,7 +225,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
     ptyDataUnsubRef.current = window.api.pty.onData(ptyId, (data: string) => {
       const term = termRef.current
       if (!term) {
-        serializedBufferRef.current += data
+        appendToSerializedBuffer(data)
         return
       }
       term.write(data)
@@ -479,7 +497,10 @@ export function TerminalPanel({ ptyId, active }: Props) {
     }
 
     // Replay PTY output that arrived after snapshot capture.
-    const backlog = serializedBufferRef.current.slice(snapshot.length)
+    const bufferedOutput = serializedBufferRef.current
+    const backlog = bufferedOutput.startsWith(snapshot)
+      ? bufferedOutput.slice(snapshot.length)
+      : bufferedOutput
     if (backlog) term.write(backlog)
     serializedBufferRef.current = ''
     isRestoringRef.current = false
