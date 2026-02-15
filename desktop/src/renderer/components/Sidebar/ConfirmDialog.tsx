@@ -23,7 +23,7 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfi
   const showShiftHint = confirmLabel.toLowerCase() === 'delete'
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Enter') onConfirm()
+    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) onConfirm()
   }, [onConfirm])
 
   useEffect(() => {
