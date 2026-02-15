@@ -3,7 +3,9 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { SerializeAddon } from '@xterm/addon-serialize'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { useAppStore } from '../../store/app-store'
 import { subscribeTerminalUiActions } from '../../utils/terminal-actions'
 import styles from './TerminalPanel.module.css'
@@ -265,6 +267,8 @@ export function TerminalPanel({ ptyId, active }: Props) {
       const fitAddon = new FitAddon()
       const searchAddon = new SearchAddon()
       const serializeAddon = new SerializeAddon()
+      const unicode11Addon = new Unicode11Addon()
+      let webglAddon: WebglAddon | null = null
       const webLinksAddon = new WebLinksAddon((event, uri) => {
         event.preventDefault()
         window.open(uri, '_blank')
@@ -281,6 +285,19 @@ export function TerminalPanel({ ptyId, active }: Props) {
       }
 
       term.open(termDiv)
+      term.loadAddon(unicode11Addon)
+      term.unicode.activeVersion = '11'
+      try {
+        webglAddon = new WebglAddon()
+        term.loadAddon(webglAddon)
+        webglAddon.onContextLoss(() => {
+          // Dispose WebGL and let xterm fall back to the canvas renderer.
+          webglAddon?.dispose()
+          webglAddon = null
+        })
+      } catch (error) {
+        console.warn('WebGL renderer unavailable, falling back to canvas:', error)
+      }
       termRef.current = term
       searchAddonRef.current = searchAddon
       serializeAddonRef.current = serializeAddon
@@ -404,6 +421,8 @@ export function TerminalPanel({ ptyId, active }: Props) {
         onDataDisposable.dispose()
         onResizeDisposable.dispose()
         termDiv.removeEventListener('contextmenu', onContextMenu)
+        webglAddon?.dispose()
+        webglAddon = null
         term.dispose()
 
         if (termRef.current === term) termRef.current = null

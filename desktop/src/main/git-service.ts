@@ -55,6 +55,7 @@ export interface PrWorktreeResult {
   worktreePath: string
   branch: string
 }
+
 async function git(args: string[], cwd: string): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd,
@@ -742,27 +743,62 @@ export class GitService {
     }
   }
 
-  private static async openOrCreateMainToUpstreamPr(
+  private static async openOrCreateSourceToMainPr(
     repoPath: string,
+    sourceBranch: string,
     mainBranch: string
-  ): Promise<{ url: string; created: boolean } | null> {
-    if (!(await GitService.hasRemote(repoPath, 'upstream'))) return null
-
-    const [originUrl, upstreamUrl] = await Promise.all([
-      git(['remote', 'get-url', 'origin'], repoPath),
-      git(['remote', 'get-url', 'upstream'], repoPath),
-    ])
+  ): Promise<{ url: string; created: boolean }> {
+    const originUrl = await git(['remote', 'get-url', 'origin'], repoPath).catch(() => '')
     const originRepo = parseGithubRemote(originUrl)
-    const upstreamRepo = parseGithubRemote(upstreamUrl)
-    if (!originRepo || !upstreamRepo) return null
 
-    // Skip PR when origin and upstream are the same repo.
-    if (originRepo.owner === upstreamRepo.owner && originRepo.repo === upstreamRepo.repo) {
-      return null
+    /** Fallback path when we cannot parse remotes: rely on gh current-repo resolution. */
+    if (!originRepo) {
+      const existing = await gh(
+        [
+          'pr',
+          'list',
+          '--head',
+          sourceBranch,
+          '--base',
+          mainBranch,
+          '--state',
+          'open',
+          '--json',
+          'url',
+          '--jq',
+          '.[0].url',
+        ],
+        repoPath
+      ).catch(() => '')
+      const existingUrl = existing.trim()
+      if (existingUrl && existingUrl !== 'null') {
+        return { url: existingUrl, created: false }
+      }
+
+      const createdUrl = await gh(
+        ['pr', 'create', '--head', sourceBranch, '--base', mainBranch, '--fill'],
+        repoPath
+      )
+      const url = createdUrl.trim()
+      if (!url) throw new Error('Pull request created but URL was not returned')
+      return { url, created: true }
     }
 
-    const repoRef = `${upstreamRepo.owner}/${upstreamRepo.repo}`
-    const headRef = `${originRepo.owner}:${mainBranch}`
+    let targetRepo = originRepo
+    let headRef = sourceBranch
+    if (await GitService.hasRemote(repoPath, 'upstream')) {
+      const upstreamUrl = await git(['remote', 'get-url', 'upstream'], repoPath).catch(() => '')
+      const upstreamRepo = parseGithubRemote(upstreamUrl)
+      if (
+        upstreamRepo &&
+        (upstreamRepo.owner !== originRepo.owner || upstreamRepo.repo !== originRepo.repo)
+      ) {
+        targetRepo = upstreamRepo
+        headRef = `${originRepo.owner}:${sourceBranch}`
+      }
+    }
+
+    const repoRef = `${targetRepo.owner}/${targetRepo.repo}`
     const existing = await gh(
       [
         'pr',
@@ -811,7 +847,6 @@ export class GitService {
     if (!source) {
       throw new Error('Source branch is required')
     }
-    const startingBranch = (await git(['branch', '--show-current'], repoPath)).trim()
 
     const defaultRef = await GitService.getDefaultBranch(repoPath)
     const mainBranch = defaultRef.startsWith('origin/') ? defaultRef.slice('origin/'.length) : defaultRef
@@ -822,40 +857,63 @@ export class GitService {
       throw new Error('Source branch is already main')
     }
 
-    const mainStatus = await git(['status', '--porcelain=v1'], repoPath)
-    if (mainStatus.trim()) {
-      throw new Error('Main repo has local changes. Commit or stash them before shipping.')
+    const sourceExists = await git(['rev-parse', '--verify', `refs/heads/${source}`], repoPath).then(
+      () => true,
+      () => false
+    )
+    if (!sourceExists) {
+      throw new Error(`Branch "${source}" not found`)
     }
 
     await git(['fetch', '--prune', 'origin'], repoPath).catch(() => {})
 
-    try {
-      await git(['checkout', mainBranch], repoPath)
-      await git(['pull', '--ff-only', 'origin', mainBranch], repoPath)
-      await git(['merge', '--no-ff', '--no-edit', source], repoPath)
-      await git(['push', 'origin', mainBranch], repoPath)
-    } catch (err) {
-      await git(['merge', '--abort'], repoPath).catch(() => {})
-      const currentBranch = (await git(['branch', '--show-current'], repoPath).catch(() => mainBranch)).trim()
-      if (currentBranch === mainBranch) {
-        await git(['checkout', source], repoPath).catch(async () => {
-          if (startingBranch && startingBranch !== source) {
-            await git(['checkout', startingBranch], repoPath).catch(() => {})
-          }
-        })
+    const remoteSourceRef = `refs/remotes/origin/${source}`
+    const remoteBranchExists = await git(['rev-parse', '--verify', remoteSourceRef], repoPath).then(
+      () => true,
+      () => false
+    )
+
+    let shouldPush = true
+    if (remoteBranchExists) {
+      const counts = await git(['rev-list', '--left-right', '--count', `${source}...origin/${source}`], repoPath)
+      const [aheadRaw = '0', behindRaw = '0'] = counts.trim().split(/\s+/)
+      const ahead = Number.parseInt(aheadRaw, 10)
+      const behind = Number.parseInt(behindRaw, 10)
+
+      if (!Number.isFinite(ahead) || !Number.isFinite(behind)) {
+        throw new Error(`Failed to compare ${source} with origin/${source}`)
       }
-      throw new Error(friendlyGitError(err, 'Failed to merge source branch into main'))
+      if (behind > 0) {
+        throw new Error(
+          `Branch "${source}" is behind origin/${source}. Pull/rebase before opening or updating the PR.`
+        )
+      }
+
+      // Nothing new to push: keep going so we can still open/reuse an existing PR.
+      shouldPush = ahead > 0
+    }
+
+    if (shouldPush) {
+      try {
+        if (remoteBranchExists) {
+          await git(['push', 'origin', `${source}:${source}`], repoPath)
+        } else {
+          await git(['push', '--set-upstream', 'origin', source], repoPath)
+        }
+      } catch (err) {
+        throw new Error(friendlyGitError(err, `Failed to push ${source} to origin`))
+      }
     }
 
     try {
-      const pr = await GitService.openOrCreateMainToUpstreamPr(repoPath, mainBranch)
+      const pr = await GitService.openOrCreateSourceToMainPr(repoPath, source, mainBranch)
       return {
         mainBranch,
-        prUrl: pr?.url ?? null,
-        prCreated: pr?.created ?? false,
+        prUrl: pr.url,
+        prCreated: pr.created,
       }
     } catch (err) {
-      throw new Error(friendlyGhError(err, 'Merged and pushed main, but failed to open pull request'))
+      throw new Error(friendlyGhError(err, `Pushed ${source}, but failed to open pull request`))
     }
   }
 
