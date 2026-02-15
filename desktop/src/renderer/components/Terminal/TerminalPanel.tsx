@@ -296,12 +296,13 @@ export function TerminalPanel({ ptyId, active }: Props) {
         }
         requestAnimationFrame(tryFit)
 
-        let resizeTimer: ReturnType<typeof setTimeout> | null = null
+        let resizeRafId: number | null = null
         const resizeObserver = new ResizeObserver(() => {
-          if (resizeTimer) clearTimeout(resizeTimer)
-          resizeTimer = setTimeout(() => {
+          if (resizeRafId !== null) cancelAnimationFrame(resizeRafId)
+          resizeRafId = requestAnimationFrame(() => {
+            resizeRafId = null
             if (!disposed) fitTerminal()
-          }, 100)
+          })
         })
         resizeObserver.observe(termDiv)
 
@@ -350,7 +351,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
         cleanup = () => {
           resizeObserver.disconnect()
-          if (resizeTimer) clearTimeout(resizeTimer)
+          if (resizeRafId !== null) cancelAnimationFrame(resizeRafId)
           clearTimeout(settleTimer)
           onSelectionChangeDisposable.dispose()
           onDataDisposable.dispose()
