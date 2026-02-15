@@ -111,4 +111,12 @@
 /* Ensure xterm consumes full pane height for fit calculations. */
 .terminalInner :global(.xterm) {
   height: 100%;
+  background: var(--term-bg);
+}
+
+.terminalInner :global(.xterm-viewport),
+.terminalInner :global(.xterm-screen),
+.terminalInner :global(.xterm-rows),
+.terminalInner :global(.xterm-helpers) {
+  background: var(--term-bg) !important;
 }

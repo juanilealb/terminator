@@ -306,16 +306,16 @@ function WindowControls() {
 
   return (
     <div className={styles.windowControls}>
-      <Tooltip label="Minimize window">
+      <Tooltip label="Close window">
         <button
-          aria-label="Minimize window"
-          className={styles.windowControlButton}
+          aria-label="Close window"
+          className={`${styles.windowControlButton} ${styles.windowControlButtonClose}`}
           onClick={(e) => {
             e.stopPropagation();
-            window.api.app.minimizeWindow();
+            window.api.app.closeWindow();
           }}
         >
-          <span className={`${styles.windowControlGlyph} ${styles.windowControlGlyphMinimize}`} />
+          <span className={`${styles.windowControlGlyph} ${styles.windowControlGlyphClose}`} />
         </button>
       </Tooltip>
       <Tooltip label={maximized ? "Restore window" : "Maximize window"}>
@@ -334,16 +334,16 @@ function WindowControls() {
           />
         </button>
       </Tooltip>
-      <Tooltip label="Close window">
+      <Tooltip label="Minimize window">
         <button
-          aria-label="Close window"
-          className={`${styles.windowControlButton} ${styles.windowControlButtonClose}`}
+          aria-label="Minimize window"
+          className={styles.windowControlButton}
           onClick={(e) => {
             e.stopPropagation();
-            window.api.app.closeWindow();
+            window.api.app.minimizeWindow();
           }}
         >
-          <span className={`${styles.windowControlGlyph} ${styles.windowControlGlyphClose}`} />
+          <span className={`${styles.windowControlGlyph} ${styles.windowControlGlyphMinimize}`} />
         </button>
       </Tooltip>
     </div>

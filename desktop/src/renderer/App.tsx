@@ -160,7 +160,7 @@ export function App() {
           <Allotment>
             {/* Sidebar */}
             {sidebarCollapsed ? (
-              <Allotment.Pane minSize={56} maxSize={72} preferredSize={60}>
+              <Allotment.Pane minSize={44} maxSize={62} preferredSize={48}>
                 <SidebarRail />
               </Allotment.Pane>
             ) : (

@@ -14,6 +14,7 @@ const PR_POLL_HINT_EVENT = 'terminator:pr-poll-hint'
 const INACTIVE_SERIALIZE_DELAY_MS = 30_000
 const SERIALIZED_SCROLLBACK_LINES = 1_000
 const MAX_BUFFERED_PTY_OUTPUT_CHARS = 2_000_000
+const ACTIVE_REFRESH_DELAYS_MS = [60, 180, 420] as const
 const PR_POLL_HINT_COMMAND_RE =
   /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S+)\s+)*(?:sudo\s+)?(?:(?:git\s+push)|(?:gh\s+pr\s+(?:create|ready|reopen|merge)))(?:\s|$)/
 
@@ -41,6 +42,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
   const inactiveDisposeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const serializedBufferRef = useRef('')
   const isRestoringRef = useRef(false)
+  const didInitialPtyNudgeRef = useRef(false)
   const activeRef = useRef(active)
   const copyOnSelectRef = useRef(false)
   const lastAutoCopiedRef = useRef('')
@@ -367,10 +369,31 @@ export function TerminalPanel({ ptyId, active }: Props) {
         return false
       })
 
+      const focusTerminal = () => {
+        if (termRef.current === term && activeRef.current) term.focus()
+      }
+
+      const syncPtySize = () => {
+        if (termRef.current !== term) return
+        const { cols, rows } = term
+        if (cols <= 0 || rows <= 0) return
+        window.api.pty.resize(ptyId, cols, rows)
+      }
+
+      const nudgePtySizeOnce = () => {
+        if (didInitialPtyNudgeRef.current || termRef.current !== term) return
+        const { cols, rows } = term
+        if (cols < 2 || rows < 1) return
+        didInitialPtyNudgeRef.current = true
+        window.api.pty.resize(ptyId, cols + 1, rows)
+        window.api.pty.resize(ptyId, cols, rows)
+      }
+
       const fitTerminal = () => {
         if (termRef.current !== term) return
         if (termDiv.clientWidth <= 0 || termDiv.clientHeight <= 0) return
         fitAddon.fit()
+        syncPtySize()
       }
       fitFnRef.current = fitTerminal
 
@@ -396,8 +419,19 @@ export function TerminalPanel({ ptyId, active }: Props) {
       resizeObserver.observe(termDiv)
 
       const settleTimer = setTimeout(() => {
-        if (termRef.current === term) fitTerminal()
+        if (termRef.current === term) {
+          fitTerminal()
+          nudgePtySizeOnce()
+          focusTerminal()
+        }
       }, 200)
+      const lateSettleTimer = setTimeout(() => {
+        if (termRef.current === term) {
+          fitTerminal()
+          nudgePtySizeOnce()
+          focusTerminal()
+        }
+      }, 500)
 
       const onSelectionChangeDisposable = term.onSelectionChange(() => {
         if (!copyOnSelectRef.current) return
@@ -435,6 +469,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
         resizeObserver.disconnect()
         if (resizeTimer) clearTimeout(resizeTimer)
         clearTimeout(settleTimer)
+        clearTimeout(lateSettleTimer)
         onSelectionChangeDisposable.dispose()
         onDataDisposable.dispose()
         onResizeDisposable.dispose()
@@ -450,7 +485,8 @@ export function TerminalPanel({ ptyId, active }: Props) {
       }
 
       setTimeout(() => {
-        if (termRef.current === term && activeRef.current) term.focus()
+        focusTerminal()
+        fitTerminal()
       }, 50)
     } catch (err) {
       console.error('Failed to initialize terminal:', err)
@@ -513,9 +549,14 @@ export function TerminalPanel({ ptyId, active }: Props) {
     setSearchOpen(false)
     setSearchQuery('')
     setContextMenu(null)
+    didInitialPtyNudgeRef.current = false
 
-    createTerminal()
     startPtyLiveListener()
+    createTerminal()
+    if (serializedBufferRef.current && termRef.current) {
+      termRef.current.write(serializedBufferRef.current)
+      serializedBufferRef.current = ''
+    }
 
     return () => {
       clearInactiveDisposeTimer()
@@ -542,9 +583,17 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
     if (active) {
       if (!termRef.current) restoreTerminal()
-      fitFnRef.current?.()
-      termRef.current?.focus()
-      return
+      const refresh = () => {
+        fitFnRef.current?.()
+        termRef.current?.focus()
+      }
+      refresh()
+      const raf = requestAnimationFrame(refresh)
+      const timers = ACTIVE_REFRESH_DELAYS_MS.map((delay) => setTimeout(refresh, delay))
+      return () => {
+        cancelAnimationFrame(raf)
+        timers.forEach((timer) => clearTimeout(timer))
+      }
     }
 
     inactiveDisposeTimerRef.current = setTimeout(() => {

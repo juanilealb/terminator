@@ -18,11 +18,11 @@
 }
 
 .expandButton {
-  width: 28px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-0);
+  border-radius: var(--radius-full);
+  background: rgba(23, 19, 26, 0.72);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
@@ -39,8 +39,8 @@
 }
 
 .expandGlyph {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-top: 1.5px solid currentColor;
   border-right: 1.5px solid currentColor;
   transform: rotate(45deg);
@@ -54,84 +54,78 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   padding: 10px 0;
 }
 
 .workspaceButton {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: rgba(23, 19, 26, 0.52);
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(122, 106, 130, 0.58);
+  background: rgba(128, 113, 136, 0.28);
   cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
   position: relative;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .workspaceButton:hover {
-  background: rgba(70, 58, 74, 0.48);
-  border-color: rgba(143, 120, 146, 0.35);
-  color: var(--text-primary);
-  transform: translateX(1px);
+  transform: scale(1.18);
+  border-color: rgba(196, 174, 204, 0.65);
+  background: rgba(171, 153, 178, 0.52);
 }
 
 .workspaceButton.active {
-  border-color: rgba(72, 209, 138, 0.56);
-  background: rgba(72, 209, 138, 0.15);
-  color: var(--text-primary);
+  border-color: rgba(72, 209, 138, 0.9);
+  background: rgba(72, 209, 138, 0.95);
+  box-shadow:
+    0 0 0 3px rgba(72, 209, 138, 0.16),
+    0 0 10px rgba(72, 209, 138, 0.5);
 }
 
-.workspaceInitial {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--weight-semibold);
-  line-height: 1;
+.workspaceButton.unread {
+  border-color: rgba(99, 212, 217, 0.85);
+  background: rgba(99, 212, 217, 0.95);
+  box-shadow: 0 0 8px rgba(99, 212, 217, 0.45);
 }
 
-.workspaceButton.unread::after,
-.workspaceButton.running::after,
-.workspaceButton.waiting::after {
-  content: '';
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.workspaceButton.unread::after {
-  background: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(99, 212, 217, 0.42);
-}
-
-.workspaceButton.running::after {
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid transparent;
-  border-top-color: var(--accent-cyan);
-  border-right-color: var(--accent-cyan);
-  background: transparent;
-  animation: railSpin 0.9s linear infinite;
-}
-
-.workspaceButton.waiting::after {
-  background: var(--accent-orange);
+.workspaceButton.waiting {
+  border-color: rgba(255, 158, 100, 0.85);
+  background: rgba(255, 158, 100, 0.92);
   box-shadow: 0 0 8px rgba(255, 158, 100, 0.45);
 }
 
+.workspaceButton.running {
+  border-color: rgba(99, 212, 217, 0.95);
+  background: transparent;
+}
+
+.workspaceButton.running::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: var(--accent-cyan);
+  border-right-color: var(--accent-cyan);
+  animation: railSpin 0.9s linear infinite;
+}
+
+.projectDivider {
+  width: 14px;
+  height: 1px;
+  margin: 2px 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, rgba(112, 94, 120, 0), rgba(112, 94, 120, 0.7), rgba(112, 94, 120, 0));
+}
+
 .emptyMarker {
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: 1px dashed var(--border-default);
-  opacity: 0.6;
-  margin-top: 4px;
+  opacity: 0.65;
+  margin-top: 2px;
 }
 
 @keyframes railSpin {

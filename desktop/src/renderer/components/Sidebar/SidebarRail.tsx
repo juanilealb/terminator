@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { useAppStore } from '../../store/app-store'
 import styles from './SidebarRail.module.css'
 
 interface WorkspaceWithState {
   id: string
   name: string
+  projectId: string
   projectName: string
   isActive: boolean
   isRunning: boolean
@@ -34,6 +35,7 @@ export function SidebarRail() {
           return {
             id: workspace.id,
             name: workspace.name,
+            projectId: workspace.projectId,
             projectName: projectNameById.get(workspace.projectId) ?? 'Project',
             isActive: workspace.id === activeWorkspaceId,
             isRunning,
@@ -68,7 +70,7 @@ export function SidebarRail() {
         {ordered.length === 0 ? (
           <div className={styles.emptyMarker} title="No workspaces" aria-hidden="true" />
         ) : (
-          ordered.map((workspace) => {
+          ordered.map((workspace, index) => {
             const stateClass = workspace.isRunning
               ? styles.running
               : workspace.isWaiting
@@ -76,18 +78,19 @@ export function SidebarRail() {
                 : workspace.isUnread
                   ? styles.unread
                   : ''
+            const hasProjectDivider =
+              index > 0 && ordered[index - 1]?.projectId !== workspace.projectId
+
             return (
-              <button
-                key={workspace.id}
-                className={`${styles.workspaceButton} ${workspace.isActive ? styles.active : ''} ${stateClass}`}
-                onClick={() => setActiveWorkspace(workspace.id)}
-                title={`${workspace.projectName} · ${workspace.name}`}
-                aria-label={`${workspace.projectName} ${workspace.name}`}
-              >
-                <span className={styles.workspaceInitial}>
-                  {(workspace.name.trim()[0] ?? 'W').toUpperCase()}
-                </span>
-              </button>
+              <Fragment key={workspace.id}>
+                {hasProjectDivider && <div className={styles.projectDivider} aria-hidden="true" />}
+                <button
+                  className={`${styles.workspaceButton} ${workspace.isActive ? styles.active : ''} ${stateClass}`}
+                  onClick={() => setActiveWorkspace(workspace.id)}
+                  title={`${workspace.projectName} - ${workspace.name}`}
+                  aria-label={`${workspace.projectName} ${workspace.name}`}
+                />
+              </Fragment>
             )
           })
         )}
