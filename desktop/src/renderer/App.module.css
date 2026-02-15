@@ -130,3 +130,8 @@
   background: var(--accent-cyan);
   box-shadow: 0 0 8px rgba(99, 212, 217, 0.45);
 }
+
+.dotNeutral {
+  background: var(--text-tertiary);
+  box-shadow: none;
+}
