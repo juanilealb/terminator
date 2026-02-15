@@ -90,13 +90,21 @@ export function useShortcuts() {
       }
 
       // Avoid hijacking terminal shortcuts while focus is inside terminal.
-      // Keep only command palette as a global escape hatch.
+      // Allow command palette and tab management shortcuts through.
       if (inTerminal) {
         if (shift && !alt && e.key.toLowerCase() === 'p') {
           consume()
           store.toggleCommandPalette()
+          return
         }
-        return
+        // Allow tab management shortcuts through (Ctrl+T, Ctrl+W, Ctrl+1-9, Ctrl+Shift+[/])
+        const isTabMgmt =
+          (!shift && !alt && (e.key === 't' || e.key === 'w')) ||
+          (!shift && !alt && e.key >= '1' && e.key <= '9') ||
+          (shift && !alt && (e.key === '[' || e.key === ']')) ||
+          (shift && !alt && e.code === 'KeyN') ||
+          (shift && !alt && e.code === 'KeyW')
+        if (!isTabMgmt) return
       }
 
       // Quick open: Ctrl+P

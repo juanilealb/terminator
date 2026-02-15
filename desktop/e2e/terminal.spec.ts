@@ -140,8 +140,8 @@ test.describe('Terminal functionality', () => {
       await setupWorkspaceWithTerminal(window, repoPath)
       await window.waitForTimeout(2000)
 
-      // Count tab titles (more specific than [class*="tab"])
-      const tabsBefore = await window.locator('[class*="tabTitle"]').count()
+      // Count tabs via role="tab" in the tab bar (Fluent UI Tab duplicates content for layout)
+      const tabsBefore = await window.locator('[class*="tabBar"] [role="tab"]').count()
       expect(tabsBefore).toBe(1)
 
       // Click "+" for new terminal
@@ -151,7 +151,7 @@ test.describe('Terminal functionality', () => {
 
       await window.waitForTimeout(2000)
 
-      const tabsAfter = await window.locator('[class*="tabTitle"]').count()
+      const tabsAfter = await window.locator('[class*="tabBar"] [role="tab"]').count()
       expect(tabsAfter).toBe(2)
 
       await window.screenshot({

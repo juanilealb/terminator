@@ -65,14 +65,14 @@ test.describe('Keyboard shortcuts', () => {
       await setupWorkspaceWithTerminal(window, repoPath)
       await window.waitForTimeout(2000)
 
-      const tabsBefore = await window.locator('[class*="tabTitle"]').count()
+      const tabsBefore = await window.locator('[class*="tabBar"] [role="tab"]').count()
       expect(tabsBefore).toBe(1)
 
       // Press Ctrl+T
       await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
 
-      const tabsAfter = await window.locator('[class*="tabTitle"]').count()
+      const tabsAfter = await window.locator('[class*="tabBar"] [role="tab"]').count()
       expect(tabsAfter).toBe(2)
     } finally {
       await app.close()
@@ -92,7 +92,7 @@ test.describe('Keyboard shortcuts', () => {
       await window.waitForTimeout(2000)
 
       // Should now have 2 tabs, with tab 2 active
-      const tabCount = await window.locator('[class*="tabTitle"]').count()
+      const tabCount = await window.locator('[class*="tabBar"] [role="tab"]').count()
       expect(tabCount).toBe(2)
 
       // Get active tab title
@@ -140,13 +140,13 @@ test.describe('Keyboard shortcuts', () => {
       // Create second tab
       await window.keyboard.press(`${MOD}+t`)
       await window.waitForTimeout(2000)
-      expect(await window.locator('[class*="tabTitle"]').count()).toBe(2)
+      expect(await window.locator('[class*="tabBar"] [role="tab"]').count()).toBe(2)
 
       // Press Ctrl+W — close active tab
       await window.keyboard.press(`${MOD}+w`)
       await window.waitForTimeout(1000)
 
-      expect(await window.locator('[class*="tabTitle"]').count()).toBe(1)
+      expect(await window.locator('[class*="tabBar"] [role="tab"]').count()).toBe(1)
     } finally {
       await app.close()
     }
@@ -241,13 +241,13 @@ test.describe('Keyboard shortcuts', () => {
       await window.waitForTimeout(1000)
 
       // No tabs
-      expect(await window.locator('[class*="tabTitle"]').count()).toBe(0)
+      expect(await window.locator('[class*="tabBar"] [role="tab"]').count()).toBe(0)
 
       // Press Ctrl+J — should create a terminal
       await window.keyboard.press(`${MOD}+j`)
       await window.waitForTimeout(2000)
 
-      expect(await window.locator('[class*="tabTitle"]').count()).toBe(1)
+      expect(await window.locator('[class*="tabBar"] [role="tab"]').count()).toBe(1)
     } finally {
       await app.close()
     }

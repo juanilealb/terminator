@@ -145,7 +145,7 @@ export function FileTree({ worktreePath, isActive }: Props) {
   }, [isActive, fetchTree])
 
   const handleOpenChange = useCallback((_event: TreeOpenChangeEvent, data: TreeOpenChangeData) => {
-    const isAlt = _event.altKey === true
+    const isAlt = (_event.nativeEvent as KeyboardEvent | MouseEvent).altKey === true
     if (isAlt && tree) {
       const targetPath = data.value as string
       const node = findNode(tree, targetPath)
@@ -162,7 +162,7 @@ export function FileTree({ worktreePath, isActive }: Props) {
         })
       }
     } else {
-      setOpenItems(new Set(data.openItems as Iterable<string>))
+      setOpenItems(new Set(data.openItems))
     }
   }, [tree])
 

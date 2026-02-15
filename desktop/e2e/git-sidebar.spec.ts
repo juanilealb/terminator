@@ -248,15 +248,13 @@ test.describe('Git & Sidebar functionality', () => {
       await expect(filesBtn).toBeVisible()
       await expect(changesBtn).toBeVisible()
 
-      // "Files" should be active by default
-      const filesBtnClass = await filesBtn.getAttribute('class')
-      expect(filesBtnClass).toContain('active')
+      // "Files" should be active by default (Fluent UI Tab uses aria-selected)
+      expect(await filesBtn.getAttribute('aria-selected')).toBe('true')
 
       // Click "Changes" and verify it becomes active
       await changesBtn.click()
       await window.waitForTimeout(300)
-      const changesBtnClass = await changesBtn.getAttribute('class')
-      expect(changesBtnClass).toContain('active')
+      expect(await changesBtn.getAttribute('aria-selected')).toBe('true')
 
       await window.screenshot({
         path: resolve(__dirname, 'screenshots/right-panel-toggle.png'),
