@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Button, Divider } from "@fluentui/react-components";
 import { basenameSafe, formatShortcut, toPosixPath } from "@shared/platform";
 import { SHORTCUT_MAP } from "@shared/shortcuts";
 import { DEFAULT_AGENT_PERMISSION_MODE, type AgentPermissionMode } from "@shared/agent-permissions";
@@ -110,7 +111,6 @@ interface WorkspaceCreationState {
 
 function PrStateIcon({ state }: { state: "open" | "merged" | "closed" }) {
   if (state === "open") {
-    // GitHub git-pull-request icon (simplified)
     return (
       <svg width={PR_ICON_SIZE} height={PR_ICON_SIZE} viewBox="0 0 16 16" fill="currentColor">
         <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
@@ -118,14 +118,12 @@ function PrStateIcon({ state }: { state: "open" | "merged" | "closed" }) {
     );
   }
   if (state === "merged") {
-    // GitHub git-merge icon
     return (
       <svg width={PR_ICON_SIZE} height={PR_ICON_SIZE} viewBox="0 0 16 16" fill="currentColor">
         <path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z" />
       </svg>
     );
   }
-  // closed — GitHub git-pull-request-closed icon
   return (
     <svg width={PR_ICON_SIZE} height={PR_ICON_SIZE} viewBox="0 0 16 16" fill="currentColor">
       <path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.273a.75.75 0 0 1 1.06 0l.97.97.97-.97a.75.75 0 1 1 1.06 1.06l-.97.97.97.97a.75.75 0 0 1-1.06 1.06l-.97-.97-.97.97a.75.75 0 1 1-1.06-1.06l.97-.97-.97-.97a.75.75 0 0 1 0-1.06ZM3.25 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
@@ -284,7 +282,7 @@ function WorkspaceMeta({
       )}
       {showBranch && normalizedBranch && (
         <span className={styles.workspaceBranchInline} title={normalizedBranch}>
-          <span className={styles.workspaceBranchIcon}>⎇</span>
+          <span className={styles.workspaceBranchIcon}>&#x2387;</span>
           <span className={styles.workspaceBranchText}>{normalizedBranch}</span>
         </span>
       )}
@@ -517,13 +515,11 @@ export function Sidebar() {
 
       const commands = project.startupCommands ?? [];
 
-      // Pre-trust worktree in Claude Code if any command uses claude
       if (commands.some((c) => c.command.trim().startsWith("claude"))) {
         await window.api.claude.trustPath(worktreePath).catch(() => {});
       }
 
       if (commands.length === 0) {
-        // Default: one blank terminal
         const ptyId = await window.api.pty.create(worktreePath, undefined, undefined, {
           AGENT_ORCH_WS_ID: wsId,
           AGENT_ORCH_PERMISSION_MODE: agentPermissionMode,
@@ -551,12 +547,10 @@ export function Sidebar() {
             title: cmd.name || cmd.command,
             ptyId,
           });
-          // Delay to let shell initialize before writing command
           setTimeout(() => {
             window.api.pty.write(ptyId, cmd.command + "\n");
           }, 500);
         }
-        // Activate the first terminal tab
         if (firstTabId) setActiveTab(firstTabId);
       }
     },
@@ -880,9 +874,10 @@ export function Sidebar() {
           <div className={styles.emptyState}>
             <span
               style={{
-                color: "var(--text-tertiary)",
-                fontSize: "var(--text-sm)",
-                padding: "0 var(--space-6)",
+                color: "var(--colorNeutralForeground3)",
+                fontSize: "var(--fontSizeBase200)",
+                padding: "0 24px",
+                fontFamily: "var(--fontFamilyBase)",
               }}
             >
               No projects yet. Add a git repository to get started.
@@ -890,7 +885,7 @@ export function Sidebar() {
           </div>
         )}
 
-        {projects.map((project) => {
+        {projects.map((project, projectIndex) => {
           const isExpanded = isProjectExpanded(project.id);
           const projectWorkspaces = workspaces.filter(
             (w) => w.projectId === project.id,
@@ -898,6 +893,9 @@ export function Sidebar() {
 
           return (
             <div key={project.id} className={styles.projectSection}>
+              {projectIndex > 0 && (
+                <Divider className={styles.sectionDivider} />
+              )}
               <div
                 className={styles.projectHeader}
                 onClick={() => toggleProject(project.id)}
@@ -905,42 +903,44 @@ export function Sidebar() {
                 <span
                   className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ""}`}
                 >
-                  ▶
+                  &#x25B6;
                 </span>
                 <span className={styles.projectName}>{project.name}</span>
-                <Tooltip label="Project settings">
-                  <button
-                    aria-label={`Project settings for ${project.name}`}
-                    className={styles.settingsBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingProject(project);
-                    }}
-                  >
-                    ⚙
-                  </button>
-                </Tooltip>
-                <Tooltip label="Open pull requests">
-                  <button
-                    className={styles.prListBtn}
-                    aria-expanded={openProjectPrPopoverId === project.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleProjectPrPopover(project);
-                    }}
-                  >
-                    PR
-                  </button>
-                </Tooltip>
-                <Tooltip label="Delete project">
-                  <button
-                    aria-label={`Delete project ${project.name}`}
-                    className={styles.deleteBtn}
-                    onClick={(e) => handleDeleteProject(e, project)}
-                  >
-                    ✕
-                  </button>
-                </Tooltip>
+                <span className={styles.headerActions}>
+                  <Tooltip label="Project settings">
+                    <button
+                      aria-label={`Project settings for ${project.name}`}
+                      className={styles.headerActionBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingProject(project);
+                      }}
+                    >
+                      &#x2699;
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="Open pull requests">
+                    <button
+                      className={`${styles.headerActionBtn} ${styles.headerActionBtnPr}`}
+                      aria-expanded={openProjectPrPopoverId === project.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleProjectPrPopover(project);
+                      }}
+                    >
+                      PR
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="Delete project">
+                    <button
+                      aria-label={`Delete project ${project.name}`}
+                      className={`${styles.headerActionBtn} ${styles.headerActionBtnDanger}`}
+                      onClick={(e) => handleDeleteProject(e, project)}
+                    >
+                      &#x2715;
+                    </button>
+                  </Tooltip>
+                </span>
               </div>
 
               {isExpanded && (
@@ -970,7 +970,7 @@ export function Sidebar() {
                         }}
                       >
                         <span className={styles.workspaceIcon}>
-                          {ws.automationId ? "⏱" : "⎇"}
+                          {ws.automationId ? "\u23F1" : "\u2387"}
                         </span>
                         <div className={styles.workspaceNameCol}>
                           {isEditing ? (
@@ -1014,10 +1014,10 @@ export function Sidebar() {
                         <Tooltip label="Delete workspace">
                           <button
                             aria-label={`Delete workspace ${displayName}`}
-                            className={styles.deleteBtn}
+                            className={styles.workspaceDeleteBtn}
                             onClick={(e) => handleDeleteWorkspace(e, ws)}
                           >
-                            ✕
+                            &#x2715;
                           </button>
                         </Tooltip>
                       </div>
@@ -1028,14 +1028,14 @@ export function Sidebar() {
                     label="New workspace"
                     shortcut={formatShortcut(SHORTCUT_MAP.newWorkspace.mac, SHORTCUT_MAP.newWorkspace.win)}
                   >
-                    <button
+                    <Button
+                      appearance="subtle"
                       className={styles.actionButton}
                       onClick={() => openWorkspaceDialog(project.id)}
-                      style={{ paddingLeft: "var(--space-4)" }}
+                      icon={<span className={styles.actionIcon}>+</span>}
                     >
-                      <span className={styles.actionIcon}>+</span>
-                      <span>New workspace</span>
-                    </button>
+                      New workspace
+                    </Button>
                   </Tooltip>
                 </div>
               )}
@@ -1046,25 +1046,37 @@ export function Sidebar() {
 
       <div className={styles.actions}>
         <Tooltip label="Add project">
-          <button className={styles.actionButton} onClick={handleAddProject}>
-            <span className={styles.actionIcon}>+</span>
-            <span>Add project</span>
-          </button>
+          <Button
+            appearance="subtle"
+            className={styles.actionButton}
+            onClick={handleAddProject}
+            icon={<span className={styles.actionIcon}>+</span>}
+          >
+            Add project
+          </Button>
         </Tooltip>
         <Tooltip label="Automations">
-          <button className={styles.actionButton} onClick={toggleAutomations}>
-            <span className={styles.actionIcon}>⏱</span>
-            <span>Automations</span>
-          </button>
+          <Button
+            appearance="subtle"
+            className={styles.actionButton}
+            onClick={toggleAutomations}
+            icon={<span className={styles.actionIcon}>{"\u23F1"}</span>}
+          >
+            Automations
+          </Button>
         </Tooltip>
         <Tooltip
           label="Settings"
           shortcut={formatShortcut(SHORTCUT_MAP.settings.mac, SHORTCUT_MAP.settings.win)}
         >
-          <button className={styles.actionButton} onClick={toggleSettings}>
-            <span className={styles.actionIcon}>⚙</span>
-            <span>Settings</span>
-          </button>
+          <Button
+            appearance="subtle"
+            className={styles.actionButton}
+            onClick={toggleSettings}
+            icon={<span className={styles.actionIcon}>{"\u2699"}</span>}
+          >
+            Settings
+          </Button>
         </Tooltip>
       </div>
 
@@ -1086,21 +1098,22 @@ export function Sidebar() {
                 </span>
               </div>
               <div className={styles.projectPrModalHeaderActions}>
-                <button
-                  className={styles.projectPrModalGhostBtn}
+                <Button
+                  appearance="subtle"
+                  size="small"
                   onClick={() => {
                     void loadProjectOpenPrs(projectPrModalProject);
                   }}
                   disabled={modalPrLoading}
                 >
                   Refresh
-                </button>
+                </Button>
                 <button
                   className={styles.projectPrModalCloseBtn}
                   onClick={closeProjectPrModal}
                   aria-label="Close pull requests modal"
                 >
-                  ✕
+                  &#x2715;
                 </button>
               </div>
             </div>
@@ -1241,8 +1254,9 @@ export function Sidebar() {
                             </span>
                           )}
                         </div>
-                        <button
-                          className={styles.projectPrPullBtn}
+                        <Button
+                          appearance="subtle"
+                          size="small"
                           onClick={() => {
                             void handlePullPrLocally(projectPrModalProject, pr);
                           }}
@@ -1253,7 +1267,7 @@ export function Sidebar() {
                             : isPulling
                               ? "Pulling..."
                               : "Pull locally"}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
