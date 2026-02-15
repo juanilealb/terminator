@@ -1,3 +1,4 @@
+import 'v8-compile-cache'
 import {
   app,
   BrowserWindow,
