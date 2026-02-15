@@ -361,6 +361,15 @@ export function TerminalPanel({ ptyId, active }: Props) {
           return false
         }
 
+        // Ctrl+Enter → send CSI u escape sequence so CLIs like Claude Code
+        // can distinguish it from a plain Enter (newline vs submit).
+        if (hasCtrl && !hasShift && !hasAlt && key === 'enter') {
+          event.preventDefault()
+          event.stopPropagation()
+          window.api.pty.write(ptyId, '\x1b[13;5u')
+          return false
+        }
+
         const isCtrlC = hasCtrl
           && !hasShift
           && !hasAlt
