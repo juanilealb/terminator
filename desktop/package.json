@@ -36,7 +36,6 @@
         "node-cron": "^4.2.1",
         "node-pty": "^1.1.0",
         "react": "^19.2.4",
-        "react-arborist": "^3.4.3",
         "react-dom": "^19.2.4",
         "v8-compile-cache": "^2.4.0",
         "zustand": "^5.0.11"
