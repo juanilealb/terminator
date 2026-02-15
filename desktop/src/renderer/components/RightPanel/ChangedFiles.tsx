@@ -1,4 +1,20 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  Button,
+  Textarea,
+  Menu,
+  MenuTrigger,
+  MenuPopover,
+  MenuList,
+  MenuItem,
+} from '@fluentui/react-components'
+import {
+  AddRegular,
+  SubtractRegular,
+  ArrowUndoRegular,
+  ChevronDownRegular,
+  CheckmarkCircleRegular,
+} from '@fluentui/react-icons'
 import { basenameSafe, formatShortcut, toPosixPath } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
@@ -79,10 +95,8 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
   const [busy, setBusy] = useState(false)
   const [commitMsg, setCommitMsg] = useState('')
   const [commitFlow, setCommitFlow] = useState<CommitFlowAction>('commit')
-  const [commitMenuOpen, setCommitMenuOpen] = useState(false)
   const refreshSeqRef = useRef(0)
   const lastAutofilledCommitMsgRef = useRef<string>('')
-  const commitMenuRef = useRef<HTMLDivElement | null>(null)
   const {
     openDiffTab,
     addToast,
@@ -129,50 +143,24 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     void refresh(true)
   }, [refresh])
 
-  // Watch filesystem for changes and auto-refresh
   useEffect(() => {
     window.api.fs.watchDir(worktreePath)
-
     const cleanup = window.api.fs.onDirChanged((changedPath) => {
       if (changedPath === worktreePath) {
         void refresh()
       }
     })
-
     return () => {
       cleanup()
       window.api.fs.unwatchDir(worktreePath)
     }
   }, [worktreePath, refresh])
 
-  // Re-fetch when tab becomes visible (git ops only touch .git/ which the watcher ignores)
   useEffect(() => {
     if (isActive) {
       void refresh()
     }
   }, [isActive, refresh])
-
-  useEffect(() => {
-    if (!commitMenuOpen) return
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!commitMenuRef.current?.contains(event.target as Node)) {
-        setCommitMenuOpen(false)
-      }
-    }
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setCommitMenuOpen(false)
-      }
-    }
-
-    window.addEventListener('mousedown', handlePointerDown, true)
-    window.addEventListener('keydown', handleEscape)
-    return () => {
-      window.removeEventListener('mousedown', handlePointerDown, true)
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [commitMenuOpen])
 
   const staged = files.filter((f) => f.staged)
   const unstaged = files.filter((f) => !f.staged)
@@ -210,7 +198,6 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     const message = commitMsg.trim()
     if (!message) return
 
-    setCommitMenuOpen(false)
     const shouldStageAllFirst = staged.length === 0 && unstaged.length > 0
     if (staged.length === 0 && !shouldStageAllFirst) return
 
@@ -285,7 +272,6 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
 
   const handleCommitFlowSelect = useCallback((flow: CommitFlowAction) => {
     setCommitFlow(flow)
-    setCommitMenuOpen(false)
   }, [])
 
   const openDiff = useCallback((path: string) => {
@@ -306,7 +292,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
   if (files.length === 0) {
     return (
       <div className={styles.emptyState}>
-        <span className={styles.emptyIcon}>✓</span>
+        <CheckmarkCircleRegular className={styles.emptyIcon} />
         <span className={styles.emptyText}>No changes</span>
       </div>
     )
@@ -326,15 +312,17 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
     <div className={styles.changedFilesList}>
       {/* Commit input */}
       <div className={styles.commitArea}>
-        <textarea
+        <Textarea
           className={styles.commitInput}
           placeholder="Commit message"
           value={commitMsg}
-          onChange={(e) => setCommitMsg(e.target.value)}
+          onChange={(_e, data) => setCommitMsg(data.value)}
           onKeyDown={handleKeyDown}
-          rows={1}
+          resize="vertical"
+          size="small"
+          appearance="outline"
         />
-        <div className={styles.commitActions} ref={commitMenuRef}>
+        <div className={styles.commitActions}>
           <Tooltip
             label={commitFlowOption.tooltip}
             shortcut={formatShortcut(
@@ -342,36 +330,38 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
               SHORTCUT_MAP.commitStagedChanges.win
             )}
           >
-            <button
+            <Button
               className={styles.commitButton}
               disabled={!canCommit}
               onClick={handleCommitFlow}
+              size="small"
             >
               {commitFlowOption.label}
-            </button>
+            </Button>
           </Tooltip>
-          <button
-            className={styles.commitMenuToggle}
-            aria-label="Commit flow options"
-            aria-expanded={commitMenuOpen}
-            disabled={busy}
-            onClick={() => setCommitMenuOpen((open) => !open)}
-          >
-            ▾
-          </button>
-          {commitMenuOpen && (
-            <div className={styles.commitMenu}>
-              {COMMIT_FLOW_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  className={`${styles.commitMenuItem} ${commitFlow === option.id ? styles.activeCommitMenuItem : ''}`}
-                  onClick={() => handleCommitFlowSelect(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <Menu>
+            <MenuTrigger disableButtonEnhancement>
+              <Button
+                className={styles.commitMenuToggle}
+                aria-label="Commit flow options"
+                disabled={busy}
+                size="small"
+                icon={<ChevronDownRegular />}
+              />
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList>
+                {COMMIT_FLOW_OPTIONS.map((option) => (
+                  <MenuItem
+                    key={option.id}
+                    onClick={() => handleCommitFlowSelect(option.id)}
+                  >
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </MenuList>
+            </MenuPopover>
+          </Menu>
         </div>
       </div>
 
@@ -383,14 +373,14 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
             <span className={styles.sectionCount}>{staged.length}</span>
             <span className={styles.sectionActions}>
               <Tooltip label="Unstage All">
-                <button
+                <Button
                   aria-label="Unstage all files"
-                  className={styles.sectionAction}
+                  appearance="subtle"
+                  size="small"
                   disabled={busy}
                   onClick={() => unstageFiles(staged.map((f) => f.path))}
-                >
-                  −
-                </button>
+                  icon={<SubtractRegular />}
+                />
               </Tooltip>
             </span>
           </div>
@@ -400,7 +390,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
               file={file}
               busy={busy}
               onAction={() => unstageFiles([file.path])}
-              actionLabel="−"
+              actionIcon={<SubtractRegular />}
               actionTitle="Unstage"
               onOpenDiff={openDiff}
             />
@@ -416,28 +406,28 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
             <span className={styles.sectionCount}>{unstaged.length}</span>
             <span className={styles.sectionActions}>
               <Tooltip label="Discard All">
-                <button
+                <Button
                   aria-label="Discard all unstaged changes"
-                  className={styles.sectionAction}
+                  appearance="subtle"
+                  size="small"
                   disabled={busy}
                   onClick={() => {
                     const tracked = unstaged.filter((f) => f.status !== 'untracked').map((f) => f.path)
                     const untracked = unstaged.filter((f) => f.status === 'untracked').map((f) => f.path)
                     runGitOp(() => window.api.git.discard(worktreePath, tracked, untracked))
                   }}
-                >
-                  ↩
-                </button>
+                  icon={<ArrowUndoRegular />}
+                />
               </Tooltip>
               <Tooltip label="Stage All">
-                <button
+                <Button
                   aria-label="Stage all files"
-                  className={styles.sectionAction}
+                  appearance="subtle"
+                  size="small"
                   disabled={busy}
                   onClick={() => stageFiles(unstaged.map((f) => f.path))}
-                >
-                  +
-                </button>
+                  icon={<AddRegular />}
+                />
               </Tooltip>
             </span>
           </div>
@@ -447,7 +437,7 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
               file={file}
               busy={busy}
               onAction={() => stageFiles([file.path])}
-              actionLabel="+"
+              actionIcon={<AddRegular />}
               actionTitle="Stage"
               onDiscard={() => discardFiles(file)}
               onOpenDiff={openDiff}
@@ -463,7 +453,7 @@ function FileRow({
   file,
   busy,
   onAction,
-  actionLabel,
+  actionIcon,
   actionTitle,
   onDiscard,
   onOpenDiff,
@@ -471,7 +461,7 @@ function FileRow({
   file: FileStatus
   busy: boolean
   onAction: () => void
-  actionLabel: string
+  actionIcon: React.ReactNode
   actionTitle: string
   onDiscard?: () => void
   onOpenDiff: (path: string) => void
@@ -495,25 +485,25 @@ function FileRow({
       <span className={styles.fileActions}>
         {onDiscard && (
           <Tooltip label="Discard Changes">
-            <button
+            <Button
               aria-label={`Discard changes in ${displayPath}`}
-              className={styles.fileActionBtn}
+              appearance="subtle"
+              size="small"
               disabled={busy}
               onClick={onDiscard}
-            >
-              ↩
-            </button>
+              icon={<ArrowUndoRegular />}
+            />
           </Tooltip>
         )}
         <Tooltip label={actionTitle}>
-          <button
+          <Button
             aria-label={`${actionTitle} ${displayPath}`}
-            className={styles.fileActionBtn}
+            appearance="subtle"
+            size="small"
             disabled={busy}
             onClick={onAction}
-          >
-            {actionLabel}
-          </button>
+            icon={actionIcon}
+          />
         </Tooltip>
       </span>
     </div>
