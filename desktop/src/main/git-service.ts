@@ -55,6 +55,7 @@ export interface PrWorktreeResult {
   worktreePath: string
   branch: string
 }
+
 async function git(args: string[], cwd: string): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd,
@@ -866,10 +867,42 @@ export class GitService {
 
     await git(['fetch', '--prune', 'origin'], repoPath).catch(() => {})
 
-    try {
-      await git(['push', 'origin', `${source}:${source}`], repoPath)
-    } catch (err) {
-      throw new Error(friendlyGitError(err, `Failed to push ${source} to origin`))
+    const remoteSourceRef = `refs/remotes/origin/${source}`
+    const remoteBranchExists = await git(['rev-parse', '--verify', remoteSourceRef], repoPath).then(
+      () => true,
+      () => false
+    )
+
+    let shouldPush = true
+    if (remoteBranchExists) {
+      const counts = await git(['rev-list', '--left-right', '--count', `${source}...origin/${source}`], repoPath)
+      const [aheadRaw = '0', behindRaw = '0'] = counts.trim().split(/\s+/)
+      const ahead = Number.parseInt(aheadRaw, 10)
+      const behind = Number.parseInt(behindRaw, 10)
+
+      if (!Number.isFinite(ahead) || !Number.isFinite(behind)) {
+        throw new Error(`Failed to compare ${source} with origin/${source}`)
+      }
+      if (behind > 0) {
+        throw new Error(
+          `Branch "${source}" is behind origin/${source}. Pull/rebase before opening or updating the PR.`
+        )
+      }
+
+      // Nothing new to push: keep going so we can still open/reuse an existing PR.
+      shouldPush = ahead > 0
+    }
+
+    if (shouldPush) {
+      try {
+        if (remoteBranchExists) {
+          await git(['push', 'origin', `${source}:${source}`], repoPath)
+        } else {
+          await git(['push', '--set-upstream', 'origin', source], repoPath)
+        }
+      } catch (err) {
+        throw new Error(friendlyGitError(err, `Failed to push ${source} to origin`))
+      }
     }
 
     try {
