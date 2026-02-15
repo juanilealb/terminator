@@ -1,5 +1,4 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { FluentProvider, webDarkTheme, webLightTheme } from '@fluentui/react-components'
 import { Allotment } from 'allotment'
 import type { ThemeChangedPayload, ThemePreference } from '@shared/ipc-channels'
 import { formatShortcut } from '@shared/platform'
@@ -146,18 +145,11 @@ export function App() {
     window.api.app.setThemePreference(settings.themePreference)
   }, [settings.themePreference])
 
-  const isDark = settings.themePreference === 'system' ? osTheme.dark : settings.themePreference === 'dark'
-
   useEffect(() => {
     applyThemeToDocument(osTheme, settings.themePreference)
   }, [osTheme, settings.themePreference])
 
   return (
-    <FluentProvider
-      theme={isDark ? webDarkTheme : webLightTheme}
-      className="fluent-root"
-      style={{ width: '100%', height: '100%', background: 'transparent' }}
-    >
     <div className={styles.app} style={appStyle}>
       <div className={styles.layout}>
         {settingsOpen ? (
@@ -275,6 +267,5 @@ export function App() {
       {commandPaletteVisible && <CommandPalette />}
       <ToastContainer />
     </div>
-    </FluentProvider>
   )
 }
