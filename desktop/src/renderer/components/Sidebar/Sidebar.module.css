@@ -797,6 +797,34 @@
   color: var(--text-tertiary);
 }
 
+.workspaceMetaSeparator {
+  display: inline-block;
+  width: 4px;
+}
+
+.workspaceBranchInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: bottom;
+}
+
+.workspaceBranchIcon {
+  opacity: 0.72;
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.workspaceBranchText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .prInline {
   display: inline-flex;
   align-items: center;

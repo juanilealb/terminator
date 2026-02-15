@@ -193,6 +193,7 @@ function WorkspaceMeta({
   const hasPr = !!(ghAvailable && prInfo !== undefined && prInfo !== null);
   const inferredPrNumber = hasPr ? null : extractPrNumberFromBranch(branch);
   const hasInferredPr = inferredPrNumber !== null;
+  const normalizedBranch = branch.trim();
 
   if (!hasPr && !hasInferredPr && !showBranch) return null;
 
@@ -278,8 +279,15 @@ function WorkspaceMeta({
           <span className={styles.prNumber}>#{inferredPrNumber!}</span>
         </span>
       )}
-      {(hasPr || hasInferredPr) && showBranch && <span style={{ marginRight: 4 }} />}
-      {showBranch && branch}
+      {(hasPr || hasInferredPr) && showBranch && normalizedBranch && (
+        <span className={styles.workspaceMetaSeparator} />
+      )}
+      {showBranch && normalizedBranch && (
+        <span className={styles.workspaceBranchInline} title={normalizedBranch}>
+          <span className={styles.workspaceBranchIcon}>⎇</span>
+          <span className={styles.workspaceBranchText}>{normalizedBranch}</span>
+        </span>
+      )}
     </span>
   );
 }
@@ -940,8 +948,9 @@ export function Sidebar() {
                   {projectWorkspaces.map((ws) => {
                     const isEditing = editingWorkspaceId === ws.id;
                     const isAutoName = /^ws-[a-z0-9]+$/.test(ws.name);
-                    const displayName = isAutoName ? ws.branch : ws.name;
-                    const showMeta = !!(ws.branch && ws.branch !== displayName);
+                    const metaBranch = ws.branch || basenameSafe(ws.worktreePath);
+                    const displayName = isAutoName ? metaBranch : ws.name;
+                    const showMeta = !!(metaBranch && metaBranch !== displayName);
                     const isRunning = activeClaudeWorkspaceIds.has(ws.id);
                     const isWaiting = !isRunning && waitingClaudeWorkspaceIds.has(ws.id);
                     const isUnread = !isRunning && !isWaiting && unreadWorkspaceIds.has(ws.id);
@@ -961,7 +970,7 @@ export function Sidebar() {
                         }}
                       >
                         <span className={styles.workspaceIcon}>
-                          {ws.automationId ? "⏱" : "◦"}
+                          {ws.automationId ? "⏱" : "⎇"}
                         </span>
                         <div className={styles.workspaceNameCol}>
                           {isEditing ? (
@@ -998,7 +1007,7 @@ export function Sidebar() {
                           )}
                           <WorkspaceMeta
                             projectId={ws.projectId}
-                            branch={ws.branch}
+                            branch={metaBranch}
                             showBranch={!!showMeta}
                           />
                         </div>
