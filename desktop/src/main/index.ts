@@ -161,6 +161,8 @@ function notifyWindowMaximizedChanged(): void {
 function createWindow(): void {
   const isWindows = process.platform === 'win32'
   const darkTheme = nativeTheme.shouldUseDarkColors
+  const buildNumber = isWindows ? parseInt(release().split('.')[2] || '0', 10) : 0
+  const supportsMica = isWindows && buildNumber >= 22000
   const initialWindowState = loadWindowState()
   const windowOptions: BrowserWindowConstructorOptions = {
     x: initialWindowState.bounds?.x,
@@ -169,7 +171,8 @@ function createWindow(): void {
     height: initialWindowState.bounds?.height ?? 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: darkTheme ? '#121013' : '#f3f5f7',
+    backgroundColor: supportsMica ? '#00000000' : (darkTheme ? '#141414' : '#f5f5f5'),
+    ...(supportsMica && { backgroundMaterial: 'mica' as const }),
     show: false,
     frame: !isWindows,
     autoHideMenuBar: true,

@@ -1,75 +1,41 @@
 /*
  * Terminator design tokens
- * Conductor-inspired dark workspace for Windows.
+ * Aliases mapping to Fluent UI v9 theme tokens (webDarkTheme / webLightTheme).
+ *
+ * FluentProvider injects --colorNeutral*, --colorBrand*, --borderRadius*, etc.
+ * as CSS custom properties on its container element. The aliases below live on
+ * .fluent-root (the FluentProvider className) so every descendant inherits both
+ * the raw Fluent tokens and these app-specific aliases.
+ *
+ * Tokens without a Fluent equivalent (terminal palette, layout dimensions,
+ * typography overrides) are kept as custom values.
  */
 
 :root {
-  /* Core palette */
-  --bg-app: #121013;
-  --bg-sidebar: #2a2428;
-  --bg-panel: #151218;
-  --bg-surface: #211b21;
-  --bg-surface-hover: #2b232b;
-  --bg-surface-active: #332936;
-  --bg-elevated: #19151b;
-  --bg-input: #16131a;
-  --bg-overlay: #1f1a20;
+  /* ── Terminal palette (no Fluent equivalent — Windows Terminal defaults) ── */
+  --term-bg: #0e0e0e;
+  --term-fg: #cccccc;
+  --term-cursor: #ffffff;
+  --term-selection: rgba(255, 255, 255, 0.3);
+  --term-black: #0e0e0e;
+  --term-red: #c50f1f;
+  --term-green: #13a10e;
+  --term-yellow: #c19c00;
+  --term-blue: #3b78ff;
+  --term-magenta: #881798;
+  --term-cyan: #3a96dd;
+  --term-white: #cccccc;
+  --term-bright-black: #767676;
+  --term-bright-red: #e74856;
+  --term-bright-green: #16c60c;
+  --term-bright-yellow: #f9f1a5;
+  --term-bright-blue: #3b78ff;
+  --term-bright-magenta: #b4009e;
+  --term-bright-cyan: #61d6d6;
+  --term-bright-white: #f2f2f2;
 
-  /* Borders */
-  --border-default: #3f3340;
-  --border-muted: #2e2630;
-  --border-emphasis: #544458;
-
-  /* Text */
-  --text-primary: #f4edf7;
-  --text-secondary: #b8adb8;
-  --text-tertiary: #7f7380;
-  --text-link: #73c8ff;
-
-  /* Accents */
-  --accent-blue: #58abff;
-  --accent-blue-dim: #3e8cd6;
-  --accent-system: var(--accent-blue);
-  --accent-green: #48d18a;
-  --accent-green-muted: #31a96d;
-  --accent-red: #ff6f78;
-  --accent-yellow: #e3b56a;
-  --accent-purple: #c8a1ff;
-  --accent-orange: #f39b62;
-  --accent-cyan: #63d4d9;
-
-  --glow-blue: rgba(88, 171, 255, 0.19);
-  --glow-green: rgba(72, 209, 138, 0.2);
-  --glow-red: rgba(255, 111, 120, 0.2);
-
-  --accent-blue-glow: var(--glow-blue);
-  --accent-green-dim: var(--glow-green);
-  --accent-red-dim: var(--glow-red);
-
-  /* Terminal */
-  --term-bg: #140f16;
-  --term-fg: #f0eaf4;
-  --term-cursor: #63d4d9;
-  --term-selection: rgba(99, 212, 217, 0.3);
-  --term-black: #140f16;
-  --term-red: #ff6f78;
-  --term-green: #48d18a;
-  --term-yellow: #e3b56a;
-  --term-blue: #58abff;
-  --term-magenta: #c8a1ff;
-  --term-cyan: #63d4d9;
-  --term-white: #f0eaf4;
-  --term-bright-black: #87798d;
-  --term-bright-red: #ff8f96;
-  --term-bright-green: #75dfaa;
-  --term-bright-yellow: #efcb90;
-  --term-bright-blue: #82c2ff;
-  --term-bright-magenta: #d9bcff;
-  --term-bright-cyan: #8be5e8;
-  --term-bright-white: #fff8ff;
-
-  /* Typography */
-  --font-sans: 'Geist Sans', 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  /* ── Typography ── */
+  --font-sans: 'Geist Sans', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
   --font-ui: var(--font-sans);
 
@@ -95,7 +61,7 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 
-  /* Spacing */
+  /* ── Spacing ── */
   --space-0: 0px;
   --space-1: 4px;
   --space-2: 8px;
@@ -108,25 +74,7 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-full: 999px;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.34);
-  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.56);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-
-  /* Motion */
-  --transition-fast: 150ms ease;
-  --transition-default: 200ms ease;
-  --transition-slow: 280ms ease;
-
-  /* Layout */
+  /* ── Layout ── */
   --sidebar-width: 240px;
   --right-panel-width: 280px;
   --tab-height: 36px;
@@ -135,13 +83,86 @@
   --window-controls-width: 0px;
   --window-controls-width-tabbar: 0px;
   --window-controls-width-right-panel: 0px;
+}
 
-  /* Legacy panel aliases */
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Fluent-backed aliases
+ *
+ * These resolve against the CSS custom properties that FluentProvider injects
+ * on .fluent-root. When the provider switches between webDarkTheme and
+ * webLightTheme the aliases update automatically — no [data-theme] overrides.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.fluent-root {
+  /* ── Core palette ── */
+  --bg-app: var(--colorNeutralBackground3);
+  --bg-sidebar: var(--colorNeutralBackground2);
+  --bg-panel: var(--colorNeutralBackground3);
+  --bg-surface: var(--colorNeutralBackground2);
+  --bg-surface-hover: var(--colorNeutralBackground2Hover);
+  --bg-surface-active: var(--colorNeutralBackground2Pressed);
+  --bg-elevated: var(--colorNeutralBackground1);
+  --bg-input: var(--colorNeutralBackground1);
+  --bg-overlay: var(--colorNeutralBackgroundAlpha2);
+
+  /* ── Borders ── */
+  --border-default: var(--colorNeutralStroke1);
+  --border-muted: var(--colorNeutralStroke2);
+  --border-emphasis: var(--colorNeutralStrokeAccessible);
+
+  /* ── Text ── */
+  --text-primary: var(--colorNeutralForeground1);
+  --text-secondary: var(--colorNeutralForeground2);
+  --text-tertiary: var(--colorNeutralForeground3);
+  --text-link: var(--colorBrandForegroundLink);
+  --text-ghost: var(--colorNeutralForeground4);
+
+  /* ── Accent / brand ── */
+  --accent-blue: var(--colorBrandForeground1);
+  --accent-blue-dim: var(--colorBrandForeground2);
+  --accent-system: var(--colorBrandForeground1);
+  --accent-green: var(--colorPaletteGreenForeground1);
+  --accent-green-muted: var(--colorPaletteGreenForeground2);
+  --accent-red: var(--colorPaletteRedForeground1);
+  --accent-yellow: var(--colorPaletteMarigoldForeground1);
+  --accent-purple: var(--colorPaletteBerryForeground1);
+  --accent-orange: var(--colorPaletteDarkOrangeForeground1);
+  --accent-cyan: var(--colorPaletteTealForeground2);
+
+  /* ── Glow / translucent accents ── */
+  --glow-blue: rgba(71, 158, 245, 0.18);
+  --glow-green: rgba(84, 176, 84, 0.18);
+  --glow-red: rgba(220, 98, 109, 0.18);
+
+  --accent-blue-glow: var(--glow-blue);
+  --accent-green-dim: var(--glow-green);
+  --accent-red-dim: var(--glow-red);
+  --accent-orange-dim: rgba(233, 131, 94, 0.18);
+
+  /* ── Radius (Fluent tokens) ── */
+  --radius-sm: var(--borderRadiusSmall);
+  --radius-md: var(--borderRadiusMedium);
+  --radius-lg: var(--borderRadiusLarge);
+  --radius-xl: var(--borderRadiusXLarge);
+  --radius-full: var(--borderRadiusCircular);
+
+  /* ── Shadows (Fluent tokens) ── */
+  --shadow-sm: var(--shadow2);
+  --shadow-md: var(--shadow8);
+  --shadow-lg: var(--shadow16);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* ── Motion (Fluent tokens) ── */
+  --transition-fast: var(--durationFaster) var(--curveEasyEase);
+  --transition-default: var(--durationNormal) var(--curveEasyEase);
+  --transition-slow: var(--durationSlow) var(--curveEasyEase);
+
+  /* ── Legacy panel aliases ── */
   --surface-0: var(--bg-app);
   --surface-1: var(--bg-surface);
   --surface-2: var(--bg-surface-hover);
   --surface-3: var(--bg-surface-active);
-  --surface-4: #39414c;
+  --surface-4: var(--colorNeutralStroke1);
   --surface-sidebar: var(--bg-sidebar);
   --surface-center: var(--bg-panel);
   --surface-right: var(--bg-panel);
@@ -149,47 +170,15 @@
   --border-subtle: var(--border-muted);
   --border-strong: var(--border-emphasis);
 
-  --text-ghost: #6e7681;
+  /* ── Mica-transparent glow (let window material show through) ── */
+  --app-glow-top: transparent;
+  --app-glow-bottom: transparent;
+  --app-glow-fade: transparent;
 
-  --app-glow-top: rgba(72, 209, 138, 0.08);
-  --app-glow-bottom: rgba(115, 200, 255, 0.07);
-  --app-glow-fade: rgba(18, 16, 19, 0);
-  --scrollbar-thumb-start: #4a3c4b;
-  --scrollbar-thumb-end: #392f3c;
-  --scrollbar-thumb-hover-start: #5a4a5b;
-  --scrollbar-thumb-hover-end: #453949;
-  --scrollbar-thumb-border: rgba(22, 17, 24, 0.65);
-}
-
-:root[data-theme='light'] {
-  --bg-app: #f3f5f7;
-  --bg-sidebar: #e7ebf0;
-  --bg-panel: #ffffff;
-  --bg-surface: #f5f7fb;
-  --bg-surface-hover: #e9eef7;
-  --bg-surface-active: #dfe7f4;
-  --bg-elevated: #ffffff;
-  --bg-input: #ffffff;
-  --bg-overlay: #ffffff;
-
-  --border-default: #c5cedd;
-  --border-muted: #d5dbe5;
-  --border-emphasis: #8d9ab2;
-
-  --text-primary: #1c2330;
-  --text-secondary: #3f4b61;
-  --text-tertiary: #66748a;
-  --text-link: #0a6bc2;
-  --text-ghost: #7f8da3;
-
-  --surface-4: #c5cedd;
-
-  --app-glow-top: rgba(84, 150, 224, 0.1);
-  --app-glow-bottom: rgba(86, 198, 159, 0.09);
-  --app-glow-fade: rgba(243, 245, 247, 0);
-  --scrollbar-thumb-start: #b8c5da;
-  --scrollbar-thumb-end: #a7b6ce;
-  --scrollbar-thumb-hover-start: #a8bad6;
-  --scrollbar-thumb-hover-end: #97a9c4;
-  --scrollbar-thumb-border: rgba(147, 160, 184, 0.45);
+  /* ── Scrollbar ── */
+  --scrollbar-thumb-start: var(--colorNeutralStroke2);
+  --scrollbar-thumb-end: var(--colorNeutralStroke2);
+  --scrollbar-thumb-hover-start: var(--colorNeutralStroke1);
+  --scrollbar-thumb-hover-end: var(--colorNeutralStroke1);
+  --scrollbar-thumb-border: transparent;
 }
