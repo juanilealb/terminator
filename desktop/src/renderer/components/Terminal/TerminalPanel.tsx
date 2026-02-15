@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
+import { SerializeAddon } from '@xterm/addon-serialize'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useAppStore } from '../../store/app-store'
 import { subscribeTerminalUiActions } from '../../utils/terminal-actions'
 import styles from './TerminalPanel.module.css'
 
 const PR_POLL_HINT_EVENT = 'terminator:pr-poll-hint'
+const INACTIVE_SERIALIZE_DELAY_MS = 30_000
+const SERIALIZED_SCROLLBACK_LINES = 10_000
 const PR_POLL_HINT_COMMAND_RE =
   /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S+)\s+)*(?:sudo\s+)?(?:(?:git\s+push)|(?:gh\s+pr\s+(?:create|ready|reopen|merge)))(?:\s|$)/
 
@@ -28,7 +31,14 @@ export function TerminalPanel({ ptyId, active }: Props) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const searchAddonRef = useRef<SearchAddon | null>(null)
+  const serializeAddonRef = useRef<SerializeAddon | null>(null)
   const fitFnRef = useRef<(() => void) | null>(null)
+  const terminalCleanupRef = useRef<(() => void) | null>(null)
+  const ptyDataUnsubRef = useRef<(() => void) | null>(null)
+  const inactiveDisposeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const serializedBufferRef = useRef('')
+  const isRestoringRef = useRef(false)
+  const activeRef = useRef(active)
   const copyOnSelectRef = useRef(false)
   const lastAutoCopiedRef = useRef('')
   const inputLineRef = useRef('')
@@ -58,7 +68,10 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
   const clearTerminalView = () => {
     const term = termRef.current
-    if (!term) return
+    if (!term) {
+      serializedBufferRef.current = ''
+      return
+    }
     term.clear()
   }
 
@@ -127,6 +140,10 @@ export function TerminalPanel({ ptyId, active }: Props) {
   }
 
   useEffect(() => {
+    activeRef.current = active
+  }, [active])
+
+  useEffect(() => {
     copyOnSelectRef.current = terminalCopyOnSelect
   }, [terminalCopyOnSelect])
 
@@ -164,220 +181,306 @@ export function TerminalPanel({ ptyId, active }: Props) {
     })
   }, [ptyId])
 
+  const clearInactiveDisposeTimer = () => {
+    if (inactiveDisposeTimerRef.current) {
+      clearTimeout(inactiveDisposeTimerRef.current)
+      inactiveDisposeTimerRef.current = null
+    }
+  }
+
+  const stopPtyDataListener = () => {
+    ptyDataUnsubRef.current?.()
+    ptyDataUnsubRef.current = null
+  }
+
+  const startPtyBufferListener = () => {
+    stopPtyDataListener()
+    ptyDataUnsubRef.current = window.api.pty.onData(ptyId, (data: string) => {
+      serializedBufferRef.current += data
+    })
+  }
+
+  const startPtyLiveListener = () => {
+    stopPtyDataListener()
+    ptyDataUnsubRef.current = window.api.pty.onData(ptyId, (data: string) => {
+      const term = termRef.current
+      if (!term) {
+        serializedBufferRef.current += data
+        return
+      }
+      term.write(data)
+    })
+  }
+
+  const disposeTerminalInstance = () => {
+    terminalCleanupRef.current?.()
+    terminalCleanupRef.current = null
+    termRef.current = null
+    searchAddonRef.current = null
+    serializeAddonRef.current = null
+    fitFnRef.current = null
+    inputLineRef.current = ''
+  }
+
+  const createTerminal = (restoreSnapshot = '') => {
+    const termDiv = termDivRef.current
+    if (!termDiv || termRef.current) return
+
+    try {
+      termDiv.innerHTML = ''
+      const monoFont =
+        getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim()
+        || "'Cascadia Code', 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace"
+
+      const term = new Terminal({
+        fontSize: useAppStore.getState().settings.terminalFontSize,
+        fontFamily: monoFont,
+        cursorBlink: true,
+        cursorStyle: 'bar',
+        scrollback: SERIALIZED_SCROLLBACK_LINES,
+        theme: {
+          background: '#140f16',
+          foreground: '#f0eaf4',
+          cursor: '#63d4d9',
+          selectionBackground: 'rgba(99, 212, 217, 0.3)',
+          black: '#140f16',
+          red: '#ff6f78',
+          green: '#48d18a',
+          yellow: '#e3b56a',
+          blue: '#58abff',
+          magenta: '#c8a1ff',
+          cyan: '#63d4d9',
+          white: '#f0eaf4',
+          brightBlack: '#87798d',
+          brightRed: '#ff8f96',
+          brightGreen: '#75dfaa',
+          brightYellow: '#efcb90',
+          brightBlue: '#82c2ff',
+          brightMagenta: '#d9bcff',
+          brightCyan: '#8be5e8',
+          brightWhite: '#fff8ff',
+        },
+      })
+
+      const fitAddon = new FitAddon()
+      const searchAddon = new SearchAddon()
+      const serializeAddon = new SerializeAddon()
+      const webLinksAddon = new WebLinksAddon((event, uri) => {
+        event.preventDefault()
+        window.open(uri, '_blank')
+      })
+
+      term.loadAddon(fitAddon)
+      term.loadAddon(searchAddon)
+      term.loadAddon(serializeAddon)
+      term.loadAddon(webLinksAddon)
+
+      if (restoreSnapshot) {
+        // Restore before opening to avoid expensive intermediate repaints.
+        term.write(restoreSnapshot)
+      }
+
+      term.open(termDiv)
+      termRef.current = term
+      searchAddonRef.current = searchAddon
+      serializeAddonRef.current = serializeAddon
+
+      term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        if (event.type !== 'keydown') return true
+
+        const key = event.key.toLowerCase()
+        const hasCtrl = event.ctrlKey && !event.metaKey
+        const hasShift = event.shiftKey
+        const hasAlt = event.altKey
+
+        const copyShortcut = hasCtrl && !hasAlt && hasShift && key === 'c'
+        const copyInsertShortcut = hasCtrl && !hasAlt && !hasShift && key === 'insert'
+        if (copyShortcut || copyInsertShortcut) {
+          event.preventDefault()
+          event.stopPropagation()
+          void copySelection().catch(() => {})
+          return false
+        }
+
+        const pasteShortcut = hasCtrl && !hasAlt && hasShift && key === 'v'
+        const pasteInsertShortcut = !hasCtrl && !hasAlt && hasShift && key === 'insert'
+        if (pasteShortcut || pasteInsertShortcut) {
+          event.preventDefault()
+          event.stopPropagation()
+          void pasteFromClipboard().catch(() => {})
+          return false
+        }
+
+        const findShortcut = hasCtrl && !hasAlt && !hasShift && key === 'f'
+        if (findShortcut) {
+          event.preventDefault()
+          event.stopPropagation()
+          openSearch(term.getSelection())
+          return false
+        }
+
+        const isCtrlC = hasCtrl
+          && !hasShift
+          && !hasAlt
+          && key === 'c'
+
+        if (!isCtrlC || !term.hasSelection()) return true
+
+        event.preventDefault()
+        event.stopPropagation()
+        void copySelection().catch(() => {})
+        return false
+      })
+
+      const fitTerminal = () => {
+        if (termRef.current !== term) return
+        if (termDiv.clientWidth <= 0 || termDiv.clientHeight <= 0) return
+        fitAddon.fit()
+      }
+      fitFnRef.current = fitTerminal
+
+      // Defer fit until container has real dimensions.
+      let fitAttempts = 0
+      const tryFit = () => {
+        if (termRef.current !== term) return
+        if (termDiv.clientWidth > 0 && termDiv.clientHeight > 0) {
+          fitTerminal()
+        } else if (++fitAttempts < 30) {
+          requestAnimationFrame(tryFit)
+        }
+      }
+      requestAnimationFrame(tryFit)
+
+      let resizeTimer: ReturnType<typeof setTimeout> | null = null
+      const resizeObserver = new ResizeObserver(() => {
+        if (resizeTimer) clearTimeout(resizeTimer)
+        resizeTimer = setTimeout(() => {
+          if (termRef.current === term) fitTerminal()
+        }, 100)
+      })
+      resizeObserver.observe(termDiv)
+
+      const settleTimer = setTimeout(() => {
+        if (termRef.current === term) fitTerminal()
+      }, 200)
+
+      const onSelectionChangeDisposable = term.onSelectionChange(() => {
+        if (!copyOnSelectRef.current) return
+        const selectedText = term.getSelection()
+        if (!selectedText) {
+          lastAutoCopiedRef.current = ''
+          return
+        }
+        if (selectedText === lastAutoCopiedRef.current) return
+        lastAutoCopiedRef.current = selectedText
+        void writeClipboardText(selectedText).catch(() => {})
+      })
+
+      const onContextMenu = (event: MouseEvent) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          hasSelection: term.hasSelection(),
+        })
+      }
+      termDiv.addEventListener('contextmenu', onContextMenu)
+
+      const onDataDisposable = term.onData((data: string) => {
+        detectPrPollHint(data)
+        window.api.pty.write(ptyId, data)
+      })
+
+      const onResizeDisposable = term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+        window.api.pty.resize(ptyId, cols, rows)
+      })
+
+      terminalCleanupRef.current = () => {
+        resizeObserver.disconnect()
+        if (resizeTimer) clearTimeout(resizeTimer)
+        clearTimeout(settleTimer)
+        onSelectionChangeDisposable.dispose()
+        onDataDisposable.dispose()
+        onResizeDisposable.dispose()
+        termDiv.removeEventListener('contextmenu', onContextMenu)
+        term.dispose()
+
+        if (termRef.current === term) termRef.current = null
+        if (searchAddonRef.current === searchAddon) searchAddonRef.current = null
+        if (serializeAddonRef.current === serializeAddon) serializeAddonRef.current = null
+        if (fitFnRef.current === fitTerminal) fitFnRef.current = null
+      }
+
+      setTimeout(() => {
+        if (termRef.current === term && activeRef.current) term.focus()
+      }, 50)
+    } catch (err) {
+      console.error('Failed to initialize terminal:', err)
+    }
+  }
+
+  const serializeAndDisposeTerminal = () => {
+    const term = termRef.current
+    const serializeAddon = serializeAddonRef.current
+    if (!term || !serializeAddon) return
+
+    try {
+      serializedBufferRef.current = serializeAddon.serialize({
+        scrollback: SERIALIZED_SCROLLBACK_LINES,
+      })
+    } catch (err) {
+      console.error('Failed to serialize terminal buffer:', err)
+      return
+    }
+
+    setSearchOpen(false)
+    setSearchQuery('')
+    setContextMenu(null)
+
+    // Keep collecting PTY output while terminal is suspended.
+    startPtyBufferListener()
+    disposeTerminalInstance()
+  }
+
+  const restoreTerminal = () => {
+    if (isRestoringRef.current || termRef.current) return
+    isRestoringRef.current = true
+
+    const snapshot = serializedBufferRef.current
+    createTerminal(snapshot)
+    const term = termRef.current
+    if (!term) {
+      isRestoringRef.current = false
+      return
+    }
+
+    // Preserve output received during restore, then switch to live writes.
+    stopPtyDataListener()
+    const backlog = serializedBufferRef.current.slice(snapshot.length)
+    startPtyLiveListener()
+    if (backlog) term.write(backlog)
+    serializedBufferRef.current = ''
+    isRestoringRef.current = false
+  }
+
   useEffect(() => {
     if (!termDivRef.current) return
 
-    const termDiv = termDivRef.current
     inputLineRef.current = ''
     setSearchOpen(false)
     setSearchQuery('')
     setContextMenu(null)
 
-    let disposed = false
-    let cleanup: (() => void) | null = null
-
-    const setup = () => {
-      try {
-        termDiv.innerHTML = ''
-        const monoFont =
-          getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim()
-          || "'Cascadia Code', 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace"
-
-        const term = new Terminal({
-          fontSize: useAppStore.getState().settings.terminalFontSize,
-          fontFamily: monoFont,
-          cursorBlink: true,
-          cursorStyle: 'bar',
-          scrollback: 10000,
-          theme: {
-            background: '#140f16',
-            foreground: '#f0eaf4',
-            cursor: '#63d4d9',
-            selectionBackground: 'rgba(99, 212, 217, 0.3)',
-            black: '#140f16',
-            red: '#ff6f78',
-            green: '#48d18a',
-            yellow: '#e3b56a',
-            blue: '#58abff',
-            magenta: '#c8a1ff',
-            cyan: '#63d4d9',
-            white: '#f0eaf4',
-            brightBlack: '#87798d',
-            brightRed: '#ff8f96',
-            brightGreen: '#75dfaa',
-            brightYellow: '#efcb90',
-            brightBlue: '#82c2ff',
-            brightMagenta: '#d9bcff',
-            brightCyan: '#8be5e8',
-            brightWhite: '#fff8ff',
-          },
-        })
-
-        const fitAddon = new FitAddon()
-        const searchAddon = new SearchAddon()
-        const webLinksAddon = new WebLinksAddon((event, uri) => {
-          event.preventDefault()
-          window.open(uri, '_blank')
-        })
-        term.loadAddon(fitAddon)
-        term.loadAddon(searchAddon)
-        term.loadAddon(webLinksAddon)
-        term.open(termDiv)
-        searchAddonRef.current = searchAddon
-
-        term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-          if (event.type !== 'keydown') return true
-
-          const key = event.key.toLowerCase()
-          const hasCtrl = event.ctrlKey && !event.metaKey
-          const hasShift = event.shiftKey
-          const hasAlt = event.altKey
-
-          const copyShortcut = hasCtrl && !hasAlt && hasShift && key === 'c'
-          const copyInsertShortcut = hasCtrl && !hasAlt && !hasShift && key === 'insert'
-          if (copyShortcut || copyInsertShortcut) {
-            event.preventDefault()
-            event.stopPropagation()
-            void copySelection().catch(() => {})
-            return false
-          }
-
-          const pasteShortcut = hasCtrl && !hasAlt && hasShift && key === 'v'
-          const pasteInsertShortcut = !hasCtrl && !hasAlt && hasShift && key === 'insert'
-          if (pasteShortcut || pasteInsertShortcut) {
-            event.preventDefault()
-            event.stopPropagation()
-            void pasteFromClipboard().catch(() => {})
-            return false
-          }
-
-          const findShortcut = hasCtrl && !hasAlt && !hasShift && key === 'f'
-          if (findShortcut) {
-            event.preventDefault()
-            event.stopPropagation()
-            openSearch(term.getSelection())
-            return false
-          }
-
-          const isCtrlC = hasCtrl
-            && !hasShift
-            && !hasAlt
-            && key === 'c'
-
-          if (!isCtrlC || !term.hasSelection()) return true
-
-          event.preventDefault()
-          event.stopPropagation()
-          void copySelection().catch(() => {})
-          return false
-        })
-
-        if (disposed) {
-          term.dispose()
-          return
-        }
-
-        const fitTerminal = () => {
-          if (disposed) return
-          if (termDiv.clientWidth <= 0 || termDiv.clientHeight <= 0) return
-          fitAddon.fit()
-        }
-        fitFnRef.current = fitTerminal
-
-        // Defer fit until container has real dimensions.
-        let fitAttempts = 0
-        const tryFit = () => {
-          if (disposed) return
-          if (termDiv.clientWidth > 0 && termDiv.clientHeight > 0) {
-            fitTerminal()
-          } else if (++fitAttempts < 30) {
-            requestAnimationFrame(tryFit)
-          }
-        }
-        requestAnimationFrame(tryFit)
-
-        let resizeTimer: ReturnType<typeof setTimeout> | null = null
-        const resizeObserver = new ResizeObserver(() => {
-          if (resizeTimer) clearTimeout(resizeTimer)
-          resizeTimer = setTimeout(() => {
-            if (!disposed) fitTerminal()
-          }, 100)
-        })
-        resizeObserver.observe(termDiv)
-
-        const settleTimer = setTimeout(() => {
-          if (!disposed) fitTerminal()
-        }, 200)
-
-        const onSelectionChangeDisposable = term.onSelectionChange(() => {
-          if (!copyOnSelectRef.current) return
-          const selectedText = term.getSelection()
-          if (!selectedText) {
-            lastAutoCopiedRef.current = ''
-            return
-          }
-          if (selectedText === lastAutoCopiedRef.current) return
-          lastAutoCopiedRef.current = selectedText
-          void writeClipboardText(selectedText).catch(() => {})
-        })
-
-        const onContextMenu = (event: MouseEvent) => {
-          event.preventDefault()
-          event.stopPropagation()
-          setContextMenu({
-            x: event.clientX,
-            y: event.clientY,
-            hasSelection: term.hasSelection(),
-          })
-        }
-        termDiv.addEventListener('contextmenu', onContextMenu)
-
-        const onDataDisposable = term.onData((data: string) => {
-          detectPrPollHint(data)
-          window.api.pty.write(ptyId, data)
-        })
-
-        const onResizeDisposable = term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-          window.api.pty.resize(ptyId, cols, rows)
-        })
-
-        const unsubData = window.api.pty.onData(ptyId, (data: string) => {
-          if (disposed) return
-          term.write(data)
-        })
-
-        termRef.current = term
-
-        cleanup = () => {
-          resizeObserver.disconnect()
-          if (resizeTimer) clearTimeout(resizeTimer)
-          clearTimeout(settleTimer)
-          onSelectionChangeDisposable.dispose()
-          onDataDisposable.dispose()
-          onResizeDisposable.dispose()
-          unsubData()
-          termDiv.removeEventListener('contextmenu', onContextMenu)
-          term.dispose()
-          searchAddonRef.current = null
-        }
-
-        setTimeout(() => {
-          if (!disposed && active) term.focus()
-        }, 50)
-      } catch (err) {
-        console.error('Failed to initialize terminal:', err)
-      }
-    }
-
-    setup()
+    createTerminal()
+    startPtyLiveListener()
 
     return () => {
-      disposed = true
-      cleanup?.()
-      cleanup = null
-      termRef.current = null
-      searchAddonRef.current = null
-      fitFnRef.current = null
+      clearInactiveDisposeTimer()
+      stopPtyDataListener()
+      disposeTerminalInstance()
+      serializedBufferRef.current = ''
+      isRestoringRef.current = false
       inputLineRef.current = ''
     }
   }, [ptyId])
@@ -393,10 +496,21 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
   // Focus + refit when this tab becomes active.
   useEffect(() => {
-    if (!active || !termRef.current) return
+    clearInactiveDisposeTimer()
 
-    fitFnRef.current?.()
-    termRef.current.focus()
+    if (active) {
+      if (!termRef.current) restoreTerminal()
+      fitFnRef.current?.()
+      termRef.current?.focus()
+      return
+    }
+
+    inactiveDisposeTimerRef.current = setTimeout(() => {
+      if (activeRef.current) return
+      serializeAndDisposeTerminal()
+    }, INACTIVE_SERIALIZE_DELAY_MS)
+
+    return () => clearInactiveDisposeTimer()
   }, [active])
 
   return (
