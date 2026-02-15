@@ -87,6 +87,7 @@
 
 [data-theme='light'] .card {
   background: rgba(255, 255, 255, 0.7);
+  border-color: var(--border-subtle);
 }
 
 /* Setting rows inside cards */
@@ -102,14 +103,15 @@
 }
 
 .settingText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
 .settingDescription {
-  display: block;
   color: var(--text-tertiary);
-  margin-top: 2px;
 }
 
 /* Form control widths */
@@ -190,4 +192,30 @@
 
 .addTemplateBtn {
   margin-top: 8px;
+}
+
+/* Fluent UI control overrides for dark theme */
+.card :global(.fui-Dropdown) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+.card :global(.fui-SpinButton) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+.card :global(.fui-Input) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+.card :global(.fui-Textarea) {
+  background: var(--bg-input);
+  border-color: var(--border-muted);
+}
+
+/* Unchecked toggle track — dark gray instead of light */
+.card :global(.fui-Switch__indicator) {
+  border-color: var(--border-default);
 }

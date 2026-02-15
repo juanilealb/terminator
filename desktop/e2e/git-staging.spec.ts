@@ -310,9 +310,9 @@ test.describe('Git staging functionality', () => {
       const fileRow = window.locator('[class*="changedFile"]:not([class*="changedFilesList"])', { hasText: 'README.md' })
       await expect(fileRow).toBeVisible({ timeout: 5000 })
 
-      // Hover to reveal action buttons and click +
+      // Hover to reveal action buttons and click stage (Fluent UI Button uses icon, not text)
       await fileRow.hover()
-      const stageBtn = fileRow.locator('button', { hasText: '+' })
+      const stageBtn = fileRow.locator('button[aria-label*="Stage"]')
       await stageBtn.click()
       await window.waitForTimeout(1000)
 
