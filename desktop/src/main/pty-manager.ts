@@ -272,6 +272,7 @@ const ACTIVITY_DIR = join(getTempDir(), 'terminator-activity')
 const CODEX_MARKER_SEGMENT = '.codex.'
 const CODEX_WAITING_MARKER_SEGMENT = '.codex-wait.'
 const PROCESS_SNAPSHOT_TTL_MS = 1000
+const PTY_DATA_FLUSH_INTERVAL_MS = 8
 const CODEX_PROMPT_BUFFER_MAX = 4096
 const CODEX_QUESTION_HEADER_RE = /Question\s+\d+\s*\/\s*\d+/i
 const CODEX_QUESTION_UNANSWERED_RE = /\bunanswered\b/i
@@ -356,15 +357,31 @@ export class PtyManager {
       ? setTimeout(() => flushInitialWrite('timer'), 750)
       : null
 
+    let bufferedOutput = ''
+    let flushTimer: ReturnType<typeof setTimeout> | null = null
+    const flushBufferedOutput = () => {
+      const toSend = bufferedOutput
+      bufferedOutput = ''
+      flushTimer = null
+      if (!toSend || instance.webContents.isDestroyed()) return
+      instance.webContents.send(`${IPC.PTY_DATA}:${id}`, toSend)
+    }
+
     proc.onData((data) => {
-      if (!instance.webContents.isDestroyed()) {
-        instance.webContents.send(`${IPC.PTY_DATA}:${id}`, data)
+      bufferedOutput += data
+      if (!flushTimer) {
+        flushTimer = setTimeout(flushBufferedOutput, PTY_DATA_FLUSH_INTERVAL_MS)
       }
       this.handleCodexQuestionPrompt(instance, data)
       flushInitialWrite('first-output')
     })
 
     proc.onExit(({ exitCode }) => {
+      if (flushTimer) {
+        clearTimeout(flushTimer)
+        flushTimer = null
+      }
+      flushBufferedOutput()
       if (initialWriteTimer) clearTimeout(initialWriteTimer)
       this.clearCodexWorkspaceActivity(instance.workspaceId, instance.process.pid)
       for (const cb of instance.onExitCallbacks) {
