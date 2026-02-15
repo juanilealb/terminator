@@ -1,4 +1,3 @@
-import { useCallback, useEffect } from 'react'
 import {
   Dialog,
   DialogSurface,
@@ -22,15 +21,6 @@ interface Props {
 export function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel, destructive = false }: Props) {
   const showShiftHint = confirmLabel.toLowerCase() === 'delete'
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Enter') onConfirm()
-  }, [onConfirm])
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleKeyDown])
-
   return (
     <Dialog open onOpenChange={(_, data) => { if (!data.open) onCancel() }}>
       <DialogSurface className={styles.surface}>
@@ -45,6 +35,7 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfi
           <DialogActions>
             <Button appearance="secondary" onClick={onCancel}>Cancel</Button>
             <Button
+              autoFocus
               appearance="primary"
               className={destructive ? styles.destructiveBtn : undefined}
               onClick={onConfirm}
