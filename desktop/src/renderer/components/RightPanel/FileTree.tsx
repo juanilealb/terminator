@@ -142,11 +142,10 @@ export function FileTree({ worktreePath, isActive }: Props) {
     if (isActive) fetchTree()
   }, [isActive, fetchTree])
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleOpenChange = useCallback((event: any, data: any) => {
-    const isAlt = event.altKey === true
+  const handleOpenChange = useCallback((_event: React.MouseEvent | React.KeyboardEvent, data: { open: boolean; value: string; openItems: Iterable<string> }) => {
+    const isAlt = (_event.nativeEvent as KeyboardEvent | MouseEvent).altKey === true
     if (isAlt && tree) {
-      const targetPath = data.value as string
+      const targetPath = data.value
       const node = findNode(tree, targetPath)
       if (node) {
         const descendants = collectDescendantPaths(node)
@@ -159,7 +158,7 @@ export function FileTree({ worktreePath, isActive }: Props) {
         setOpenItems(newOpen)
       }
     } else {
-      setOpenItems(new Set(data.openItems as Iterable<string>))
+      setOpenItems(new Set(data.openItems))
     }
   }, [tree, openItems])
 
