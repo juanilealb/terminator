@@ -155,123 +155,123 @@ export function App() {
 
   return (
     <FluentProvider theme={fluentTheme} style={{ background: 'transparent' }}>
-    <div className={styles.app} style={appStyle}>
-      <div className={styles.layout}>
-        {settingsOpen ? (
-          <SettingsPanel />
-        ) : automationsOpen ? (
-          <AutomationsPanel />
-        ) : (
-          <Allotment>
-            {/* Sidebar */}
-            {sidebarCollapsed ? (
-              <Allotment.Pane minSize={44} maxSize={62} preferredSize={48}>
-                <SidebarRail />
-              </Allotment.Pane>
-            ) : (
-              <Allotment.Pane minSize={180} maxSize={420} preferredSize={240}>
-                <Sidebar />
-              </Allotment.Pane>
-            )}
+      <div className={styles.app} style={appStyle}>
+        <div className={styles.layout}>
+          {settingsOpen ? (
+            <SettingsPanel />
+          ) : automationsOpen ? (
+            <AutomationsPanel />
+          ) : (
+            <Allotment>
+              {/* Sidebar */}
+              {sidebarCollapsed ? (
+                <Allotment.Pane minSize={44} maxSize={62} preferredSize={48}>
+                  <SidebarRail />
+                </Allotment.Pane>
+              ) : (
+                <Allotment.Pane minSize={180} maxSize={420} preferredSize={240}>
+                  <Sidebar />
+                </Allotment.Pane>
+              )}
 
-            {/* Center */}
-            <Allotment.Pane>
-              <div className={styles.centerPanel}>
-                <TabBar />
-                <div className={styles.contentArea}>
-                  {/* Keep ALL terminal panels alive across workspaces so PTY
-                      state (scrollback, TUI layout) is never lost */}
-                  {allTerminals.map((t) => (
-                    <TerminalPanel
-                      key={t.id}
-                      ptyId={t.ptyId}
-                      active={t.id === activeTabId}
-                    />
-                  ))}
+              {/* Center */}
+              <Allotment.Pane>
+                <div className={styles.centerPanel}>
+                  <TabBar />
+                  <div className={styles.contentArea}>
+                    {/* Keep ALL terminal panels alive across workspaces so PTY
+                        state (scrollback, TUI layout) is never lost */}
+                    {allTerminals.map((t) => (
+                      <TerminalPanel
+                        key={t.id}
+                        ptyId={t.ptyId}
+                        active={t.id === activeTabId}
+                      />
+                    ))}
 
-                  {!activeTab ? (
-                    <div className={styles.welcome}>
-                      <div className={styles.welcomeLogo}>terminator</div>
-                      <div className={styles.welcomeHint}>
-                        Add a project to get started, or press
-                        <span className={styles.welcomeShortcut}>
-                          <kbd>{formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}</kbd>
-                        </span>
-                        for a new terminal
+                    {!activeTab ? (
+                      <div className={styles.welcome}>
+                        <div className={styles.welcomeLogo}>terminator</div>
+                        <div className={styles.welcomeHint}>
+                          Add a project to get started, or press
+                          <span className={styles.welcomeShortcut}>
+                            <kbd>{formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}</kbd>
+                          </span>
+                          for a new terminal
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Render active file editor */}
-                      {activeTab?.type === 'file' && (
-                        <FileEditor
-                          key={activeTab.id}
-                          tabId={activeTab.id}
-                          filePath={activeTab.filePath}
-                          active={true}
-                        />
-                      )}
+                    ) : (
+                      <>
+                        {/* Render active file editor */}
+                        {activeTab?.type === 'file' && (
+                          <FileEditor
+                            key={activeTab.id}
+                            tabId={activeTab.id}
+                            filePath={activeTab.filePath}
+                            active={true}
+                          />
+                        )}
 
-                      {/* Render active diff viewer */}
-                      {activeTab?.type === 'diff' && workspace && (
-                        <DiffViewer
-                          key={activeTab.id}
-                          worktreePath={workspace.worktreePath}
-                          active={true}
-                        />
-                      )}
-                    </>
-                  )}
+                        {/* Render active diff viewer */}
+                        {activeTab?.type === 'diff' && workspace && (
+                          <DiffViewer
+                            key={activeTab.id}
+                            worktreePath={workspace.worktreePath}
+                            active={true}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Allotment.Pane>
-
-            {/* Right Panel */}
-            {rightPanelOpen && (
-              <Allotment.Pane minSize={200} maxSize={500} preferredSize={280}>
-                <RightPanel />
               </Allotment.Pane>
-            )}
-          </Allotment>
-        )}
-      </div>
-      <div className={styles.statusBar}>
-        <div className={styles.statusGroup}>
-          <div className={styles.statusItem}>
-            <span className={`${styles.dot} ${styles.dotConnected}`} />
-            <span>Workspace</span>
-          </div>
-          <div className={styles.statusItem}>
-            <span>{workspace ? workspace.name : 'No workspace selected'}</span>
-          </div>
-          {workspace?.branch && (
-            <div className={styles.statusItem}>
-              <span>{workspace.branch}</span>
-            </div>
+
+              {/* Right Panel */}
+              {rightPanelOpen && (
+                <Allotment.Pane minSize={200} maxSize={500} preferredSize={280}>
+                  <RightPanel />
+                </Allotment.Pane>
+              )}
+            </Allotment>
           )}
         </div>
-        <div className={styles.statusGroup}>
-          <div className={styles.statusItem}>
-            <span>{wsTabs.length} tabs</span>
+        <div className={styles.statusBar}>
+          <div className={styles.statusGroup}>
+            <div className={styles.statusItem}>
+              <span className={`${styles.dot} ${styles.dotConnected}`} />
+              <span>Workspace</span>
+            </div>
+            <div className={styles.statusItem}>
+              <span>{workspace ? workspace.name : 'No workspace selected'}</span>
+            </div>
+            {workspace?.branch && (
+              <div className={styles.statusItem}>
+                <span>{workspace.branch}</span>
+              </div>
+            )}
           </div>
-          <div className={styles.statusItem}>
-            <span className={`${styles.dot} ${activeAgents > 0 ? styles.dotConnected : styles.dotIdle}`} />
-            <span>
-              {activeAgents > 0
-                ? `${activeAgents} agents running`
-                : waitingAgents > 0
-                  ? `${waitingAgents} waiting for input`
-                  : 'Agents idle'}
-            </span>
+          <div className={styles.statusGroup}>
+            <div className={styles.statusItem}>
+              <span>{wsTabs.length} tabs</span>
+            </div>
+            <div className={styles.statusItem}>
+              <span className={`${styles.dot} ${activeAgents > 0 ? styles.dotConnected : styles.dotIdle}`} />
+              <span>
+                {activeAgents > 0
+                  ? `${activeAgents} agents running`
+                  : waitingAgents > 0
+                    ? `${waitingAgents} waiting for input`
+                    : 'Agents idle'}
+              </span>
+            </div>
           </div>
         </div>
+        {quickOpenVisible && workspace && (
+          <QuickOpen worktreePath={workspace.worktreePath} />
+        )}
+        {commandPaletteVisible && <CommandPalette />}
+        <ToastContainer />
       </div>
-      {quickOpenVisible && workspace && (
-        <QuickOpen worktreePath={workspace.worktreePath} />
-      )}
-      {commandPaletteVisible && <CommandPalette />}
-      <ToastContainer />
-    </div>
     </FluentProvider>
   )
 }
