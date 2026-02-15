@@ -18,6 +18,7 @@ export function usePrStatusPoller(): void {
 
   useEffect(() => {
     let disposed = false
+    const warnedProjects = new Set<string>()
 
     const inBurst = () => Date.now() < burstUntilRef.current
 
@@ -75,7 +76,10 @@ export function usePrStatusPoller(): void {
               const prs: Array<PrInfo | null> = Object.values(result.data)
               return prs.some((pr) => pr?.state === 'open' && pr?.checkStatus === 'pending')
             }
-            console.warn(`[PrPoller] PR lookup unavailable for project ${projectId}: ${result.error ?? 'unknown'}`)
+            if (!warnedProjects.has(projectId)) {
+              warnedProjects.add(projectId)
+              console.warn(`[PrPoller] PR lookup unavailable for project ${projectId}: ${result.error ?? 'unknown'}`)
+            }
             return false
           } catch {
             // PR status is nice-to-have — silently ignore errors
