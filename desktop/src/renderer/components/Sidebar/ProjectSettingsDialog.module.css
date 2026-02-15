@@ -1,76 +1,57 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
+.surface {
+  max-width: 500px;
 }
 
-.dialog {
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: var(--space-8);
-  width: 400px;
+.content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  box-shadow: var(--shadow-lg);
-}
-
-.title {
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  font-family: var(--font-ui);
-  margin-bottom: var(--space-2);
+  gap: 16px;
 }
 
 .label {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--colorNeutralForeground3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .hint {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  font-family: var(--font-ui);
-  margin-top: calc(-1 * var(--space-2));
+  font-size: 11px;
+  color: var(--colorNeutralForeground3);
+  margin-top: -8px;
 }
 
 .commandList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .commandRow {
   display: flex;
-  gap: var(--space-2);
+  gap: 8px;
   align-items: center;
 }
 
 .commandRow .input {
   flex: 1;
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-0);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-family: var(--font-mono);
-  outline: none;
-  transition: border-color var(--transition-fast);
   min-width: 0;
 }
 
-.commandRow .input:focus {
-  border-color: var(--accent-blue);
+.input {
+  padding: 8px 12px;
+  background: var(--colorNeutralBackground1);
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusMedium);
+  color: var(--colorNeutralForeground1);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+  transition: border-color var(--durationFaster) var(--curveEasyEase);
+}
+
+.input:focus {
+  border-color: var(--colorBrandForeground1);
 }
 
 .nameInput {
@@ -79,99 +60,56 @@
 
 .selectInput {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-0);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
+  padding: 8px 12px;
+  background: var(--colorNeutralBackground1);
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusMedium);
+  color: var(--colorNeutralForeground1);
+  font-size: 12px;
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--durationFaster) var(--curveEasyEase);
 }
 
 .selectInput:focus {
-  border-color: var(--accent-blue);
+  border-color: var(--colorBrandForeground1);
 }
 
 .removeBtn {
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--borderRadiusSmall);
   background: none;
-  color: var(--text-tertiary);
+  color: var(--colorNeutralForeground3);
   font-size: 11px;
   cursor: pointer;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: all var(--durationFaster) var(--curveEasyEase);
 }
 
 .removeBtn:hover {
-  background: var(--accent-red-dim);
-  color: var(--accent-red);
+  background: rgba(220, 98, 109, 0.18);
+  color: var(--colorPaletteRedForeground1);
 }
 
 .addBtn {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 1px dashed var(--border-default);
-  border-radius: var(--radius-md);
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px dashed var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusMedium);
   background: none;
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
+  color: var(--colorNeutralForeground3);
+  font-size: 12px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--durationFaster) var(--curveEasyEase);
 }
 
 .addBtn:hover {
-  border-color: var(--text-tertiary);
-  color: var(--text-secondary);
-}
-
-.actions {
-  display: flex;
-  gap: var(--space-3);
-  justify-content: flex-end;
-  margin-top: var(--space-4);
-}
-
-.cancelBtn {
-  padding: var(--space-2) var(--space-6);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.cancelBtn:hover {
-  background: var(--surface-3);
-  color: var(--text-primary);
-}
-
-.saveBtn {
-  padding: var(--space-2) var(--space-6);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--accent-blue);
-  color: #fff;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.saveBtn:hover {
-  filter: brightness(1.1);
+  border-color: var(--colorNeutralForeground3);
+  color: var(--colorNeutralForeground2);
 }

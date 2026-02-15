@@ -1,4 +1,13 @@
-import { useState, useEffect, useCallback, useRef, useId } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from '@fluentui/react-components'
 import {
   DEFAULT_AGENT_PERMISSION_MODE,
   DEFAULT_WORKSPACE_TYPE,
@@ -6,7 +15,6 @@ import {
   type Project,
   type WorkspaceType,
 } from '../../store/types'
-import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './WorkspaceDialog.module.css'
 
 /** Live-sanitize a string into a valid git branch name as the user types */
@@ -42,8 +50,6 @@ export function WorkspaceDialog({
   createProgressMessage = '',
   showSlowCreateMessage = false,
 }: Props) {
-  const dialogRef = useFocusTrap<HTMLDivElement>()
-  const titleId = useId()
   const [name, setName] = useState(`ws-${Date.now().toString(36)}`)
   const [branches, setBranches] = useState<string[]>([])
   const [selectedBranch, setSelectedBranch] = useState('')
@@ -124,173 +130,165 @@ export function WorkspaceDialog({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (isCreating) return
     if (e.key === 'Enter') handleSubmit()
-    if (e.key === 'Escape') onCancel()
-  }, [handleSubmit, onCancel, isCreating])
+  }, [handleSubmit, isCreating])
 
   return (
-    <div className={styles.overlay} onClick={() => { if (!isCreating) onCancel() }}>
-      <div
-        ref={dialogRef}
-        className={styles.dialog}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-      >
-        <div id={titleId} className={styles.title}>New Workspace</div>
-
-        <label className={styles.label}>Name</label>
-        <input
-          className={styles.input}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoFocus
-          disabled={isCreating}
-          placeholder="workspace-name"
-        />
-
-        <label className={styles.label}>Type</label>
-        <select
-          className={styles.input}
-          value={workspaceType}
-          onChange={(e) => setWorkspaceType(e.target.value as WorkspaceType)}
-          disabled={isCreating}
-        >
-          <option value="feature">Feature</option>
-          <option value="bug">Bug</option>
-          <option value="chore">Chore</option>
-          <option value="refactor">Refactor</option>
-          <option value="docs">Docs</option>
-          <option value="test">Test</option>
-          <option value="spike">Spike</option>
-        </select>
-
-        <label className={styles.label}>Branch</label>
-        <div className={styles.branchToggle}>
-          <button
-            className={`${styles.toggleBtn} ${isNewBranch ? styles.active : ''}`}
-            onClick={() => setIsNewBranch(true)}
-            disabled={isCreating}
-          >
-            New branch
-          </button>
-          <button
-            className={`${styles.toggleBtn} ${!isNewBranch ? styles.active : ''}`}
-            onClick={() => setIsNewBranch(false)}
-            disabled={isCreating}
-          >
-            Existing
-          </button>
-        </div>
-
-        {isNewBranch ? (
-          <>
+    <Dialog open onOpenChange={(_, data) => { if (!data.open && !isCreating) onCancel() }}>
+      <DialogSurface className={styles.surface} onKeyDown={handleKeyDown}>
+        <DialogBody>
+          <DialogTitle>New Workspace</DialogTitle>
+          <DialogContent className={styles.content}>
+            <label className={styles.label}>Name</label>
             <input
               className={styles.input}
-              value={newBranchName}
-              onChange={(e) => setNewBranchName(toBranchName(e.target.value))}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
               disabled={isCreating}
-              placeholder={toBranchName(name) || 'branch-name'}
+              placeholder="workspace-name"
             />
-            <label className={styles.label}>Base branch</label>
-            <div className={styles.branchInputRow} ref={basePickerRef}>
-              <input
-                className={styles.input}
-                value={baseBranch}
-                onChange={(e) => setBaseBranch(e.target.value)}
-                disabled={loading || isCreating}
-                placeholder="Base branch"
-              />
-              <button
-                className={styles.pickerBtn}
-                onClick={() => setBasePickerOpen((v) => !v)}
-                disabled={loading || isCreating}
-                type="button"
-              >
-                &#9662;
-              </button>
-              {basePickerOpen && (
-                <div className={styles.pickerDropdown}>
-                  {branches.map((b) => (
-                    <div
-                      key={b}
-                      className={`${styles.pickerOption} ${b === baseBranch ? styles.pickerOptionActive : ''}`}
-                      onClick={() => { setBaseBranch(b); setBasePickerOpen(false) }}
-                    >
-                      {b}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className={styles.branchInputRow} ref={pickerRef}>
-            <input
+
+            <label className={styles.label}>Type</label>
+            <select
               className={styles.input}
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              disabled={loading || isCreating}
-              placeholder="Branch name"
-            />
-            <button
-              className={styles.pickerBtn}
-              onClick={() => setPickerOpen((v) => !v)}
-              disabled={loading || isCreating}
-              type="button"
+              value={workspaceType}
+              onChange={(e) => setWorkspaceType(e.target.value as WorkspaceType)}
+              disabled={isCreating}
             >
-              &#9662;
-            </button>
-            {pickerOpen && (
-              <div className={styles.pickerDropdown}>
-                {branches.map((b) => (
-                  <div
-                    key={b}
-                    className={`${styles.pickerOption} ${b === selectedBranch ? styles.pickerOptionActive : ''}`}
-                    onClick={() => { setSelectedBranch(b); setPickerOpen(false) }}
+              <option value="feature">Feature</option>
+              <option value="bug">Bug</option>
+              <option value="chore">Chore</option>
+              <option value="refactor">Refactor</option>
+              <option value="docs">Docs</option>
+              <option value="test">Test</option>
+              <option value="spike">Spike</option>
+            </select>
+
+            <label className={styles.label}>Branch</label>
+            <div className={styles.branchToggle}>
+              <button
+                className={`${styles.toggleBtn} ${isNewBranch ? styles.active : ''}`}
+                onClick={() => setIsNewBranch(true)}
+                disabled={isCreating}
+              >
+                New branch
+              </button>
+              <button
+                className={`${styles.toggleBtn} ${!isNewBranch ? styles.active : ''}`}
+                onClick={() => setIsNewBranch(false)}
+                disabled={isCreating}
+              >
+                Existing
+              </button>
+            </div>
+
+            {isNewBranch ? (
+              <>
+                <input
+                  className={styles.input}
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(toBranchName(e.target.value))}
+                  disabled={isCreating}
+                  placeholder={toBranchName(name) || 'branch-name'}
+                />
+                <label className={styles.label}>Base branch</label>
+                <div className={styles.branchInputRow} ref={basePickerRef}>
+                  <input
+                    className={styles.input}
+                    value={baseBranch}
+                    onChange={(e) => setBaseBranch(e.target.value)}
+                    disabled={loading || isCreating}
+                    placeholder="Base branch"
+                  />
+                  <button
+                    className={styles.pickerBtn}
+                    onClick={() => setBasePickerOpen((v) => !v)}
+                    disabled={loading || isCreating}
+                    type="button"
                   >
-                    {b}
+                    &#9662;
+                  </button>
+                  {basePickerOpen && (
+                    <div className={styles.pickerDropdown}>
+                      {branches.map((b) => (
+                        <div
+                          key={b}
+                          className={`${styles.pickerOption} ${b === baseBranch ? styles.pickerOptionActive : ''}`}
+                          onClick={() => { setBaseBranch(b); setBasePickerOpen(false) }}
+                        >
+                          {b}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className={styles.branchInputRow} ref={pickerRef}>
+                <input
+                  className={styles.input}
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  disabled={loading || isCreating}
+                  placeholder="Branch name"
+                />
+                <button
+                  className={styles.pickerBtn}
+                  onClick={() => setPickerOpen((v) => !v)}
+                  disabled={loading || isCreating}
+                  type="button"
+                >
+                  &#9662;
+                </button>
+                {pickerOpen && (
+                  <div className={styles.pickerDropdown}>
+                    {branches.map((b) => (
+                      <div
+                        key={b}
+                        className={`${styles.pickerOption} ${b === selectedBranch ? styles.pickerOptionActive : ''}`}
+                        onClick={() => { setSelectedBranch(b); setPickerOpen(false) }}
+                      >
+                        {b}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        <label className={styles.checkboxRow}>
-          <input
-            type="checkbox"
-            checked={agentPermissionMode === 'full-permissions'}
-            onChange={(e) => setAgentPermissionMode(e.target.checked ? 'full-permissions' : 'default')}
-            disabled={isCreating}
-          />
-          <span>Full permissions for codex and claude</span>
-        </label>
-        <div className={styles.hint}>
-          Off keeps standard mode. On expands codex and claude to full permissions.
-        </div>
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={agentPermissionMode === 'full-permissions'}
+                onChange={(e) => setAgentPermissionMode(e.target.checked ? 'full-permissions' : 'default')}
+                disabled={isCreating}
+              />
+              <span>Full permissions for codex and claude</span>
+            </label>
+            <div className={styles.hint}>
+              Off keeps standard mode. On expands codex and claude to full permissions.
+            </div>
 
-        {isCreating && (
-          <div className={styles.createStatus} role="status" aria-live="polite">
-            <span className={styles.createSpinner} />
-            <span>{createProgressMessage || 'Creating workspace...'}</span>
-          </div>
-        )}
-        {isCreating && showSlowCreateMessage && (
-          <div className={styles.createSlowNote}>
-            Taking longer than usual. Git network sync may be slow.
-          </div>
-        )}
-
-        <div className={styles.actions}>
-          <button className={styles.cancelBtn} onClick={onCancel} disabled={isCreating}>Cancel</button>
-          <button className={styles.createBtn} onClick={handleSubmit} disabled={!name.trim() || isCreating}>
-            {isCreating ? 'Creating...' : 'Create'}
-          </button>
-        </div>
-      </div>
-    </div>
+            {isCreating && (
+              <div className={styles.createStatus} role="status" aria-live="polite">
+                <span className={styles.createSpinner} />
+                <span>{createProgressMessage || 'Creating workspace...'}</span>
+              </div>
+            )}
+            {isCreating && showSlowCreateMessage && (
+              <div className={styles.createSlowNote}>
+                Taking longer than usual. Git network sync may be slow.
+              </div>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button appearance="secondary" onClick={onCancel} disabled={isCreating}>Cancel</Button>
+            <Button appearance="primary" onClick={handleSubmit} disabled={!name.trim() || isCreating}>
+              {isCreating ? 'Creating...' : 'Create'}
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }

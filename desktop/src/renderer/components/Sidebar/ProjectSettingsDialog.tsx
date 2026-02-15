@@ -1,6 +1,14 @@
-import { useState, useCallback, useId } from 'react'
+import { useState, useCallback } from 'react'
+import {
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from '@fluentui/react-components'
 import type { Project, PrLinkProvider, StartupCommand } from '../../store/types'
-import { useFocusTrap } from '../../hooks/useFocusTrap'
 import styles from './ProjectSettingsDialog.module.css'
 
 interface Props {
@@ -10,8 +18,6 @@ interface Props {
 }
 
 export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
-  const dialogRef = useFocusTrap<HTMLDivElement>()
-  const titleId = useId()
   const [commands, setCommands] = useState<StartupCommand[]>(
     project.startupCommands?.length ? [...project.startupCommands] : []
   )
@@ -42,88 +48,70 @@ export function ProjectSettingsDialog({ project, onSave, onCancel }: Props) {
     })
   }, [commands, onSave, prLinkProvider])
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    },
-    [onCancel]
-  )
-
   return (
-    <div className={styles.overlay} onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className={styles.dialog}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-      >
-        <div id={titleId} className={styles.title}>{project.name}</div>
+    <Dialog open onOpenChange={(_, data) => { if (!data.open) onCancel() }}>
+      <DialogSurface className={styles.surface}>
+        <DialogBody>
+          <DialogTitle>{project.name}</DialogTitle>
+          <DialogContent className={styles.content}>
+            <label className={styles.label}>Startup Commands</label>
+            <div className={styles.hint}>
+              Run in separate terminals when creating a workspace.
+            </div>
 
-        <label className={styles.label}>Startup Commands</label>
-        <div className={styles.hint}>
-          Run in separate terminals when creating a workspace.
-        </div>
+            <div className={styles.commandList}>
+              {commands.map((cmd, i) => (
+                <div key={i} className={styles.commandRow}>
+                  <input
+                    className={`${styles.input} ${styles.nameInput}`}
+                    value={cmd.name}
+                    onChange={(e) => handleChange(i, 'name', e.target.value)}
+                    placeholder="Tab name"
+                  />
+                  <input
+                    className={styles.input}
+                    value={cmd.command}
+                    onChange={(e) => handleChange(i, 'command', e.target.value)}
+                    placeholder="command"
+                    autoFocus={i === commands.length - 1}
+                  />
+                  <button
+                    aria-label={`Remove startup command ${i + 1}`}
+                    className={styles.removeBtn}
+                    onClick={() => handleRemove(i)}
+                    title="Remove"
+                  >
+                    &#10005;
+                  </button>
+                </div>
+              ))}
 
-        <div className={styles.commandList}>
-          {commands.map((cmd, i) => (
-            <div key={i} className={styles.commandRow}>
-              <input
-                className={`${styles.input} ${styles.nameInput}`}
-                value={cmd.name}
-                onChange={(e) => handleChange(i, 'name', e.target.value)}
-                placeholder="Tab name"
-              />
-              <input
-                className={styles.input}
-                value={cmd.command}
-                onChange={(e) => handleChange(i, 'command', e.target.value)}
-                placeholder="command"
-                autoFocus={i === commands.length - 1}
-              />
-              <button
-                aria-label={`Remove startup command ${i + 1}`}
-                className={styles.removeBtn}
-                onClick={() => handleRemove(i)}
-                title="Remove"
-              >
-                ✕
+              <button className={styles.addBtn} onClick={handleAdd}>
+                <span>+</span>
+                <span>Add command</span>
               </button>
             </div>
-          ))}
 
-          <button className={styles.addBtn} onClick={handleAdd}>
-            <span>+</span>
-            <span>Add command</span>
-          </button>
-        </div>
-
-        <label className={styles.label}>PR Link Provider</label>
-        <div className={styles.hint}>
-          Where this project opens pull request links.
-        </div>
-        <select
-          className={styles.selectInput}
-          value={prLinkProvider}
-          onChange={(e) => setPrLinkProvider(e.target.value as PrLinkProvider)}
-        >
-          <option value="github">GitHub</option>
-          <option value="graphite">Graphite</option>
-          <option value="devinreview">Devin Review</option>
-        </select>
-
-        <div className={styles.actions}>
-          <button className={styles.cancelBtn} onClick={onCancel}>
-            Cancel
-          </button>
-          <button className={styles.saveBtn} onClick={handleSave}>
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+            <label className={styles.label}>PR Link Provider</label>
+            <div className={styles.hint}>
+              Where this project opens pull request links.
+            </div>
+            <select
+              className={styles.selectInput}
+              value={prLinkProvider}
+              onChange={(e) => setPrLinkProvider(e.target.value as PrLinkProvider)}
+            >
+              <option value="github">GitHub</option>
+              <option value="graphite">Graphite</option>
+              <option value="devinreview">Devin Review</option>
+            </select>
+          </DialogContent>
+          <DialogActions>
+            <Button appearance="secondary" onClick={onCancel}>Cancel</Button>
+            <Button appearance="primary" onClick={handleSave}>Save</Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   )
 }
