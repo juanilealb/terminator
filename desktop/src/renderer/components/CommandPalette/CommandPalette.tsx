@@ -104,7 +104,7 @@ export function CommandPalette() {
       return
     }
 
-    window.api.pty.write(terminalTab.ptyId, `\x1b[200~${expanded}\x1b[201~`)
+    window.api.pty.write(terminalTab.ptyId, expanded)
     addToast({
       id: crypto.randomUUID(),
       message: `Template "${templateName}" inserted into terminal`,
