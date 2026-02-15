@@ -1,7 +1,8 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   padding-top: 15vh;
@@ -9,78 +10,61 @@
 }
 
 .panel {
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  width: 500px;
-  max-height: 400px;
+  background: var(--colorNeutralBackground3);
+  border: 1px solid var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusXLarge);
+  width: 520px;
+  max-height: 420px;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow28);
   overflow: hidden;
   align-self: flex-start;
 }
 
 .inputWrap {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--colorNeutralStroke2);
   flex-shrink: 0;
 }
 
-.input {
+.searchInput {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-family: var(--font-mono);
-  outline: none;
-  transition: border-color var(--transition-fast);
-}
-
-.input:focus {
-  border-color: var(--accent-blue);
-}
-
-.input::placeholder {
-  color: var(--text-ghost);
 }
 
 .results {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-2) 0;
+  padding: 4px;
 }
 
 .resultItem {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-6);
+  gap: 8px;
+  padding: 6px 12px;
   cursor: pointer;
-  font-size: var(--text-sm);
+  font-size: 13px;
   font-family: var(--font-mono);
-  color: var(--text-secondary);
-  transition: background var(--transition-fast);
+  color: var(--colorNeutralForeground2);
+  border-radius: var(--borderRadiusMedium);
+  transition: background var(--durationFaster) var(--curveEasyEase);
 }
 
 .resultItem:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--colorSubtleBackgroundHover);
 }
 
 .resultItem.selected {
-  background: var(--accent-blue-glow);
-  color: var(--text-primary);
+  background: var(--colorSubtleBackgroundPressed);
+  color: var(--colorNeutralForeground1);
 }
 
 .resultIcon {
-  font-size: var(--text-sm);
-  width: 14px;
-  text-align: center;
+  font-size: 16px;
+  width: 16px;
   flex-shrink: 0;
-  opacity: 0.5;
+  color: var(--colorNeutralForeground3);
 }
 
 .resultPath {
@@ -91,22 +75,21 @@
 }
 
 .resultDir {
-  color: var(--text-tertiary);
+  color: var(--colorNeutralForeground3);
 }
 
 .resultName {
-  color: var(--text-primary);
+  color: var(--colorNeutralForeground1);
 }
 
 .matchChar {
-  color: var(--accent-blue);
-  font-weight: var(--weight-semibold);
+  color: var(--colorBrandForeground1);
+  font-weight: 600;
 }
 
 .empty {
-  padding: var(--space-8);
+  padding: 32px;
   text-align: center;
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
+  color: var(--colorNeutralForeground3);
+  font-size: 13px;
 }

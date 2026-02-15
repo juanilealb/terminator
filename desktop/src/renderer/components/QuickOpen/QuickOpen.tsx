@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { Input } from '@fluentui/react-components'
+import { SearchRegular, DocumentRegular } from '@fluentui/react-icons'
 import { basenameSafe, toPosixPath } from '@shared/platform'
 import { useAppStore } from '../../store/app-store'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
@@ -100,7 +102,6 @@ export function QuickOpen({ worktreePath }: Props) {
   const [query, setQuery] = useState('')
   const [files, setFiles] = useState<FileEntry[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const { openFileTab, closeQuickOpen } = useAppStore()
 
@@ -183,13 +184,14 @@ export function QuickOpen({ worktreePath }: Props) {
         tabIndex={-1}
       >
         <div className={styles.inputWrap}>
-          <input
-            ref={inputRef}
-            className={styles.input}
-            type="text"
+          <Input
+            contentBefore={<SearchRegular />}
+            appearance="filled-darker"
+            size="large"
+            className={styles.searchInput}
             placeholder="Search files by name..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(_, data) => setQuery(data.value)}
             onKeyDown={handleKeyDown}
             autoFocus
           />
@@ -213,7 +215,7 @@ export function QuickOpen({ worktreePath }: Props) {
                   }}
                   onMouseEnter={() => setSelectedIndex(i)}
                 >
-                  <span className={styles.resultIcon}>·</span>
+                  <DocumentRegular className={styles.resultIcon} />
                   <HighlightedPath text={entry.relativePath} indices={indices} />
                 </div>
               )

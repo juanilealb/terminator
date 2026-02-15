@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Input, Badge, Caption1 } from '@fluentui/react-components'
+import { SearchRegular } from '@fluentui/react-icons'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useAppStore } from '../../store/app-store'
 import type { Tab } from '../../store/types'
@@ -11,6 +13,8 @@ interface CommandAction {
   title: string
   description: string
   keywords: string[]
+  category: string
+  shortcut?: string
   run: () => Promise<void> | void
 }
 
@@ -115,6 +119,8 @@ export function CommandPalette() {
         title: 'New terminal',
         description: 'Open a terminal in the active workspace or quick-start from a folder',
         keywords: ['terminal', '/terminal', '/t', 'quick'],
+        category: 'Terminal',
+        shortcut: '/t',
         run: async () => createTerminalForActiveWorkspace(),
       },
       {
@@ -122,6 +128,7 @@ export function CommandPalette() {
         title: 'Focus terminal',
         description: 'Focus first terminal tab or create one',
         keywords: ['terminal', 'focus', '/focus'],
+        category: 'Terminal',
         run: async () => focusOrCreateTerminal(),
       },
       {
@@ -129,6 +136,8 @@ export function CommandPalette() {
         title: 'Find in terminal',
         description: 'Search text in the active terminal scrollback',
         keywords: ['terminal', 'find', '/terminal-find'],
+        category: 'Terminal',
+        shortcut: '/find',
         run: () => {
           triggerTerminalAction('find')
         },
@@ -138,6 +147,8 @@ export function CommandPalette() {
         title: 'Clear terminal',
         description: 'Clear active terminal viewport and scrollback',
         keywords: ['terminal', 'clear', '/terminal-clear'],
+        category: 'Terminal',
+        shortcut: '/clear',
         run: () => {
           triggerTerminalAction('clear')
         },
@@ -147,6 +158,7 @@ export function CommandPalette() {
         title: 'Quick open file',
         description: 'Open file picker for the active workspace',
         keywords: ['file', 'open', '/open'],
+        category: 'Navigation',
         run: () => toggleQuickOpen(),
       },
       {
@@ -154,6 +166,7 @@ export function CommandPalette() {
         title: 'Open settings',
         description: 'Toggle settings panel',
         keywords: ['settings', 'preferences', '/settings'],
+        category: 'Navigation',
         run: () => toggleSettings(),
       },
       {
@@ -161,6 +174,7 @@ export function CommandPalette() {
         title: 'New workspace',
         description: 'Open create workspace dialog',
         keywords: ['workspace', '/workspace'],
+        category: 'Navigation',
         run: () => {
           const project = activeProject()
           if (project) {
@@ -179,6 +193,7 @@ export function CommandPalette() {
         title: 'Toggle sidebar',
         description: 'Show or hide project/workspace sidebar',
         keywords: ['sidebar', '/sidebar'],
+        category: 'Navigation',
         run: () => toggleSidebar(),
       },
       {
@@ -186,6 +201,8 @@ export function CommandPalette() {
         title: 'Show files panel',
         description: 'Open right panel in Files mode',
         keywords: ['files', '/files'],
+        category: 'Panels',
+        shortcut: '/files',
         run: () => ensureRightPanelMode('files'),
       },
       {
@@ -193,6 +210,8 @@ export function CommandPalette() {
         title: 'Show changes panel',
         description: 'Open right panel in Changes mode',
         keywords: ['changes', '/changes', 'git'],
+        category: 'Panels',
+        shortcut: '/changes',
         run: () => ensureRightPanelMode('changes'),
       },
       {
@@ -200,6 +219,8 @@ export function CommandPalette() {
         title: 'Show memory panel',
         description: 'Open workspace memory and snapshots',
         keywords: ['memory', '/memory', 'notes'],
+        category: 'Panels',
+        shortcut: '/memory',
         run: () => ensureRightPanelMode('memory'),
       },
       {
@@ -207,6 +228,8 @@ export function CommandPalette() {
         title: 'Show preview panel',
         description: 'Open local preview panel',
         keywords: ['preview', '/preview'],
+        category: 'Panels',
+        shortcut: '/preview',
         run: () => ensureRightPanelMode('preview'),
       },
     ]
@@ -217,6 +240,8 @@ export function CommandPalette() {
         title: 'Create snapshot',
         description: 'Save current workspace state without cleaning working tree',
         keywords: ['snapshot', '/snapshot', 'stash'],
+        category: 'Workspace',
+        shortcut: '/snapshot',
         run: async () => {
           const created = await window.api.git.createSnapshot(workspace.worktreePath, 'Snapshot')
           if (!created) {
@@ -231,6 +256,8 @@ export function CommandPalette() {
         title: 'Restore latest snapshot',
         description: 'Apply the latest snapshot on top of current files',
         keywords: ['snapshot', 'restore', '/restore-latest'],
+        category: 'Workspace',
+        shortcut: '/restore-latest',
         run: async () => {
           const snapshots = await window.api.git.listSnapshots(workspace.worktreePath)
           const latest = snapshots[0]
@@ -250,6 +277,8 @@ export function CommandPalette() {
         title: `Run template: ${template.name}`,
         description: 'Expand mentions and insert into terminal',
         keywords: ['template', '/template', template.name.toLowerCase()],
+        category: 'Templates',
+        shortcut: '/template',
         run: async () => {
           await insertTemplateIntoTerminal(template.content, template.name)
         },
@@ -403,6 +432,8 @@ export function CommandPalette() {
     closeCommandPalette()
   }
 
+  const showCategories = !query.trim()
+
   return (
     <div className={styles.overlay} onClick={closeCommandPalette}>
       <div
@@ -415,10 +446,13 @@ export function CommandPalette() {
         tabIndex={-1}
       >
         <div className={styles.inputWrap}>
-          <input
-            className={styles.input}
+          <Input
+            contentBefore={<SearchRegular />}
+            appearance="filled-darker"
+            size="large"
+            className={styles.searchInput}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(_, data) => setQuery(data.value)}
             onKeyDown={async (e) => {
               if (e.key === 'Escape') {
                 e.preventDefault()
@@ -448,21 +482,36 @@ export function CommandPalette() {
           {filtered.length === 0 ? (
             <div className={styles.empty}>No matching commands</div>
           ) : (
-            filtered.map((action, index) => (
-              <button
-                key={action.id}
-                className={`${styles.resultItem} ${index === selectedIndex ? styles.selected : ''}`}
-                onMouseEnter={() => setSelectedIndex(index)}
-                onClick={async () => {
-                  setSelectedIndex(index)
-                  await action.run()
-                  closeCommandPalette()
-                }}
-              >
-                <span className={styles.resultTitle}>{action.title}</span>
-                <span className={styles.resultDescription}>{action.description}</span>
-              </button>
-            ))
+            filtered.map((action, index) => {
+              const prevCategory = index > 0 ? filtered[index - 1].category : null
+              const showHeader = showCategories && action.category !== prevCategory
+              return (
+                <Fragment key={action.id}>
+                  {showHeader && (
+                    <Caption1 className={styles.categoryLabel}>{action.category}</Caption1>
+                  )}
+                  <button
+                    className={`${styles.resultItem} ${index === selectedIndex ? styles.selected : ''}`}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    onClick={async () => {
+                      setSelectedIndex(index)
+                      await action.run()
+                      closeCommandPalette()
+                    }}
+                  >
+                    <div className={styles.resultRow}>
+                      <span className={styles.resultTitle}>{action.title}</span>
+                      {action.shortcut && (
+                        <Badge appearance="outline" size="small" className={styles.shortcutBadge}>
+                          {action.shortcut}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className={styles.resultDescription}>{action.description}</span>
+                  </button>
+                </Fragment>
+              )
+            })
           )}
         </div>
       </div>
