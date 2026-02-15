@@ -579,7 +579,7 @@ export class GitService {
     for (const line of output.split('\n')) {
       const indexStatus = line[0]
       const workStatus = line[1]
-      const path = line.slice(3)
+      const path = line.slice(3).replace(/[\\/]+$/, '')
 
       if (indexStatus === '?' && workStatus === '?') {
         results.push({ path, status: 'untracked', staged: false })
