@@ -65,9 +65,9 @@
 .windowControlGlyphMinimize::before {
   content: '';
   position: absolute;
-  left: 1px;
-  right: 1px;
-  bottom: 1px;
+  left: 2px;
+  right: 2px;
+  top: 6px;
   height: 1px;
   background: currentColor;
 }
