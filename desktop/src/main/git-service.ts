@@ -751,7 +751,7 @@ export class GitService {
     const originUrl = await git(['remote', 'get-url', 'origin'], repoPath).catch(() => '')
     const originRepo = parseGithubRemote(originUrl)
 
-    // Fallback path when we cannot parse remotes: rely on gh current-repo resolution.
+    /** Fallback path when we cannot parse remotes: rely on gh current-repo resolution. */
     if (!originRepo) {
       const existing = await gh(
         [
