@@ -347,8 +347,12 @@ export function registerIpcHandlers(options: IpcHandlerOptions = {}): void {
     return ptyManager.create(workingDir, win.webContents, shell, shellArgs, undefined, undefined, extraEnv)
   })
 
-  ipcMain.on(IPC.PTY_WRITE, (_e, ptyId: string, data: string) => {
-    ptyManager.write(ptyId, data)
+  ipcMain.on(IPC.PTY_WRITE, async (_e, ptyId: string, data: string) => {
+    try {
+      await ptyManager.write(ptyId, data)
+    } catch (error) {
+      debugLog('PTY write failed', { ptyId, error: serializeError(error) })
+    }
   })
 
   ipcMain.on(IPC.PTY_RESIZE, (_e, ptyId: string, cols: number, rows: number) => {

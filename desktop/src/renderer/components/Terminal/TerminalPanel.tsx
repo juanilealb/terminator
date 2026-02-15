@@ -10,6 +10,8 @@ import { subscribeTerminalUiActions } from '../../utils/terminal-actions'
 import styles from './TerminalPanel.module.css'
 
 const PR_POLL_HINT_EVENT = 'terminator:pr-poll-hint'
+const ACTIVE_SCROLLBACK = 10000
+const INACTIVE_SCROLLBACK = 1000
 const PR_POLL_HINT_COMMAND_RE =
   /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|\S+)\s+)*(?:sudo\s+)?(?:(?:git\s+push)|(?:gh\s+pr\s+(?:create|ready|reopen|merge)))(?:\s|$)/
 
@@ -190,7 +192,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
           fontFamily: monoFont,
           cursorBlink: true,
           cursorStyle: 'bar',
-          scrollback: 10000,
+          scrollback: active ? ACTIVE_SCROLLBACK : INACTIVE_SCROLLBACK,
           theme: {
             background: '#140f16',
             foreground: '#f0eaf4',
@@ -313,12 +315,13 @@ export function TerminalPanel({ ptyId, active }: Props) {
         }
         requestAnimationFrame(tryFit)
 
-        let resizeTimer: ReturnType<typeof setTimeout> | null = null
+        let resizeRafId: number | null = null
         const resizeObserver = new ResizeObserver(() => {
-          if (resizeTimer) clearTimeout(resizeTimer)
-          resizeTimer = setTimeout(() => {
+          if (resizeRafId !== null) cancelAnimationFrame(resizeRafId)
+          resizeRafId = requestAnimationFrame(() => {
+            resizeRafId = null
             if (!disposed) fitTerminal()
-          }, 100)
+          })
         })
         resizeObserver.observe(termDiv)
 
@@ -367,7 +370,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
         cleanup = () => {
           resizeObserver.disconnect()
-          if (resizeTimer) clearTimeout(resizeTimer)
+          if (resizeRafId !== null) cancelAnimationFrame(resizeRafId)
           clearTimeout(settleTimer)
           onSelectionChangeDisposable.dispose()
           onDataDisposable.dispose()
@@ -412,10 +415,14 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
   // Focus + refit when this tab becomes active.
   useEffect(() => {
-    if (!active || !termRef.current) return
+    const term = termRef.current
+    if (!term) return
+
+    term.options.scrollback = active ? ACTIVE_SCROLLBACK : INACTIVE_SCROLLBACK
+    if (!active) return
 
     fitFnRef.current?.()
-    termRef.current.focus()
+    term.focus()
   }, [active])
 
   return (
