@@ -1,8 +1,30 @@
 import { useState, useCallback, useEffect } from 'react'
+import {
+  Button,
+  Card,
+  CardHeader,
+  Badge,
+  Caption1,
+  Switch,
+  Input,
+  Dropdown,
+  Option,
+  Textarea,
+  Title3,
+  Body1,
+  Subtitle2,
+  tokens,
+  ToggleButton,
+} from '@fluentui/react-components'
+import {
+  PlayRegular,
+  DeleteRegular,
+  AddRegular,
+  ArrowLeftRegular,
+} from '@fluentui/react-icons'
 import { useAppStore } from '../../store/app-store'
 import type { Automation } from '../../store/types'
 import { Tooltip } from '../Tooltip/Tooltip'
-import styles from './AutomationsPanel.module.css'
 
 const SCHEDULE_PRESETS = [
   { label: 'Every hour', cron: '0 * * * *' },
@@ -22,6 +44,12 @@ function formatLastRun(timestamp?: number): string {
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   return `${days}d ago`
+}
+
+function statusBadge(status?: Automation['lastRunStatus']) {
+  if (status === 'success') return <Badge appearance="filled" color="success" size="tiny" />
+  if (status === 'failed' || status === 'timeout') return <Badge appearance="filled" color="danger" size="tiny" />
+  return <Badge appearance="filled" color="subtle" size="tiny" />
 }
 
 // ── List View ──
@@ -78,63 +106,70 @@ function AutomationList({
     })
   }, [showConfirmDialog, dismissConfirmDialog, workspaces, deleteWorkspace, removeAutomation])
 
-  const statusDotClass = (status?: Automation['lastRunStatus']) => {
-    if (status === 'success') return styles.statusSuccess
-    if (status === 'failed' || status === 'timeout') return styles.statusFailed
-    return styles.statusNever
+  if (automations.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '64px 32px' }}>
+        <Body1 style={{ color: tokens.colorNeutralForeground3 }}>No automations yet</Body1>
+        <Button appearance="outline" icon={<AddRegular />} onClick={onNew}>
+          Create your first automation
+        </Button>
+      </div>
+    )
   }
 
   return (
-    <>
-      {automations.length === 0 ? (
-        <div className={styles.emptyState}>
-          <span>No automations yet</span>
-          <button className={styles.emptyBtn} onClick={onNew}>+ Create your first automation</button>
-        </div>
-      ) : (
-        automations.map((automation) => {
-          const project = projects.find((p) => p.id === automation.projectId)
-          return (
-            <div
-              key={automation.id}
-              className={`${styles.automationRow} ${!automation.enabled ? styles.disabled : ''}`}
-            >
-              <span className={`${styles.statusDot} ${statusDotClass(automation.lastRunStatus)}`} />
-              <div className={styles.rowInfo} onClick={() => onEdit(automation)}>
-                <div className={styles.rowName}>{automation.name}</div>
-                <div className={styles.rowMeta}>
-                  <span>{project?.name ?? 'Unknown project'}</span>
-                  <span>·</span>
-                  <span>{automation.cronExpression}</span>
-                  <span>·</span>
-                  <span>{formatLastRun(automation.lastRunAt)}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {automations.map((automation) => {
+        const project = projects.find((p) => p.id === automation.projectId)
+        return (
+          <Card
+            key={automation.id}
+            size="small"
+            style={{ opacity: automation.enabled ? 1 : 0.5, cursor: 'pointer' }}
+            onClick={() => onEdit(automation)}
+          >
+            <CardHeader
+              image={statusBadge(automation.lastRunStatus)}
+              header={<Subtitle2>{automation.name}</Subtitle2>}
+              description={
+                <Caption1 style={{ color: tokens.colorNeutralForeground3 }}>
+                  {project?.name ?? 'Unknown project'} &middot; {automation.cronExpression} &middot; {formatLastRun(automation.lastRunAt)}
+                </Caption1>
+              }
+              action={
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Tooltip label="Run now">
+                    <Button
+                      appearance="subtle"
+                      icon={<PlayRegular />}
+                      size="small"
+                      onClick={() => handleRunNow(automation)}
+                    />
+                  </Tooltip>
+                  <Tooltip label={automation.enabled ? 'Disable' : 'Enable'}>
+                    <Switch
+                      checked={automation.enabled}
+                      onChange={() => handleToggleEnabled(automation)}
+                    />
+                  </Tooltip>
+                  <Tooltip label="Delete">
+                    <Button
+                      appearance="subtle"
+                      icon={<DeleteRegular />}
+                      size="small"
+                      onClick={() => handleDelete(automation)}
+                    />
+                  </Tooltip>
                 </div>
-              </div>
-              <div className={styles.rowActions}>
-                <Tooltip label="Run now">
-                  <button className={styles.runBtn} onClick={() => handleRunNow(automation)}>
-                    Run
-                  </button>
-                </Tooltip>
-                <Tooltip label={automation.enabled ? 'Disable' : 'Enable'}>
-                  <button
-                    className={`${styles.toggle} ${automation.enabled ? styles.toggleOn : ''}`}
-                    onClick={() => handleToggleEnabled(automation)}
-                  >
-                    <span className={styles.toggleKnob} />
-                  </button>
-                </Tooltip>
-                <Tooltip label="Delete">
-                  <button className={styles.deleteBtn} onClick={() => handleDelete(automation)}>
-                    ✕
-                  </button>
-                </Tooltip>
-              </div>
-            </div>
-          )
-        })
-      )}
-    </>
+              }
+            />
+          </Card>
+        )
+      })}
+    </div>
   )
 }
 
@@ -214,73 +249,83 @@ function AutomationForm({
     onBack()
   }, [isValid, projectId, prompt, name, cronExpression, isEditing, editingAutomation, projects, addAutomation, updateAutomation, onBack])
 
+  const selectedProject = projects.find((p) => p.id === projectId)
+
   return (
     <>
-      <button className={styles.backLink} onClick={onBack}>← Back</button>
-      <div className={styles.formTitle}>{isEditing ? 'Edit Automation' : 'New Automation'}</div>
+      <Button
+        appearance="subtle"
+        icon={<ArrowLeftRegular />}
+        onClick={onBack}
+        style={{ marginBottom: 16, alignSelf: 'flex-start' }}
+      >
+        Back
+      </Button>
+      <Title3 style={{ marginBottom: 20 }}>{isEditing ? 'Edit Automation' : 'New Automation'}</Title3>
 
-      <div className={styles.formGroup}>
-        <label className={styles.label}>Name</label>
-        <input
-          className={styles.input}
-          value={name}
-          onChange={(e) => { setName(e.target.value); setNameManuallySet(true) }}
-          placeholder="Automation name"
-          autoFocus
-        />
-      </div>
-
-      <div className={styles.formGroup}>
-        <label className={styles.label}>Project</label>
-        <select
-          className={styles.input}
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-        >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.formGroup}>
-        <label className={styles.label}>Prompt</label>
-        <textarea
-          className={styles.textarea}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Review the codebase for security issues..."
-          rows={3}
-        />
-      </div>
-
-      <div className={styles.formGroup}>
-        <label className={styles.label}>Schedule</label>
-        <div className={styles.presetGrid}>
-          {SCHEDULE_PRESETS.map((preset, i) => (
-            <button
-              key={preset.label}
-              className={`${styles.presetBtn} ${selectedPreset === i ? styles.presetActive : ''}`}
-              onClick={() => setSelectedPreset(i)}
-            >
-              {preset.label}
-            </button>
-          ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Name</Caption1>
+          <Input
+            value={name}
+            onChange={(_e, data) => { setName(data.value); setNameManuallySet(true) }}
+            placeholder="Automation name"
+            autoFocus
+          />
         </div>
-        <input
-          className={styles.input}
-          value={selectedPreset === SCHEDULE_PRESETS.length - 1 ? customCron : SCHEDULE_PRESETS[selectedPreset].cron}
-          onChange={(e) => { setCustomCron(e.target.value); setSelectedPreset(SCHEDULE_PRESETS.length - 1) }}
-          placeholder="*/5 * * * *"
-          style={{ marginTop: 'var(--space-2)' }}
-        />
-      </div>
 
-      <div className={styles.formActions}>
-        <button className={styles.cancelBtn} onClick={onBack}>Cancel</button>
-        <button className={styles.submitBtn} onClick={handleSubmit} disabled={!isValid}>
-          {isEditing ? 'Save' : 'Create'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Project</Caption1>
+          <Dropdown
+            value={selectedProject?.name ?? ''}
+            selectedOptions={[projectId]}
+            onOptionSelect={(_e, data) => { if (data.optionValue) setProjectId(data.optionValue) }}
+          >
+            {projects.map((p) => (
+              <Option key={p.id} value={p.id}>{p.name}</Option>
+            ))}
+          </Dropdown>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Prompt</Caption1>
+          <Textarea
+            value={prompt}
+            onChange={(_e, data) => setPrompt(data.value)}
+            placeholder="Review the codebase for security issues..."
+            rows={3}
+            resize="vertical"
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Caption1 style={{ color: tokens.colorNeutralForeground3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Schedule</Caption1>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {SCHEDULE_PRESETS.map((preset, i) => (
+              <ToggleButton
+                key={preset.label}
+                size="small"
+                checked={selectedPreset === i}
+                onClick={() => setSelectedPreset(i)}
+              >
+                {preset.label}
+              </ToggleButton>
+            ))}
+          </div>
+          <Input
+            value={selectedPreset === SCHEDULE_PRESETS.length - 1 ? customCron : SCHEDULE_PRESETS[selectedPreset].cron}
+            onChange={(_e, data) => { setCustomCron(data.value); setSelectedPreset(SCHEDULE_PRESETS.length - 1) }}
+            placeholder="*/5 * * * *"
+            style={{ marginTop: 4 }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <Button appearance="secondary" onClick={onBack}>Cancel</Button>
+          <Button appearance="primary" onClick={handleSubmit} disabled={!isValid}>
+            {isEditing ? 'Save' : 'Create'}
+          </Button>
+        </div>
       </div>
     </>
   )
@@ -323,23 +368,25 @@ export function AutomationsPanel() {
   }, [view, handleBack, toggleAutomations])
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.header}>
-        <div className={styles.headerInner}>
-          <div className={styles.headerLeft}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: tokens.colorNeutralBackground1, overflow: 'hidden' }}>
+      <div style={{ padding: '0 48px', paddingTop: 'var(--titlebar-height)', borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, flexShrink: 0, WebkitAppRegion: 'drag' as unknown as string }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 560, margin: '0 auto', padding: '12px 0', WebkitAppRegion: 'no-drag' as unknown as string }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Tooltip label="Back">
-              <button className={styles.backBtn} onClick={toggleAutomations}>‹</button>
+              <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={toggleAutomations} />
             </Tooltip>
-            <h2 className={styles.title}>Automations</h2>
+            <Title3>Automations</Title3>
           </div>
           {view === 'list' && (
-            <button className={styles.newBtn} onClick={handleNew}>+ New</button>
+            <Button appearance="outline" icon={<AddRegular />} size="small" onClick={handleNew}>
+              New
+            </Button>
           )}
         </div>
       </div>
 
-      <div className={styles.content}>
-        <div className={styles.inner}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto' }}>
           {view === 'list' ? (
             <AutomationList onNew={handleNew} onEdit={handleEdit} />
           ) : (
