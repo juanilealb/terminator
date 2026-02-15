@@ -44,12 +44,12 @@ const COMMIT_FLOW_OPTIONS: CommitFlowOption[] = [
   {
     id: 'ship-main',
     label: 'Ship to main',
-    tooltip: 'Commit, merge to main, and push',
+    tooltip: 'Commit, push branch, and open a PR to main',
   },
   {
     id: 'ship-main-close',
     label: 'Ship to main and close workspace',
-    tooltip: 'Commit, merge to main, push, and close workspace',
+    tooltip: 'Commit, push branch, open a PR to main, and close workspace',
   },
 ]
 
@@ -232,12 +232,14 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
         const result = await window.api.git.shipBranchToMain(project.repoPath, sourceBranch)
 
         if (result.prUrl) {
-          const prMsg = result.prCreated ? 'PR created from main.' : 'PR from main already exists.'
+          const prMsg = result.prCreated
+            ? `PR to ${result.mainBranch} created.`
+            : `PR to ${result.mainBranch} already exists.`
           addToast({
             id: crypto.randomUUID(),
             message: closesWorkspace
-              ? `Merged to ${result.mainBranch}, pushed, and closed workspace. ${prMsg}`
-              : `Merged to ${result.mainBranch} and pushed. ${prMsg}`,
+              ? `Pushed ${sourceBranch}, and closed workspace. ${prMsg}`
+              : `Pushed ${sourceBranch}. ${prMsg}`,
             type: 'info',
           })
           window.open(result.prUrl)
@@ -245,8 +247,8 @@ export function ChangedFiles({ worktreePath, workspaceId, isActive }: Props) {
           addToast({
             id: crypto.randomUUID(),
             message: closesWorkspace
-              ? `Merged to ${result.mainBranch}, pushed, and closed workspace.`
-              : `Merged to ${result.mainBranch} and pushed.`,
+              ? `Pushed ${sourceBranch} and closed workspace.`
+              : `Pushed ${sourceBranch}.`,
             type: 'info',
           })
         }
