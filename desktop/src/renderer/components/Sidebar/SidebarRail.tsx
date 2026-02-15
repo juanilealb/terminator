@@ -1,5 +1,6 @@
 import { Fragment, useMemo } from 'react'
 import { useAppStore } from '../../store/app-store'
+import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './SidebarRail.module.css'
 
 interface WorkspaceWithState {
@@ -56,14 +57,15 @@ export function SidebarRail() {
   return (
     <div className={styles.rail}>
       <div className={styles.railHeader}>
-        <button
-          className={styles.expandButton}
-          onClick={() => toggleSidebar()}
-          title="Expand sidebar"
-          aria-label="Expand sidebar"
-        >
-          <span className={styles.expandGlyph} />
-        </button>
+        <Tooltip label="Expand sidebar">
+          <button
+            className={styles.expandButton}
+            onClick={() => toggleSidebar()}
+            aria-label="Expand sidebar"
+          >
+            <span className={styles.expandGlyph} />
+          </button>
+        </Tooltip>
       </div>
 
       <div className={styles.workspaceList}>
@@ -84,12 +86,13 @@ export function SidebarRail() {
             return (
               <Fragment key={workspace.id}>
                 {hasProjectDivider && <div className={styles.projectDivider} aria-hidden="true" />}
-                <button
-                  className={`${styles.workspaceButton} ${workspace.isActive ? styles.active : ''} ${stateClass}`}
-                  onClick={() => setActiveWorkspace(workspace.id)}
-                  title={`${workspace.projectName} - ${workspace.name}`}
-                  aria-label={`${workspace.projectName} ${workspace.name}`}
-                />
+                <Tooltip label={`${workspace.projectName} - ${workspace.name}`}>
+                  <button
+                    className={`${styles.workspaceButton} ${workspace.isActive ? styles.active : ''} ${stateClass}`}
+                    onClick={() => setActiveWorkspace(workspace.id)}
+                    aria-label={`${workspace.projectName} ${workspace.name}`}
+                  />
+                </Tooltip>
               </Fragment>
             )
           })

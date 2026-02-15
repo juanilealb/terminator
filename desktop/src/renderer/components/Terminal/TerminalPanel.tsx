@@ -255,6 +255,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
         || "'Cascadia Code', 'Cascadia Mono', 'JetBrains Mono', 'Consolas', monospace"
 
       const term = new Terminal({
+        allowProposedApi: true,
         fontSize: useAppStore.getState().settings.terminalFontSize,
         fontFamily: monoFont,
         cursorBlink: true,
@@ -305,8 +306,12 @@ export function TerminalPanel({ ptyId, active }: Props) {
       }
 
       term.open(termDiv)
-      term.loadAddon(unicode11Addon)
-      term.unicode.activeVersion = '11'
+      try {
+        term.loadAddon(unicode11Addon)
+        term.unicode.activeVersion = '11'
+      } catch (error) {
+        console.warn('Unicode11 addon unavailable, using default unicode version:', error)
+      }
       try {
         webglAddon = new WebglAddon()
         term.loadAddon(webglAddon)
