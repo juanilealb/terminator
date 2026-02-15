@@ -25,6 +25,19 @@ export function useShortcuts() {
         return
       }
 
+      // Ctrl+Enter handling when terminal is focused.
+      if (e.key === 'Enter' && e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && inTerminal) {
+        // Write kitty keyboard protocol so CLIs can distinguish Ctrl+Enter from Enter.
+        e.preventDefault()
+        e.stopPropagation()
+        const s = useAppStore.getState()
+        const tab = s.tabs.find((t) => t.id === s.activeTabId)
+        if (tab?.type === 'terminal') {
+          window.api.pty.write(tab.ptyId, '\x1b[13;5u')
+        }
+        return
+      }
+
       // Windows terminal line-editing conventions.
       if (inTerminal) {
         if (e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey && e.code === 'KeyB') {

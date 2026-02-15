@@ -101,7 +101,11 @@ export class NotificationWatcher {
       const wsId = readFileSync(filePath, 'utf-8').trim()
       if (wsId) {
         debugLog('Notify marker found', { workspaceId: wsId, filePath })
-        this.notifyRenderer(wsId, 'completed')
+        if (this.hasWorkspaceActivity(wsId)) {
+          debugLog('Notify marker ignored while workspace still active', { workspaceId: wsId, filePath })
+        } else {
+          this.notifyRenderer(wsId, 'completed')
+        }
       } else {
         debugLog('Notify marker empty; clearing marker file', { filePath })
       }
@@ -136,6 +140,19 @@ export class NotificationWatcher {
     // Legacy format is no longer written. Ignore and clean it up to avoid
     // stale always-active spinners after upgrading marker formats.
     return null
+  }
+
+  private hasWorkspaceActivity(workspaceId: string): boolean {
+    try {
+      const files = readdirSync(ACTIVITY_DIR)
+      for (const name of files) {
+        const info = this.markerFromName(name)
+        if (info?.workspaceId === workspaceId) return true
+      }
+    } catch {
+      // Best effort: activity dir may not exist momentarily.
+    }
+    return false
   }
 
   private removeActivityMarker(name: string): void {

@@ -950,7 +950,7 @@ export function Sidebar() {
                     const isAutoName = /^ws-[a-z0-9]+$/.test(ws.name);
                     const metaBranch = ws.branch || basenameSafe(ws.worktreePath);
                     const displayName = isAutoName ? metaBranch : ws.name;
-                    const showMeta = !!(metaBranch && metaBranch !== displayName);
+                    const showMeta = !!metaBranch;
                     const isRunning = activeClaudeWorkspaceIds.has(ws.id);
                     const isWaiting = !isRunning && waitingClaudeWorkspaceIds.has(ws.id);
                     const isUnread = !isRunning && !isWaiting && unreadWorkspaceIds.has(ws.id);

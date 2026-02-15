@@ -8,6 +8,7 @@ import { basenameSafe, debugLog, defaultShellArgsFor, getTempDir, resolveDefault
 import { type AgentPermissionMode } from '@shared/agent-permissions'
 
 interface PtyInstance {
+  id: string
   process: pty.IPty
   webContents: WebContents
   onExitCallbacks: Array<(exitCode: number) => void>
@@ -16,6 +17,8 @@ interface PtyInstance {
   workspaceId?: string
   codexPromptBuffer: string
   codexAwaitingAnswer: boolean
+  codexReconcileTimer: ReturnType<typeof setTimeout> | null
+  codexReconcileInFlight: boolean
 }
 
 interface ProcessEntry {
@@ -342,6 +345,7 @@ export class PtyManager {
     })
 
     const instance: PtyInstance = {
+      id,
       process: proc,
       webContents,
       onExitCallbacks: [],
@@ -350,6 +354,8 @@ export class PtyManager {
       workspaceId: extraEnv?.AGENT_ORCH_WS_ID,
       codexPromptBuffer: '',
       codexAwaitingAnswer: false,
+      codexReconcileTimer: null,
+      codexReconcileInFlight: false,
     }
 
     const permissionMode = normalizePermissionMode(extraEnv?.AGENT_ORCH_PERMISSION_MODE)
@@ -399,6 +405,7 @@ export class PtyManager {
       }
       flushBufferedOutput()
       if (initialWriteTimer) clearTimeout(initialWriteTimer)
+      this.clearCodexReconcileTimer(instance)
       this.clearCodexWorkspaceActivity(instance.workspaceId, instance.process.pid)
       for (const cb of instance.onExitCallbacks) {
         try {
@@ -455,6 +462,12 @@ export class PtyManager {
     }
 
     instance.process.write(data)
+
+    // Reconcile Codex activity after submit. This catches both command starts
+    // (Codex spins up after Enter) and command finishes (spinner clears quickly).
+    if (instance.workspaceId && isSubmit) {
+      this.scheduleCodexReconcile(instance, 250)
+    }
   }
 
   resize(ptyId: string, cols: number, rows: number): void {
@@ -470,6 +483,7 @@ export class PtyManager {
     const instance = this.ptys.get(ptyId)
     if (!instance) return
 
+    this.clearCodexReconcileTimer(instance)
     this.clearCodexWorkspaceActivity(instance.workspaceId, instance.process.pid)
     debugLog('Destroying PTY', {
       ptyId,
@@ -660,6 +674,69 @@ export class PtyManager {
     }
   }
 
+  private isCodexWaitingMarked(workspaceId: string, ptyPid: number): boolean {
+    try {
+      return existsSync(this.codexWaitingMarkerPath(workspaceId, ptyPid))
+    } catch {
+      return false
+    }
+  }
+
+  private clearCodexReconcileTimer(instance: PtyInstance): void {
+    if (instance.codexReconcileTimer) {
+      clearTimeout(instance.codexReconcileTimer)
+      instance.codexReconcileTimer = null
+    }
+  }
+
+  private scheduleCodexReconcile(instance: PtyInstance, delayMs: number, force = false): void {
+    if (!instance.workspaceId) return
+    if (instance.codexReconcileInFlight && !force) return
+
+    this.clearCodexReconcileTimer(instance)
+    instance.codexReconcileTimer = setTimeout(() => {
+      instance.codexReconcileTimer = null
+      void this.reconcileCodexWorkspaceActivity(instance).catch((error) => {
+        debugLog('Codex activity reconcile failed', {
+          ptyId: instance.id,
+          pid: instance.process.pid,
+          workspaceId: instance.workspaceId ?? null,
+          error,
+        })
+      })
+    }, delayMs)
+  }
+
+  private async reconcileCodexWorkspaceActivity(instance: PtyInstance): Promise<void> {
+    const workspaceId = instance.workspaceId
+    if (!workspaceId) return
+    if (this.ptys.get(instance.id) !== instance) return
+
+    instance.codexReconcileInFlight = true
+    try {
+      const running = await this.isCodexRunningUnder(instance.process.pid)
+      if (this.ptys.get(instance.id) !== instance) return
+
+      if (running) {
+        if (instance.codexAwaitingAnswer) {
+          if (!this.isCodexWaitingMarked(workspaceId, instance.process.pid)) {
+            this.markCodexWorkspaceWaiting(workspaceId, instance.process.pid)
+          }
+        } else if (!this.isCodexRunningMarked(workspaceId, instance.process.pid)) {
+          this.markCodexWorkspaceActive(workspaceId, instance.process.pid)
+        }
+        this.scheduleCodexReconcile(instance, 800, true)
+        return
+      }
+
+      instance.codexAwaitingAnswer = false
+      instance.codexPromptBuffer = ''
+      this.clearCodexWorkspaceActivity(workspaceId, instance.process.pid)
+    } finally {
+      instance.codexReconcileInFlight = false
+    }
+  }
+
   private looksLikeCodexQuestionPrompt(buffer: string): boolean {
     const hasHeader = CODEX_QUESTION_HEADER_RE.test(buffer)
     const hasUnanswered = CODEX_QUESTION_UNANSWERED_RE.test(buffer)
@@ -686,6 +763,7 @@ export class PtyManager {
     instance.codexAwaitingAnswer = true
     instance.codexPromptBuffer = ''
     this.markCodexWorkspaceWaiting(instance.workspaceId, instance.process.pid)
+    this.scheduleCodexReconcile(instance, 300)
     if (!instance.webContents.isDestroyed()) {
       instance.webContents.send(IPC.CLAUDE_NOTIFY_WORKSPACE, {
         workspaceId: instance.workspaceId,
