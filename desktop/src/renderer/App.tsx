@@ -6,6 +6,7 @@ import { SHORTCUT_MAP } from '@shared/shortcuts'
 import 'allotment/dist/style.css'
 import { useAppStore } from './store/app-store'
 import { Sidebar } from './components/Sidebar/Sidebar'
+import { SidebarRail } from './components/Sidebar/SidebarRail'
 import { TabBar } from './components/TabBar/TabBar'
 import { TerminalPanel } from './components/Terminal/TerminalPanel'
 import { FileEditor } from './components/Editor/FileEditor'
@@ -158,7 +159,11 @@ export function App() {
         ) : (
           <Allotment>
             {/* Sidebar */}
-            {!sidebarCollapsed && (
+            {sidebarCollapsed ? (
+              <Allotment.Pane minSize={56} maxSize={72} preferredSize={60}>
+                <SidebarRail />
+              </Allotment.Pane>
+            ) : (
               <Allotment.Pane minSize={180} maxSize={420} preferredSize={240}>
                 <Sidebar />
               </Allotment.Pane>

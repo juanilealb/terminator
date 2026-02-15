@@ -227,6 +227,7 @@ function buildAgentBootstrapWrite(shellFile: string, mode: AgentPermissionMode |
     return [
       "function global:codex { $cmd = Get-Command codex -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; if ($cmd -and $cmd.Source) { & $cmd.Source --sandbox danger-full-access --ask-for-approval never @args } else { Write-Error 'codex command not found.' } }",
       "function global:claude { $cmd = Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; if ($cmd -and $cmd.Source) { & $cmd.Source --dangerously-skip-permissions @args } else { Write-Error 'claude command not found.' } }",
+      'Clear-Host',
       '',
     ].join('\r')
   }
@@ -235,6 +236,7 @@ function buildAgentBootstrapWrite(shellFile: string, mode: AgentPermissionMode |
     return [
       'doskey codex=codex --sandbox danger-full-access --ask-for-approval never $*',
       'doskey claude=claude --dangerously-skip-permissions $*',
+      'cls',
       '',
     ].join('\r')
   }
@@ -243,6 +245,7 @@ function buildAgentBootstrapWrite(shellFile: string, mode: AgentPermissionMode |
     return [
       'codex(){ command codex --sandbox danger-full-access --ask-for-approval never "$@"; }',
       'claude(){ command claude --dangerously-skip-permissions "$@"; }',
+      'clear',
       '',
     ].join('\r')
   }

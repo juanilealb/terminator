@@ -27,6 +27,19 @@ export function useShortcuts() {
 
       // Windows terminal line-editing conventions.
       if (inTerminal) {
+        if (e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey && e.code === 'KeyB') {
+          e.preventDefault()
+          e.stopPropagation()
+          useAppStore.getState().toggleSidebar()
+          return
+        }
+        if (e.ctrlKey && !e.shiftKey && !e.metaKey && e.altKey && e.code === 'KeyB') {
+          e.preventDefault()
+          e.stopPropagation()
+          useAppStore.getState().toggleRightPanel()
+          return
+        }
+
         const s = useAppStore.getState()
         const tab = s.tabs.find((t) => t.id === s.activeTabId)
         if (tab?.type === 'terminal') {
@@ -151,6 +164,11 @@ export function useShortcuts() {
 
       // Panels
       if (!shift && !alt && e.key === 'b') {
+        consume()
+        store.toggleSidebar()
+        return
+      }
+      if (shift && !alt && e.code === 'KeyB') {
         consume()
         store.toggleSidebar()
         return
