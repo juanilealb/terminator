@@ -24,9 +24,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background:
-    linear-gradient(180deg, rgba(26, 21, 29, 0.94) 0%, rgba(21, 18, 24, 0.96) 100%),
-    var(--bg-panel);
+  background: var(--bg-panel);
 }
 
 .centerPanel::before {
@@ -35,8 +33,8 @@
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(73, 60, 76, 0.11) 0%, rgba(73, 60, 76, 0) 28%),
-    linear-gradient(270deg, rgba(56, 47, 58, 0.1) 0%, rgba(56, 47, 58, 0) 24%);
+    linear-gradient(90deg, rgba(46, 38, 48, 0.08) 0%, transparent 28%),
+    linear-gradient(270deg, rgba(46, 38, 48, 0.06) 0%, transparent 24%);
 }
 
 .contentArea {

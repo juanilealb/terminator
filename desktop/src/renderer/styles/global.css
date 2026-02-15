@@ -102,13 +102,22 @@ kbd {
   white-space: nowrap;
 }
 
-.sash-container .sash {
-  background: var(--border-muted) !important;
-  transition: background var(--transition-default) !important;
+/* ── Allotment split-pane dividers ─────────────────────────────
+   Keep the wide hit-area (--sash-size) for easy drag-to-resize
+   while rendering only a subtle 1px line via the sash ::before. */
+:root {
+  --sash-size: 8px;
+  --sash-hover-size: 1px;
+  --separator-border: transparent;
+  --focus-border: var(--border-emphasis);
 }
 
-.sash-container .sash:hover,
-.sash-container .sash.active {
-  background: var(--accent-green) !important;
-  transition-delay: 80ms !important;
+[class*="sash-module_sash"]:before {
+  background: var(--border-muted) !important;
+  transition: background 150ms ease !important;
+}
+
+[class*="sash-module_sash"][class*="hover"]:before,
+[class*="sash-module_sash"][class*="active"]:before {
+  background: var(--border-emphasis) !important;
 }

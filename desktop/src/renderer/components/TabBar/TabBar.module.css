@@ -3,7 +3,7 @@
   height: 40px;
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-muted);
   overflow-x: auto;
   overflow-y: hidden;
   padding-right: var(--window-controls-width-tabbar);
@@ -93,10 +93,13 @@
   }
 }
 
-/* ── Close button (span styled as subtle button) ── */
+/* ── Close button ── */
 .closeButton {
   width: 20px;
   height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;

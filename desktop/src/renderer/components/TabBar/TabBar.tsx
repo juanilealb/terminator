@@ -112,15 +112,15 @@ export function TabBar() {
                     label="Close tab"
                     shortcut={formatShortcut(SHORTCUT_MAP.closeTab.mac, SHORTCUT_MAP.closeTab.win)}
                   >
-                    <span
-                      role="button"
+                    <button
+                      type="button"
                       tabIndex={-1}
                       aria-label={`Close ${getTabTitle(tab)}`}
                       className={styles.closeButton}
                       onClick={(e) => handleClose(e, tab.id)}
                     >
                       <DismissRegular />
-                    </span>
+                    </button>
                   </Tooltip>
                 )}
               </span>
