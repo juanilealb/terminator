@@ -19,6 +19,7 @@
     "license": "ISC",
     "dependencies": {
         "@fluentui/react-components": "^9.56.5",
+        "@fluentui/react-icons": "^2.0.258",
         "@monaco-editor/react": "^4.7.0",
         "@pierre/diffs": "^1.0.10",
         "@xterm/addon-fit": "^0.11.0",

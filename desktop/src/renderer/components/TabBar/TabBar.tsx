@@ -1,4 +1,12 @@
 import { useCallback } from 'react'
+import {
+  TabList,
+  Tab as FluentTab,
+  Button,
+  type SelectTabData,
+  type SelectTabEvent,
+} from '@fluentui/react-components'
+import { DismissRegular, AddRegular } from '@fluentui/react-icons'
 import { basenameSafe, formatShortcut, toPosixPath } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
@@ -37,6 +45,7 @@ export function TabBar() {
   const handleClose = useCallback(
     (e: React.MouseEvent, tabId: string) => {
       e.stopPropagation()
+      e.preventDefault()
       const tab = tabs.find((t) => t.id === tabId)
       if (!tab) return
 
@@ -66,54 +75,72 @@ export function TabBar() {
     [tabs, removeTab, confirmOnClose, showConfirmDialog, dismissConfirmDialog]
   )
 
+  const handleTabSelect = useCallback(
+    (_event: SelectTabEvent, data: SelectTabData) => {
+      setActiveTab(data.value as string)
+    },
+    [setActiveTab]
+  )
+
   return (
     <div className={styles.tabBar}>
-      <div className={styles.tabList}>
+      <TabList
+        selectedValue={activeTabId}
+        onTabSelect={handleTabSelect}
+        appearance="subtle"
+        size="small"
+        className={styles.tabList}
+      >
         {tabs.map((tab) => {
           const { icon, className } = TAB_ICONS[tab.type]
           const isSaved = tab.id === lastSavedTabId
           return (
-            <div
+            <FluentTab
               key={tab.id}
-              className={`${styles.tab} ${tab.id === activeTabId ? styles.active : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              value={tab.id}
+              icon={<span className={`${styles.tabIcon} ${className}`}>{icon}</span>}
+              className={styles.tab}
             >
-              <span className={`${styles.tabIcon} ${className}`}>{icon}</span>
-              <span className={`${styles.tabTitle} ${isSaved ? styles.savedFlash : ''}`}>
-                {getTabTitle(tab)}
-              </span>
-              {tab.type === 'file' && tab.unsaved ? (
-                <span className={styles.unsavedDot} />
-              ) : (
-                <Tooltip
-                  label="Close tab"
-                  shortcut={formatShortcut(SHORTCUT_MAP.closeTab.mac, SHORTCUT_MAP.closeTab.win)}
-                >
-                  <button
-                    aria-label={`Close ${getTabTitle(tab)}`}
-                    className={styles.closeButton}
-                    onClick={(e) => handleClose(e, tab.id)}
+              <span className={styles.tabContent}>
+                <span className={`${styles.tabTitle} ${isSaved ? styles.savedFlash : ''}`}>
+                  {getTabTitle(tab)}
+                </span>
+                {tab.type === 'file' && tab.unsaved ? (
+                  <span className={styles.unsavedDot} />
+                ) : (
+                  <Tooltip
+                    label="Close tab"
+                    shortcut={formatShortcut(SHORTCUT_MAP.closeTab.mac, SHORTCUT_MAP.closeTab.win)}
                   >
-                    ✕
-                  </button>
-                </Tooltip>
-              )}
-            </div>
+                    <span
+                      role="button"
+                      tabIndex={-1}
+                      aria-label={`Close ${getTabTitle(tab)}`}
+                      className={styles.closeButton}
+                      onClick={(e) => handleClose(e, tab.id)}
+                    >
+                      <DismissRegular />
+                    </span>
+                  </Tooltip>
+                )}
+              </span>
+            </FluentTab>
           )
         })}
-      </div>
+      </TabList>
 
       <Tooltip
         label="New terminal"
         shortcut={formatShortcut(SHORTCUT_MAP.newTerminal.mac, SHORTCUT_MAP.newTerminal.win)}
       >
-        <button
-          aria-label="New terminal tab"
+        <Button
+          appearance="subtle"
+          size="small"
+          icon={<AddRegular />}
           className={styles.newTabButton}
           onClick={createTerminalForActiveWorkspace}
-        >
-          +
-        </button>
+          aria-label="New terminal tab"
+        />
       </Tooltip>
 
       <div className={styles.dragSpacer} />

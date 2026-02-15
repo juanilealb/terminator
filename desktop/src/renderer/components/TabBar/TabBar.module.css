@@ -1,10 +1,8 @@
+/* ── Tab bar container (titlebar drag region) ── */
 .tabBar {
   height: 40px;
   display: flex;
   align-items: stretch;
-  background:
-    linear-gradient(180deg, rgba(38, 31, 41, 0.98) 0%, rgba(26, 21, 30, 0.98) 100%),
-    var(--bg-elevated);
   border-bottom: 1px solid var(--border-default);
   overflow-x: auto;
   overflow-y: hidden;
@@ -16,68 +14,37 @@
   height: 5px;
 }
 
+/* ── Fluent TabList overrides ── */
 .tabList {
   min-width: 0;
-  display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   padding-left: 2px;
   -webkit-app-region: no-drag;
 }
 
+/* ── Individual tab (Fluent Tab overrides) ── */
 .tab {
-  height: calc(40px - 1px);
   min-width: 138px;
   max-width: 260px;
-  display: flex;
+  border-radius: var(--borderRadiusLarge) var(--borderRadiusLarge) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  -webkit-app-region: no-drag;
+}
+
+/* ── Tab content layout (title + close) ── */
+.tabContent {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: 3px;
-  margin-right: 2px;
-  padding: 0 var(--space-3);
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
-  -webkit-app-region: no-drag;
-  position: relative;
+  min-width: 0;
+  width: 100%;
 }
 
-.tab:hover {
-  color: var(--text-primary);
-  background: rgba(56, 46, 60, 0.7);
-}
-
-.tab.active {
-  color: var(--text-primary);
-  background: linear-gradient(180deg, rgba(45, 37, 49, 0.98) 0%, rgba(31, 24, 35, 0.98) 100%);
-  border-color: rgba(130, 108, 135, 0.5);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.tab.active::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -1px;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(72, 209, 138, 0.2) 0%, rgba(72, 209, 138, 0.95) 45%, rgba(99, 212, 217, 0.85) 100%);
-  border-radius: var(--radius-full);
-}
-
+/* ── Tab type icons ── */
 .tabIcon {
-  width: 14px;
-  flex-shrink: 0;
-  text-align: center;
   font-size: var(--font-size-xs);
   opacity: 0.9;
-}
-
-.tab.active .tabIcon {
-  opacity: 1;
 }
 
 .tabIcon.terminal {
@@ -92,16 +59,16 @@
   color: var(--accent-orange);
 }
 
+/* ── Tab title ── */
 .tabTitle {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
 }
 
+/* ── Unsaved indicator dot ── */
 .unsavedDot {
   width: 7px;
   height: 7px;
@@ -111,6 +78,7 @@
   flex-shrink: 0;
 }
 
+/* ── Saved flash animation ── */
 .savedFlash {
   animation: savedPulse 1s ease-out forwards;
 }
@@ -125,58 +93,43 @@
   }
 }
 
+/* ── Close button (span styled as subtle button) ── */
 .closeButton {
-  width: 16px;
-  height: 16px;
-  border: none;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px;
   opacity: 0;
   cursor: pointer;
-  transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast),
+    background var(--transition-fast);
   flex-shrink: 0;
+  color: var(--text-tertiary);
 }
 
-.tab:hover .closeButton,
-.tab.active .closeButton {
+.tab:hover .closeButton {
   opacity: 0.88;
 }
 
 .closeButton:hover {
   opacity: 1;
   color: var(--text-primary);
-  background: rgba(90, 76, 95, 0.55);
+  background: var(--bg-surface-hover);
 }
 
+/* ── New tab button ── */
 .newTabButton {
-  width: 28px;
-  height: 28px;
-  margin: 6px var(--space-1) 0 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-tertiary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-lg);
-  cursor: pointer;
+  margin: auto var(--space-1);
   flex-shrink: 0;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   -webkit-app-region: no-drag;
 }
 
-.newTabButton:hover {
-  background: rgba(68, 56, 72, 0.55);
-  border-color: rgba(130, 108, 135, 0.45);
-  color: var(--text-primary);
-}
-
+/* ── Drag spacer (fills remaining titlebar) ── */
 .dragSpacer {
   flex: 1;
   -webkit-app-region: drag;
