@@ -218,6 +218,7 @@ export function TerminalPanel({ ptyId, active }: Props) {
         const fitAddon = new FitAddon()
         const searchAddon = new SearchAddon()
         const unicode11Addon = new Unicode11Addon()
+        let webglAddon: WebglAddon | null = null
         const webLinksAddon = new WebLinksAddon((event, uri) => {
           event.preventDefault()
           window.open(uri, '_blank')
@@ -229,11 +230,12 @@ export function TerminalPanel({ ptyId, active }: Props) {
         term.loadAddon(unicode11Addon)
         term.unicode.activeVersion = '11'
         try {
-          const webglAddon = new WebglAddon()
+          webglAddon = new WebglAddon()
           term.loadAddon(webglAddon)
           webglAddon.onContextLoss(() => {
             // Dispose WebGL and let xterm fall back to the canvas renderer.
             webglAddon.dispose()
+            webglAddon = null
           })
         } catch (error) {
           console.warn('WebGL renderer unavailable, falling back to canvas:', error)
@@ -372,6 +374,8 @@ export function TerminalPanel({ ptyId, active }: Props) {
           onResizeDisposable.dispose()
           unsubData()
           termDiv.removeEventListener('contextmenu', onContextMenu)
+          webglAddon?.dispose()
+          webglAddon = null
           term.dispose()
           searchAddonRef.current = null
         }
