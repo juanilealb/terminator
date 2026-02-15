@@ -1,5 +1,5 @@
 import * as pty from 'node-pty'
-import { execFileSync } from 'child_process'
+import { execFile } from 'child_process'
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { WebContents } from 'electron'
@@ -31,6 +31,27 @@ interface ProcessSnapshot {
   at: number
   source: ProcessSnapshotSource
   entries: ProcessEntry[]
+}
+
+function execFileUtf8(file: string, args: string[], maxBuffer?: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      file,
+      args,
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        ...(maxBuffer ? { maxBuffer } : {}),
+      },
+      (error, stdout) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(stdout)
+      },
+    )
+  })
 }
 
 function parseCsvLine(line: string): string[] {
@@ -117,17 +138,13 @@ function parsePowerShellProcessOutput(output: string): ProcessEntry[] {
   return entries
 }
 
-function readProcessesViaPowerShell(): ProcessEntry[] {
+async function readProcessesViaPowerShell(): Promise<ProcessEntry[]> {
   try {
     const script = "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress"
-    const output = execFileSync(
+    const output = await execFileUtf8(
       'powershell.exe',
       ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
-      {
-        encoding: 'utf-8',
-        windowsHide: true,
-        maxBuffer: 16 * 1024 * 1024,
-      },
+      16 * 1024 * 1024,
     )
     return parsePowerShellProcessOutput(output)
   } catch {
@@ -135,12 +152,9 @@ function readProcessesViaPowerShell(): ProcessEntry[] {
   }
 }
 
-function readProcessesViaTasklist(): ProcessEntry[] {
+async function readProcessesViaTasklist(): Promise<ProcessEntry[]> {
   try {
-    const output = execFileSync('tasklist', ['/FO', 'CSV', '/NH'], {
-      encoding: 'utf-8',
-      windowsHide: true,
-    })
+    const output = await execFileUtf8('tasklist', ['/FO', 'CSV', '/NH'])
     return parseTasklistOutput(output)
   } catch {
     return []
@@ -356,11 +370,15 @@ export class PtyManager {
       ? setTimeout(() => flushInitialWrite('timer'), 750)
       : null
 
-    proc.onData((data) => {
+    proc.onData(async (data) => {
       if (!instance.webContents.isDestroyed()) {
         instance.webContents.send(`${IPC.PTY_DATA}:${id}`, data)
       }
-      this.handleCodexQuestionPrompt(instance, data)
+      try {
+        await this.handleCodexQuestionPrompt(instance, data)
+      } catch (err) {
+        debugLog('Codex prompt handler failed', { ptyId: id, pid: proc.pid, error: err })
+      }
       flushInitialWrite('first-output')
     })
 
@@ -397,7 +415,7 @@ export class PtyManager {
     if (instance) instance.onExitCallbacks.push(callback)
   }
 
-  write(ptyId: string, data: string): void {
+  async write(ptyId: string, data: string): Promise<void> {
     const instance = this.ptys.get(ptyId)
     if (!instance) return
     const isSubmit = /[\r\n]/.test(data)
@@ -406,13 +424,13 @@ export class PtyManager {
       instance.codexPromptBuffer = ''
       instance.codexAwaitingAnswer = false
       this.clearCodexWorkspaceWaiting(instance.workspaceId, instance.process.pid)
-      if (this.isCodexRunningUnder(instance.process.pid)) {
+      if (await this.isCodexRunningUnder(instance.process.pid)) {
         this.markCodexWorkspaceActive(instance.workspaceId, instance.process.pid)
       }
     } else if (
       instance.workspaceId
       && isSubmit
-      && this.isCodexRunningUnder(instance.process.pid)
+      && await this.isCodexRunningUnder(instance.process.pid)
     ) {
       // Codex doesn't expose a prompt-submit hook, so mark the workspace active
       // when Enter is sent while a Codex process is already running in this PTY.
@@ -456,11 +474,11 @@ export class PtyManager {
     return Array.from(this.ptys.keys())
   }
 
-  private getProcessSnapshot(): {
+  private async getProcessSnapshot(): Promise<{
     entries: ProcessEntry[]
     source: ProcessSnapshotSource
     cached: boolean
-  } {
+  }> {
     const now = Date.now()
     if (
       this.processSnapshotCache
@@ -473,7 +491,7 @@ export class PtyManager {
       }
     }
 
-    const psEntries = readProcessesViaPowerShell()
+    const psEntries = await readProcessesViaPowerShell()
     if (psEntries.length > 0) {
       this.processSnapshotCache = {
         at: now,
@@ -483,7 +501,7 @@ export class PtyManager {
       return { entries: psEntries, source: 'powershell', cached: false }
     }
 
-    const tasklistEntries = readProcessesViaTasklist()
+    const tasklistEntries = await readProcessesViaTasklist()
     if (tasklistEntries.length > 0) {
       this.processSnapshotCache = {
         at: now,
@@ -501,8 +519,8 @@ export class PtyManager {
     return { entries: [], source: 'none', cached: false }
   }
 
-  private isCodexRunningUnder(rootPid: number): boolean {
-    const { entries, source, cached } = this.getProcessSnapshot()
+  private async isCodexRunningUnder(rootPid: number): Promise<boolean> {
+    const { entries, source, cached } = await this.getProcessSnapshot()
     if (entries.length === 0) {
       debugLog('Codex process detection', {
         rootPid,
@@ -634,7 +652,7 @@ export class PtyManager {
     return hasHint && (hasHeader || hasUnanswered)
   }
 
-  private handleCodexQuestionPrompt(instance: PtyInstance, data: string): void {
+  private async handleCodexQuestionPrompt(instance: PtyInstance, data: string): Promise<void> {
     if (!instance.workspaceId) return
     if (instance.codexAwaitingAnswer) return
 
@@ -645,7 +663,7 @@ export class PtyManager {
     if (!this.looksLikeCodexQuestionPrompt(instance.codexPromptBuffer)) return
 
     const wasRunning = this.isCodexRunningMarked(instance.workspaceId, instance.process.pid)
-      || this.isCodexRunningUnder(instance.process.pid)
+      || await this.isCodexRunningUnder(instance.process.pid)
     if (!wasRunning) return
 
     // Codex is explicitly waiting on user input: clear spinner activity and
