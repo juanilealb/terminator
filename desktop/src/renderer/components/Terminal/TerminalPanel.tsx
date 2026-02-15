@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
-import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
-import { WebglAddon } from '@xterm/addon-webgl'
 import { useAppStore } from '../../store/app-store'
 import { subscribeTerminalUiActions } from '../../utils/terminal-actions'
 import styles from './TerminalPanel.module.css'
@@ -217,7 +215,6 @@ export function TerminalPanel({ ptyId, active }: Props) {
 
         const fitAddon = new FitAddon()
         const searchAddon = new SearchAddon()
-        const unicode11Addon = new Unicode11Addon()
         const webLinksAddon = new WebLinksAddon((event, uri) => {
           event.preventDefault()
           window.open(uri, '_blank')
@@ -226,18 +223,6 @@ export function TerminalPanel({ ptyId, active }: Props) {
         term.loadAddon(searchAddon)
         term.loadAddon(webLinksAddon)
         term.open(termDiv)
-        term.loadAddon(unicode11Addon)
-        term.unicode.activeVersion = '11'
-        try {
-          const webglAddon = new WebglAddon()
-          term.loadAddon(webglAddon)
-          webglAddon.onContextLoss(() => {
-            // Dispose WebGL and let xterm fall back to the canvas renderer.
-            webglAddon.dispose()
-          })
-        } catch (error) {
-          console.warn('WebGL renderer unavailable, falling back to canvas:', error)
-        }
         searchAddonRef.current = searchAddon
 
         term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
