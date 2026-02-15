@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button, Input } from '@fluentui/react-components'
+import {
+  GlobeRegular,
+  ArrowClockwiseRegular,
+  OpenRegular,
+} from '@fluentui/react-icons'
 import { normalizePreviewUrl } from '../../utils/prompt-template'
 import styles from './RightPanel.module.css'
 
@@ -30,24 +36,41 @@ export function PreviewPanel({ previewUrl, onChangeUrl }: Props) {
   return (
     <div className={styles.previewPanel}>
       <div className={styles.previewToolbar}>
-        <input
-          className={styles.previewInput}
+        <Input
+          className={styles.previewUrlInput}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(_e, data) => setDraft(data.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') applyDraft()
           }}
           placeholder="localhost:3000 or 3000"
+          size="small"
+          appearance="outline"
         />
-        <button className={styles.previewButton} onClick={applyDraft}>
+        <Button
+          appearance="subtle"
+          size="small"
+          onClick={applyDraft}
+          icon={<OpenRegular />}
+        >
           Open
-        </button>
-        <button className={styles.previewButton} onClick={() => setFrameKey((k) => k + 1)}>
+        </Button>
+        <Button
+          appearance="subtle"
+          size="small"
+          onClick={() => setFrameKey((k) => k + 1)}
+          icon={<ArrowClockwiseRegular />}
+        >
           Refresh
-        </button>
-        <button className={styles.previewButton} onClick={openExternal}>
+        </Button>
+        <Button
+          appearance="subtle"
+          size="small"
+          onClick={openExternal}
+          icon={<GlobeRegular />}
+        >
           Browser
-        </button>
+        </Button>
       </div>
 
       {!normalizedPreviewUrl ? (

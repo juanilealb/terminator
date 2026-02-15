@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  TabList,
+  Tab,
+  CounterBadge,
+  type SelectTabData,
+  type SelectTabEvent,
+} from '@fluentui/react-components'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
 import { useAppStore } from '../../store/app-store'
@@ -7,8 +14,9 @@ import { FileTree } from './FileTree'
 import { ChangedFiles } from './ChangedFiles'
 import { WorkspaceMemoryPanel } from './WorkspaceMemoryPanel'
 import { PreviewPanel } from './PreviewPanel'
-import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './RightPanel.module.css'
+
+type PanelMode = 'files' | 'changes' | 'memory' | 'preview'
 
 export function RightPanel() {
   const {
@@ -65,64 +73,61 @@ export function RightPanel() {
   }, [worktreePath, refreshChangeCount])
 
   useEffect(() => {
-    // Keep counter fresh when user switches back to Changes.
     if (rightPanelMode === 'changes') {
       void refreshChangeCount()
     }
   }, [rightPanelMode, refreshChangeCount])
 
+  const handleTabSelect = useCallback(
+    (_event: SelectTabEvent, data: SelectTabData) => {
+      setRightPanelMode(data.value as PanelMode)
+    },
+    [setRightPanelMode]
+  )
+
   return (
     <div className={styles.rightPanel}>
       <div className={styles.header}>
-        <div className={styles.modeToggle}>
-          <Tooltip
-            label="Files"
-            shortcut={formatShortcut(SHORTCUT_MAP.filesPanel.mac, SHORTCUT_MAP.filesPanel.win)}
+        <TabList
+          selectedValue={rightPanelMode}
+          onTabSelect={handleTabSelect}
+          appearance="subtle"
+          size="small"
+          className={styles.tabList}
+        >
+          <Tab
+            value="files"
+            title={`Files (${formatShortcut(SHORTCUT_MAP.filesPanel.mac, SHORTCUT_MAP.filesPanel.win)})`}
           >
-            <button
-              className={`${styles.modeButton} ${rightPanelMode === 'files' ? styles.active : ''}`}
-              onClick={() => setRightPanelMode('files')}
-            >
-              Files
-            </button>
-          </Tooltip>
-          <Tooltip
-            label="Changes"
-            shortcut={formatShortcut(SHORTCUT_MAP.changesPanel.mac, SHORTCUT_MAP.changesPanel.win)}
+            Files
+          </Tab>
+          <Tab
+            value="changes"
+            title={`Changes (${formatShortcut(SHORTCUT_MAP.changesPanel.mac, SHORTCUT_MAP.changesPanel.win)})`}
           >
-            <button
-              className={`${styles.modeButton} ${rightPanelMode === 'changes' ? styles.active : ''}`}
-              onClick={() => setRightPanelMode('changes')}
-            >
-              Changes
-              {changeCount > 0 && (
-                <span className={styles.countBadge}>{changeCount}</span>
-              )}
-            </button>
-          </Tooltip>
-          <Tooltip
-            label="Memory"
-            shortcut={formatShortcut(SHORTCUT_MAP.memoryPanel.mac, SHORTCUT_MAP.memoryPanel.win)}
+            Changes
+            {changeCount > 0 && (
+              <CounterBadge
+                count={changeCount}
+                size="small"
+                appearance="filled"
+                className={styles.badge}
+              />
+            )}
+          </Tab>
+          <Tab
+            value="memory"
+            title={`Memory (${formatShortcut(SHORTCUT_MAP.memoryPanel.mac, SHORTCUT_MAP.memoryPanel.win)})`}
           >
-            <button
-              className={`${styles.modeButton} ${rightPanelMode === 'memory' ? styles.active : ''}`}
-              onClick={() => setRightPanelMode('memory')}
-            >
-              Memory
-            </button>
-          </Tooltip>
-          <Tooltip
-            label="Preview"
-            shortcut={formatShortcut(SHORTCUT_MAP.previewPanel.mac, SHORTCUT_MAP.previewPanel.win)}
+            Memory
+          </Tab>
+          <Tab
+            value="preview"
+            title={`Preview (${formatShortcut(SHORTCUT_MAP.previewPanel.mac, SHORTCUT_MAP.previewPanel.win)})`}
           >
-            <button
-              className={`${styles.modeButton} ${rightPanelMode === 'preview' ? styles.active : ''}`}
-              onClick={() => setRightPanelMode('preview')}
-            >
-              Preview
-            </button>
-          </Tooltip>
-        </div>
+            Preview
+          </Tab>
+        </TabList>
       </div>
 
       <div className={styles.content}>

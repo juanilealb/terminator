@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button, Input, Textarea } from '@fluentui/react-components'
+import {
+  SaveRegular,
+  ArrowUndoRegular,
+  DeleteRegular,
+} from '@fluentui/react-icons'
 import type { Workspace } from '../../store/types'
 import { useAppStore } from '../../store/app-store'
 import { expandPromptTemplate } from '../../utils/prompt-template'
@@ -194,11 +200,14 @@ export function WorkspaceMemoryPanel({ workspace }: Props) {
     <div className={styles.memoryPanel}>
       <div className={styles.memorySection}>
         <div className={styles.memoryTitle}>Workspace memory</div>
-        <textarea
+        <Textarea
           className={styles.memoryInput}
           placeholder="Persistent notes, constraints, links, and reminders for this workspace..."
           value={workspace.memory ?? ''}
-          onChange={(e) => updateWorkspaceMemory(workspace.id, e.target.value)}
+          onChange={(_e, data) => updateWorkspaceMemory(workspace.id, data.value)}
+          resize="vertical"
+          size="small"
+          appearance="outline"
         />
       </div>
 
@@ -209,14 +218,15 @@ export function WorkspaceMemoryPanel({ workspace }: Props) {
         ) : (
           <div className={styles.templateList}>
             {settings.promptTemplates.map((template) => (
-              <button
+              <Button
                 key={template.id}
-                className={styles.templateButton}
+                appearance="outline"
+                size="small"
                 onClick={() => sendTemplateToTerminal(template.name, template.content)}
                 title={template.content}
               >
                 {template.name}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -225,15 +235,22 @@ export function WorkspaceMemoryPanel({ workspace }: Props) {
       <div className={styles.memorySection}>
         <div className={styles.memoryTitle}>Snapshots</div>
         <div className={styles.snapshotCreateRow}>
-          <input
-            className={styles.snapshotInput}
+          <Input
             placeholder="Snapshot label"
             value={snapshotLabel}
-            onChange={(e) => setSnapshotLabel(e.target.value)}
+            onChange={(_e, data) => setSnapshotLabel(data.value)}
+            size="small"
+            appearance="outline"
+            style={{ flex: 1 }}
           />
-          <button className={styles.snapshotCreateButton} onClick={handleCreateSnapshot}>
+          <Button
+            appearance="outline"
+            size="small"
+            onClick={handleCreateSnapshot}
+            icon={<SaveRegular />}
+          >
             Save
-          </button>
+          </Button>
         </div>
         <div className={styles.snapshotList}>
           {loadingSnapshots && <div className={styles.memoryEmpty}>Loading snapshots...</div>}
@@ -247,12 +264,22 @@ export function WorkspaceMemoryPanel({ workspace }: Props) {
                 <span className={styles.snapshotDate}>{formatSnapshotDate(snapshot.createdAt)}</span>
               </div>
               <div className={styles.snapshotActions}>
-                <button className={styles.snapshotActionButton} onClick={() => restoreSnapshot(snapshot)}>
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  onClick={() => restoreSnapshot(snapshot)}
+                  icon={<ArrowUndoRegular />}
+                >
                   Restore
-                </button>
-                <button className={styles.snapshotActionButton} onClick={() => deleteSnapshot(snapshot)}>
+                </Button>
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  onClick={() => deleteSnapshot(snapshot)}
+                  icon={<DeleteRegular />}
+                >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           ))}
