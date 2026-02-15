@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Allotment } from 'allotment'
-import { FluentProvider, webDarkTheme, webLightTheme } from '@fluentui/react-components'
+import { FluentProvider, webDarkTheme, webLightTheme, type Theme } from '@fluentui/react-components'
 import type { ThemeChangedPayload, ThemePreference } from '@shared/ipc-channels'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
@@ -25,6 +25,92 @@ import styles from './App.module.css'
 const DEFAULT_THEME: ThemeChangedPayload = {
   dark: true,
   accentColor: '#58abff',
+}
+
+/** Custom dark theme: override Fluent neutral tokens to match the sidebar's warm-dark palette */
+const customDarkTheme: Theme = {
+  ...webDarkTheme,
+  // Backgrounds — deep blacks with warm purple tint
+  colorNeutralBackground1: '#151218',
+  colorNeutralBackground1Hover: '#1a171e',
+  colorNeutralBackground1Pressed: '#121013',
+  colorNeutralBackground1Selected: '#1a171e',
+  colorNeutralBackground2: '#1a171e',
+  colorNeutralBackground2Hover: '#211b21',
+  colorNeutralBackground2Pressed: '#2b232b',
+  colorNeutralBackground2Selected: '#2a2230',
+  colorNeutralBackground3: '#1e1a22',
+  colorNeutralBackground4: '#211b21',
+  colorNeutralBackground5: '#2a2428',
+  colorNeutralBackground6: '#2b232b',
+  colorNeutralBackgroundStatic: '#1e1a22',
+  colorNeutralBackgroundAlpha: 'rgba(18, 16, 19, 0.5)',
+  colorNeutralBackgroundAlpha2: 'rgba(18, 16, 19, 0.7)',
+  colorNeutralBackgroundInverted: '#f4edf7',
+  colorNeutralBackgroundInvertedDisabled: 'rgba(244, 237, 247, 0.1)',
+  // Subtle backgrounds — hover/pressed/selected states
+  colorSubtleBackground: 'transparent',
+  colorSubtleBackgroundHover: '#2b232b',
+  colorSubtleBackgroundPressed: '#332936',
+  colorSubtleBackgroundSelected: '#2a2230',
+  colorSubtleBackgroundLightAlphaHover: 'rgba(43, 35, 43, 0.7)',
+  colorSubtleBackgroundLightAlphaPressed: 'rgba(51, 41, 54, 0.5)',
+  colorSubtleBackgroundLightAlphaSelected: 'transparent',
+  colorSubtleBackgroundInverted: 'transparent',
+  colorSubtleBackgroundInvertedHover: 'rgba(0, 0, 0, 0.1)',
+  colorSubtleBackgroundInvertedPressed: 'rgba(0, 0, 0, 0.3)',
+  colorSubtleBackgroundInvertedSelected: 'rgba(0, 0, 0, 0.2)',
+  // Strokes — subtle low-contrast borders
+  colorNeutralStroke1: '#3f3340',
+  colorNeutralStroke1Hover: '#544458',
+  colorNeutralStroke1Pressed: '#3f3340',
+  colorNeutralStroke1Selected: '#544458',
+  colorNeutralStroke2: '#2e2630',
+  colorNeutralStrokeAccessible: '#544458',
+  colorNeutralStrokeAccessibleHover: '#6e5e70',
+  colorNeutralStrokeAccessiblePressed: '#544458',
+  colorNeutralStrokeAccessibleSelected: '#58abff',
+  colorNeutralStrokeAlpha: 'rgba(62, 51, 64, 0.4)',
+  colorNeutralStrokeAlpha2: 'rgba(62, 51, 64, 0.2)',
+  colorNeutralStrokeOnBrand: '#121013',
+  colorNeutralStrokeOnBrand2: '#121013',
+  colorNeutralStrokeOnBrand2Hover: '#121013',
+  colorNeutralStrokeOnBrand2Pressed: '#121013',
+  colorNeutralStrokeOnBrand2Selected: '#121013',
+  // Foreground — high-contrast text with warm tint
+  colorNeutralForeground1: '#f4edf7',
+  colorNeutralForeground1Hover: '#f4edf7',
+  colorNeutralForeground1Pressed: '#f4edf7',
+  colorNeutralForeground1Selected: '#f4edf7',
+  colorNeutralForeground2: '#b8adb8',
+  colorNeutralForeground2Hover: '#f4edf7',
+  colorNeutralForeground2Pressed: '#f4edf7',
+  colorNeutralForeground2Selected: '#f4edf7',
+  colorNeutralForeground2BrandHover: '#58abff',
+  colorNeutralForeground2BrandPressed: '#58abff',
+  colorNeutralForeground2BrandSelected: '#58abff',
+  colorNeutralForeground3: '#7f7380',
+  colorNeutralForeground3Hover: '#b8adb8',
+  colorNeutralForeground3Pressed: '#b8adb8',
+  colorNeutralForeground3Selected: '#b8adb8',
+  colorNeutralForeground3BrandHover: '#58abff',
+  colorNeutralForeground3BrandPressed: '#58abff',
+  colorNeutralForeground3BrandSelected: '#58abff',
+  colorNeutralForeground4: '#6e5e70',
+  colorNeutralForegroundDisabled: '#544458',
+  colorNeutralForegroundInverted: '#121013',
+  colorNeutralForegroundInvertedHover: '#121013',
+  colorNeutralForegroundInvertedPressed: '#121013',
+  colorNeutralForegroundInvertedSelected: '#121013',
+  colorNeutralForegroundInvertedDisabled: 'rgba(18, 16, 19, 0.4)',
+  colorNeutralForegroundOnBrand: '#121013',
+  // Shadows — deeper for dark theme
+  colorNeutralShadowAmbient: 'rgba(0, 0, 0, 0.30)',
+  colorNeutralShadowKey: 'rgba(0, 0, 0, 0.36)',
+  colorNeutralShadowAmbientLighter: 'rgba(0, 0, 0, 0.16)',
+  colorNeutralShadowKeyLighter: 'rgba(0, 0, 0, 0.20)',
+  colorNeutralShadowAmbientDarker: 'rgba(0, 0, 0, 0.44)',
+  colorNeutralShadowKeyDarker: 'rgba(0, 0, 0, 0.52)',
 }
 
 function hexToRgba(hex: string, alpha: number): string | null {
@@ -147,7 +233,7 @@ export function App() {
   }, [settings.themePreference])
 
   const isDark = settings.themePreference === 'system' ? osTheme.dark : settings.themePreference === 'dark'
-  const fluentTheme = useMemo(() => isDark ? webDarkTheme : webLightTheme, [isDark])
+  const fluentTheme = useMemo(() => isDark ? customDarkTheme : webLightTheme, [isDark])
 
   useEffect(() => {
     applyThemeToDocument(osTheme, settings.themePreference)
