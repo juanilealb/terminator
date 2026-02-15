@@ -1,5 +1,6 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Allotment } from 'allotment'
+import { FluentProvider, webDarkTheme, webLightTheme } from '@fluentui/react-components'
 import type { ThemeChangedPayload, ThemePreference } from '@shared/ipc-channels'
 import { formatShortcut } from '@shared/platform'
 import { SHORTCUT_MAP } from '@shared/shortcuts'
@@ -145,11 +146,15 @@ export function App() {
     window.api.app.setThemePreference(settings.themePreference)
   }, [settings.themePreference])
 
+  const isDark = settings.themePreference === 'system' ? osTheme.dark : settings.themePreference === 'dark'
+  const fluentTheme = useMemo(() => isDark ? webDarkTheme : webLightTheme, [isDark])
+
   useEffect(() => {
     applyThemeToDocument(osTheme, settings.themePreference)
   }, [osTheme, settings.themePreference])
 
   return (
+    <FluentProvider theme={fluentTheme} style={{ background: 'transparent' }}>
     <div className={styles.app} style={appStyle}>
       <div className={styles.layout}>
         {settingsOpen ? (
@@ -267,5 +272,6 @@ export function App() {
       {commandPaletteVisible && <CommandPalette />}
       <ToastContainer />
     </div>
+    </FluentProvider>
   )
 }
